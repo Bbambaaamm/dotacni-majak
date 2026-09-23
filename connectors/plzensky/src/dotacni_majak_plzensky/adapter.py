@@ -228,7 +228,7 @@ class PlzenskyAdapter(SourceAdapter):
             response = await ctx.http.get(INDEX_URL)
             healthy = (
                 response.status_code == 200
-                and "plzensky" in _normalize(response.text)
+                and "plzen" in _normalize(response.text)
                 and "dotacni" in _normalize(response.text)
             )
             status = HealthStatus.HEALTHY if healthy else HealthStatus.DEGRADED
