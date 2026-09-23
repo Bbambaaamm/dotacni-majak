@@ -266,6 +266,34 @@
       "type": "RELATED",
       "weight": 0.55,
       "language": "cs"
+    },
+    {
+      "term": "PLAYGROUND",
+      "text": "dětského hřiště",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "CULTURAL_MONUMENT",
+      "text": "kulturní památky",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SOCIAL_SERVICE",
+      "text": "sociální služby",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "AGRICULTURAL_TECHNOLOGY",
+      "text": "zemědělské technologie",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
     }
   ]
 }
