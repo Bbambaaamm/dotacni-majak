@@ -1,0 +1,236 @@
+{
+  "version": "1.0.0",
+  "synonyms": [
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisový kurt",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisové kurty",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisový dvorec",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisové dvorce",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "SPORT_FACILITY",
+      "text": "sportoviště",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "SPORT_FACILITY",
+      "text": "sportovní areál",
+      "type": "RELATED",
+      "weight": 0.85,
+      "language": "cs"
+    },
+    {
+      "term": "SPORT_INFRASTRUCTURE",
+      "text": "sportovní infrastruktura",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "OUTDOOR_SPORT_FACILITY",
+      "text": "venkovní sportoviště",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "RECONSTRUCTION",
+      "text": "rekonstrukce",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "RECONSTRUCTION",
+      "text": "rekonstruovat",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "RENOVATION",
+      "text": "obnova",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "RENOVATION",
+      "text": "obnovit",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "MODERNIZATION",
+      "text": "modernizace",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "MODERNIZATION",
+      "text": "modernizovat",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "TECHNICAL_IMPROVEMENT",
+      "text": "technické zhodnocení",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "CONSTRUCTION",
+      "text": "výstavba",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "CONSTRUCTION",
+      "text": "výstavba nového",
+      "type": "RELATED",
+      "weight": 0.8,
+      "language": "cs"
+    },
+    {
+      "term": "INVESTMENT",
+      "text": "investice",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SPORT_LIGHTING",
+      "text": "osvětlení sportoviště",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SPORT_LIGHTING",
+      "text": "osvětlení kurtů",
+      "type": "SYNONYM",
+      "weight": 0.9,
+      "language": "cs"
+    },
+    {
+      "term": "FENCING",
+      "text": "oplocení",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "ACCESSIBILITY",
+      "text": "bezbariérový přístup",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "PHOTOVOLTAICS",
+      "text": "fotovoltaika",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "PHOTOVOLTAICS",
+      "text": "fotovoltaická elektrárna",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "PHOTOVOLTAICS",
+      "text": "FVE",
+      "type": "ABBREVIATION",
+      "weight": 0.9,
+      "language": "cs"
+    },
+    {
+      "term": "BUILDING_INSULATION",
+      "text": "zateplení",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "PLAYGROUND",
+      "text": "dětské hřiště",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SEWERAGE",
+      "text": "kanalizace",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "CULTURAL_MONUMENT",
+      "text": "kulturní památka",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "BUSINESS_DIGITALIZATION",
+      "text": "digitalizace firmy",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "BUSINESS_DIGITALIZATION",
+      "text": "digitalizace podniku",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "AGRICULTURAL_TECHNOLOGY",
+      "text": "zemědělská technologie",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SOCIAL_SERVICE",
+      "text": "sociální služba",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    }
+  ]
+}
