@@ -112,6 +112,9 @@ jobs:
       - name: Install Liberecký regional connector test dependencies
         run: python3 -m pip install -e connectors/liberecky
 
+      - name: Install Ústecký regional connector test dependencies
+        run: python3 -m pip install -e connectors/ustecky
+
       - name: Install Applicant profile package
         run: python3 -m pip install -e packages/applicant
 
@@ -149,4 +152,4 @@ jobs:
         run: python3 -m unittest discover -s tests/python -p 'test_*.py'
 
       - name: Compile Python sources
-        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src connectors/optak/src connectors/irop/src connectors/mpsv/src connectors/mmr/src connectors/mk/src connectors/mze/src connectors/tacr/src connectors/dzs/src connectors/nrb/src connectors/msmt/src connectors/modernization-fund/src connectors/dotaceeu/src connectors/praha/src connectors/karlovarsky/src connectors/plzensky/src connectors/jihocesky/src connectors/liberecky/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/search/src packages/watches/src
+        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src connectors/optak/src connectors/irop/src connectors/mpsv/src connectors/mmr/src connectors/mk/src connectors/mze/src connectors/tacr/src connectors/dzs/src connectors/nrb/src connectors/msmt/src connectors/modernization-fund/src connectors/dotaceeu/src connectors/praha/src connectors/karlovarsky/src connectors/plzensky/src connectors/jihocesky/src connectors/liberecky/src connectors/ustecky/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/search/src packages/watches/src
