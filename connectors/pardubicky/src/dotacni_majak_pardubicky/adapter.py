@@ -180,28 +180,56 @@ def _labeled_paragraph(body: str, label: str, *, stop_labels: tuple[str, ...] = 
 
 def _application_window(body: str) -> tuple[datetime | None, datetime | None]:
     folded = _normalize(body)
-    patterns = (
+
+    # Public programme details commonly shorten the first date and publish the
+    # year only once, for example "1. 1. – 2. 2. 2026 12:00". Parse the
+    # components explicitly so we do not silently fall back to a less precise
+    # card deadline and lose the provider's exact closing time.
+    labelled = re.search(
         r"termin\s+pro\s+predkladani\s+zadosti[^:]*:\s*"
-        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
-        r"\s*[–-]\s*"
-        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
+        r"(\d{1,2})\.\s*(\d{1,2})\.\s*(?:(20\d{2})\s*)?"
+        r"[–-]\s*"
+        r"(\d{1,2})\.\s*(\d{1,2})\.\s*(20\d{2})"
         r"(?:\s+(\d{1,2}):(\d{2}))?",
+        folded,
+        re.I,
+    )
+    if labelled:
+        d1, m1, y1, d2, m2, y2, hh, mm = labelled.groups()
+        start_year = y1 or y2
+        opens = _date(f"{d1}. {m1}. {start_year}")
+        hour = int(hh) if hh is not None else None
+        minute = int(mm or 0)
+        closes = _date(
+            f"{d2}. {m2}. {y2}",
+            closing=hour is None,
+            hour=hour,
+            minute=minute,
+        )
+        return opens, closes
+
+    by_words = re.search(
         r"zadosti[^.]{0,100}?od\s+"
         r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
         r"\s+do\s+"
         r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
         r"(?:\s+(\d{1,2}):(\d{2}))?",
+        folded,
+        re.I,
     )
-    for pattern in patterns:
-        match = re.search(pattern, folded, re.I)
-        if not match:
-            continue
-        hour = int(match.group(3)) if match.group(3) is not None else None
-        minute = int(match.group(4) or 0)
+    if by_words:
+        hour = int(by_words.group(3)) if by_words.group(3) is not None else None
+        minute = int(by_words.group(4) or 0)
         return (
-            _date(match.group(1)),
-            _date(match.group(2), closing=hour is None, hour=hour, minute=minute),
+            _date(by_words.group(1)),
+            _date(
+                by_words.group(2),
+                closing=hour is None,
+                hour=hour,
+                minute=minute,
+            ),
         )
+
     return None, None
 
 
