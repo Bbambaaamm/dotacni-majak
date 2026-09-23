@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/eligibility-evaluation.schema.json",
+  "title": "EligibilityEvaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "projectId", "applicantProfileId",
+    "grantCallVersionId", "result", "rootResult", "engineVersion",
+    "inputSnapshotHash", "evaluatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "projectId": {"type": "string", "minLength": 1},
+    "applicantProfileId": {"type": "string", "minLength": 1},
+    "grantCallVersionId": {"type": "string", "minLength": 1},
+    "result": {
+      "enum": [
+        "ELIGIBLE", "LIKELY_ELIGIBLE", "NEEDS_INFORMATION",
+        "INELIGIBLE", "NEEDS_REVIEW"
+      ]
+    },
+    "rootResult": {
+      "enum": ["PASS", "FAIL", "UNKNOWN", "ERROR", "NOT_APPLICABLE"]
+    },
+    "engineVersion": {"type": "string", "minLength": 1},
+    "inputSnapshotHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "evaluatedAt": {"type": "string", "format": "date-time"}
+  }
+}
