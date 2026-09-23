@@ -213,6 +213,24 @@ class WorkspaceEngineTest(unittest.TestCase):
             "ELIGIBILITY_INELIGIBLE",
         )
 
+    def test_unsupported_finance_instrument_creates_explicit_blocker(self):
+        workspace = self.engine.create(
+            workspace_id="w1",
+            project_id="p1",
+            grant_call_id="g1",
+            baseline_grant_version_id="v1",
+            requirements=(),
+            eligibility=eligibility(EligibilityStatus.ELIGIBLE),
+            finance=finance(FinanceStatus.INSTRUMENT_NOT_SUPPORTED),
+        )
+        readiness = self.engine.readiness(workspace)
+        self.assertEqual(readiness.state, ReadinessState.BLOCKED)
+        self.assertEqual(
+            readiness.next_action.reason_code,
+            "FINANCE_INSTRUMENT_NOT_SUPPORTED",
+        )
+        self.assertIn("specializovaný finanční výpočet", readiness.next_action.title)
+
     def test_baseline_version_change_requires_review(self):
         workspace = self.engine.create(
             workspace_id="w1",
