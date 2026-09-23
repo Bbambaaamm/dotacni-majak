@@ -15,12 +15,19 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Diagnose NSA network path
+        continue-on-error: true
+        run: |
+          echo "IPv4:"
+          curl -4 -I --connect-timeout 10 --max-time 15 https://nsa.gov.cz/dotace-investicni/ || true
+          echo "IPv6:"
+          curl -6 -I --connect-timeout 10 --max-time 15 https://nsa.gov.cz/dotace-investicni/ || true
       - name: Install dependencies
         run: |
           python3 -m pip install -e packages/source-sdk
