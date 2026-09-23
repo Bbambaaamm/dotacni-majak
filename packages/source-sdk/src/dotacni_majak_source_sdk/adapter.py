@@ -25,6 +25,7 @@ class AdapterContext:
     logger: Any
     budget: Any
     now: datetime
+    snapshots: Any | None = None
 
 
 class SourceAdapter(ABC):
