@@ -39,6 +39,7 @@ class MigrationTest(unittest.TestCase):
             "scheduler_watchdog_events", "historical_awards",
             "historical_award_ontology_terms", "relevance_feedback",
             "project_share_links", "share_audit_events",
+            "project_owner_capabilities", "project_owner_audit_events",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -65,6 +66,8 @@ class MigrationTest(unittest.TestCase):
             "idx_projects_owner_updated",
             "idx_project_share_links_active",
             "idx_share_audit_project_created",
+            "idx_project_owner_capability_hash",
+            "idx_project_owner_audit_project_created",
         }:
             self.assertIn(name, indexes)
 
