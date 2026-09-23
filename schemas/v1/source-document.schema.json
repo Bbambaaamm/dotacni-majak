@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/source-document.schema.json",
+  "title": "SourceDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "sourceId", "documentType", "sourceUrl", "firstSeenAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallId": {"type": ["string", "null"]},
+    "sourceId": {"type": "string", "minLength": 1},
+    "documentType": {"enum": ["CALL_DOCUMENT", "GUIDELINES", "ANNEX", "APPLICATION_FORM", "FAQ", "PROGRAMME_DOCUMENT", "OTHER"]},
+    "title": {"type": ["string", "null"]},
+    "sourceUrl": {"type": "string", "format": "uri"},
+    "firstSeenAt": {"type": "string", "format": "date-time"},
+    "lastSeenAt": {"type": ["string", "null"], "format": "date-time"}
+  }
+}
