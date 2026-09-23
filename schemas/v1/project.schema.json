@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/project.schema.json",
+  "title": "Project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "naturalLanguageIntent", "currencyCode", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "applicantProfileId": {"type": ["string", "null"]},
+    "title": {"type": ["string", "null"]},
+    "naturalLanguageIntent": {"type": "string", "minLength": 1},
+    "locationId": {"type": ["string", "null"]},
+    "estimatedTotalBudget": {"type": ["number", "null"], "minimum": 0},
+    "currencyCode": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "desiredGrantAmount": {"type": ["number", "null"], "minimum": 0},
+    "maxOwnContributionPercent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "maxOwnContributionAmount": {"type": ["number", "null"], "minimum": 0},
+    "plannedStart": {"type": ["string", "null"], "format": "date"},
+    "plannedEnd": {"type": ["string", "null"], "format": "date"},
+    "investmentType": {"type": ["string", "null"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"}
+  }
+}
