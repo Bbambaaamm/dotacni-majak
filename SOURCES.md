@@ -193,3 +193,14 @@
 - **Finance safety:** částky se převádějí do integer minor units; `miraPodporaZadostMax` zůstává source value, dokud centrální finance normalization nepotvrdí scale/jednotku.
 - **Safety:** žádné přihlášení, podávání žádostí ani privátní API; disappearance není cancellation.
 - **Live smoke:** `scripts/smoke_jdp_connector.py`.
+
+
+## Kraj Vysočina — LIMITED official-announcement coverage
+
+- **Oficiální veřejný zdroj:** `kr-vysocina.cz`, rejstřík/tiskové zprávy se štítkem „Fond Vysočiny“.
+- **Connector:** `connectors/vysocina`.
+- **Coverage:** **LIMITED** — pouze oficiální veřejná oznámení, která jednoznačně vyhlašují program nebo uvádějí podávání žádostí.
+- **Chráněný katalog:** `fondvysociny.cz` se neobchází ani nescrapuje přes jeho ochrany.
+- **Filtrace:** výsledkové články o již rozdělených dotacích se nepublikují jako aktuální výzvy; agregované články o více programech se raději vynechají než chybně sloučí do jedné výzvy.
+- **RAW-first:** index pages, detail announcement pages i stejno-originové veřejné přílohy.
+- **Region:** CZ063.
