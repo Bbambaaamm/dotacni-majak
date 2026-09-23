@@ -1,0 +1,269 @@
+{
+  "version": "1.0.0",
+  "edges": [
+    {
+      "from": "SPORT_INFRASTRUCTURE",
+      "to": "SPORT",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SPORT_FACILITY",
+      "to": "SPORT_INFRASTRUCTURE",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "OUTDOOR_SPORT_FACILITY",
+      "to": "SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "INDOOR_SPORT_FACILITY",
+      "to": "SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "TENNIS",
+      "to": "SPORT",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "TENNIS_COURT",
+      "to": "TENNIS",
+      "relation": "RELATED",
+      "weight": 0.95
+    },
+    {
+      "from": "TENNIS_COURT",
+      "to": "OUTDOOR_SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "TENNIS_HALL",
+      "to": "TENNIS",
+      "relation": "RELATED",
+      "weight": 0.95
+    },
+    {
+      "from": "TENNIS_HALL",
+      "to": "INDOOR_SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "FOOTBALL",
+      "to": "SPORT",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "FOOTBALL_PITCH",
+      "to": "FOOTBALL",
+      "relation": "RELATED",
+      "weight": 0.95
+    },
+    {
+      "from": "FOOTBALL_PITCH",
+      "to": "OUTDOOR_SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "ATHLETICS",
+      "to": "SPORT",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "ATHLETICS_TRACK",
+      "to": "ATHLETICS",
+      "relation": "RELATED",
+      "weight": 0.95
+    },
+    {
+      "from": "ATHLETICS_TRACK",
+      "to": "OUTDOOR_SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SPORT_LIGHTING",
+      "to": "LIGHTING",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SPORT_LIGHTING",
+      "to": "SPORT_FACILITY",
+      "relation": "PART_OF",
+      "weight": 0.9
+    },
+    {
+      "from": "FENCING",
+      "to": "SPORT_FACILITY",
+      "relation": "RELATED",
+      "weight": 0.55
+    },
+    {
+      "from": "ACCESSIBILITY",
+      "to": "SPORT_FACILITY",
+      "relation": "RELATED",
+      "weight": 0.65
+    },
+    {
+      "from": "RECONSTRUCTION",
+      "to": "RENOVATION",
+      "relation": "RELATED",
+      "weight": 0.9
+    },
+    {
+      "from": "RECONSTRUCTION",
+      "to": "MODERNIZATION",
+      "relation": "RELATED",
+      "weight": 0.85
+    },
+    {
+      "from": "RECONSTRUCTION",
+      "to": "TECHNICAL_IMPROVEMENT",
+      "relation": "RELATED",
+      "weight": 0.9
+    },
+    {
+      "from": "TECHNICAL_IMPROVEMENT",
+      "to": "INVESTMENT",
+      "relation": "RELATED",
+      "weight": 0.85
+    },
+    {
+      "from": "CONSTRUCTION",
+      "to": "INVESTMENT",
+      "relation": "RELATED",
+      "weight": 0.85
+    },
+    {
+      "from": "EQUIPMENT_PURCHASE",
+      "to": "INVESTMENT",
+      "relation": "RELATED",
+      "weight": 0.75
+    },
+    {
+      "from": "ENERGY_SAVINGS",
+      "to": "ENERGY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "PHOTOVOLTAICS",
+      "to": "ENERGY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "BUILDING_INSULATION",
+      "to": "ENERGY_SAVINGS",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "PUBLIC_BUILDING",
+      "to": "BUILDINGS",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SCHOOL_BUILDING",
+      "to": "PUBLIC_BUILDING",
+      "relation": "BROADER",
+      "weight": 0.95
+    },
+    {
+      "from": "SCHOOL_BUILDING",
+      "to": "SCHOOL",
+      "relation": "RELATED",
+      "weight": 0.9
+    },
+    {
+      "from": "SCHOOL",
+      "to": "EDUCATION",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "BUSINESS_DIGITALIZATION",
+      "to": "DIGITALIZATION",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "BUSINESS_DIGITALIZATION",
+      "to": "BUSINESS",
+      "relation": "RELATED",
+      "weight": 0.9
+    },
+    {
+      "from": "SME",
+      "to": "BUSINESS",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "INNOVATION",
+      "to": "RESEARCH",
+      "relation": "RELATED",
+      "weight": 0.8
+    },
+    {
+      "from": "AGRICULTURAL_TECHNOLOGY",
+      "to": "AGRICULTURE",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "WASTEWATER",
+      "to": "WATER",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SEWERAGE",
+      "to": "WASTEWATER",
+      "relation": "RELATED",
+      "weight": 0.9
+    },
+    {
+      "from": "CULTURAL_MONUMENT",
+      "to": "HERITAGE",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "CULTURAL_MONUMENT",
+      "to": "CULTURE",
+      "relation": "RELATED",
+      "weight": 0.8
+    },
+    {
+      "from": "SOCIAL_SERVICE",
+      "to": "SOCIAL",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "PLAYGROUND",
+      "to": "PUBLIC_SPACE",
+      "relation": "RELATED",
+      "weight": 0.8
+    },
+    {
+      "from": "PLAYGROUND",
+      "to": "COMMUNITY",
+      "relation": "RELATED",
+      "weight": 0.65
+    }
+  ]
+}
