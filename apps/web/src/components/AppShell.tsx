@@ -12,7 +12,12 @@ export function AppShell({ children }: PropsWithChildren) {
       <header className="site-header">
         <div className="shell site-header__inner">
           <a className="brand" href="/" aria-label="Dotační maják — domů">
-            <span className="brand__mark" aria-hidden="true">◭</span>
+            <img
+              className="brand__mark"
+              src="/brand/lighthouse-mark.svg"
+              alt=""
+              aria-hidden="true"
+            />
             <span>
               <strong>Dotační maják</strong>
               <small>Najde. Pohlídá. Dotáhne.</small>
