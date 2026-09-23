@@ -1,0 +1,31 @@
+name: JDP public endpoint research
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research_jdp_public_endpoints.mjs"
+      - ".github/workflows/jdp-public-endpoint-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install root dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Probe only public JDP network metadata
+        run: node scripts/research_jdp_public_endpoints.mjs
