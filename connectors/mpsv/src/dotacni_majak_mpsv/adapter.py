@@ -81,7 +81,7 @@ def _submission_window(text: str) -> tuple[datetime | None, datetime | None]:
 
     # Later extensions override the originally announced close date.
     extensions = re.findall(
-        r"prodlouž\w*\s+(?:až\s+)?do\s+"
+        r"(?:prodlouž\w*|prodluž\w*)\s+(?:až\s+)?do\s+"
         r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
         text,
         re.I,
