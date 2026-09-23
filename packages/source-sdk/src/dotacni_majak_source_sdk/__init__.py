@@ -19,6 +19,7 @@ from .http import (
     GuardedHttpClient,
     GuardedHttpError,
     GuardedResponse,
+    RequestTooLargeError,
     ResponseTooLargeError,
     TooManyRedirectsError,
     UnsafeAddressError,
@@ -31,6 +32,6 @@ __all__ = [
     "FetchValidators", "FetchState", "RecordFetchResult", "ArtifactFetchResult",
     "HealthStatus", "HealthReport", "AdapterContext", "SourceAdapter",
     "GuardedHttpClient", "GuardedHttpError", "GuardedResponse",
-    "ResponseTooLargeError", "TooManyRedirectsError", "UnsafeAddressError",
-    "UrlNotAllowedError",
+    "RequestTooLargeError", "ResponseTooLargeError", "TooManyRedirectsError",
+    "UnsafeAddressError", "UrlNotAllowedError",
 ]
