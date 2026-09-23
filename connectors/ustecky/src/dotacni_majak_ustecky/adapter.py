@@ -290,15 +290,16 @@ class UsteckyAdapter(SourceAdapter):
     async def healthcheck(self, ctx: AdapterContext) -> HealthReport:
         started = datetime.now(timezone.utc)
         try:
-            response = await ctx.http.get(ROOT_URL)
+            health_url = "https://www.kr-ustecky.cz/programove-dotace-usteckeho-kraje-2"
+            response = await ctx.http.get(health_url)
             folded = _normalize(response.text)
             healthy = (
                 response.status_code == 200
-                and "dotace" in folded
-                and "dotacni kalendar" in folded
+                and "programove dotace usteckeho kraje" in folded
+                and "clanky" in folded
             )
             status = HealthStatus.HEALTHY if healthy else HealthStatus.DEGRADED
-            detail = None if healthy else f"Unexpected Ústecký dotace root: HTTP {response.status_code}"
+            detail = None if healthy else f"Unexpected Ústecký programme index: HTTP {response.status_code}"
         except Exception as exc:
             status = HealthStatus.UNAVAILABLE
             detail = f"{type(exc).__name__}: {exc}"
