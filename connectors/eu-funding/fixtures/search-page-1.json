@@ -1,0 +1,39 @@
+{
+  "apiVersion": "real-contract-fixture-2026-09-23",
+  "pageNumber": 1,
+  "pageSize": 2,
+  "totalResults": 1211,
+  "results": [
+    {
+      "reference": "51176412TOPICSen",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/ISF-2026-TF2-AG-CORRUPT",
+      "summary": "Call for proposals on the fight against corruption.",
+      "metadata": {
+        "identifier": ["ISF-2026-TF2-AG-CORRUPT"],
+        "title": ["Call for proposals on the fight against corruption."],
+        "status": ["31094502"],
+        "startDate": ["2026-05-28T00:00:00.000+0000"],
+        "deadlineDate": ["2026-09-24T00:00:00.000+0000"],
+        "frameworkProgramme": ["43252368"],
+        "callTitle": ["Call for proposals on the fight against corruption"],
+        "type": ["1"],
+        "esDA_IngestDate": ["2026-09-22T10:11:12.000+0000"],
+        "budgetOverview": ["{\"budgetYearsColumns\":[\"2026\"],\"budgetTopicActionMap\":{\"114961\":[{\"action\":\"ISF-2026-TF2-AG-CORRUPT - ISF-PJG ISF Project Grants\",\"expectedGrants\":0,\"minContribution\":0,\"maxContribution\":0,\"budgetYearMap\":{\"2026\":\"5000000\"},\"plannedOpeningDate\":\"2026-05-28\",\"deadlineModel\":\"single-stage\",\"deadlineDates\":[\"2026-09-24\"]}]}}"],
+        "topicConditions": ["<h4>Conditions</h4><a href=\"https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/isf/wp-call/2026-2027/call-fiche_isf-2026-tf2-ag-corrupt_en.pdf\">Call document</a>"],
+        "links": ["[{\"callIdentifier\":\"ISF-2026-TF2-AG-CORRUPT\",\"url\":\"https://ec.europa.eu/research/participants/submission/manage/screen/submission/create-draft/44090?topic=ISF-2026-TF2-AG-CORRUPT\"}]"]
+      }
+    },
+    {
+      "reference": "STALE-TOPIC-en",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/STALE-TOPIC",
+      "summary": "Stale upstream status fixture",
+      "metadata": {
+        "identifier": ["STALE-TOPIC"],
+        "title": ["Stale upstream status fixture"],
+        "status": ["31094502"],
+        "deadlineDate": ["2020-01-01T00:00:00.000+0000"],
+        "type": ["1"]
+      }
+    }
+  ]
+}
