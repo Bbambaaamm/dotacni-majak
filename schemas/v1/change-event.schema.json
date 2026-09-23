@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/change-event.schema.json",
+  "title": "ChangeEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "grantCallId", "fromVersionId", "toVersionId", "changeType", "severity", "createdAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallId": {"type": "string", "minLength": 1},
+    "fromVersionId": {"type": "string", "minLength": 1},
+    "toVersionId": {"type": "string", "minLength": 1},
+    "changeType": {"enum": ["DEADLINE_CHANGED", "STATUS_CHANGED", "APPLICANT_RULE_CHANGED", "FUNDING_CHANGED", "BUDGET_CHANGED", "SUPPORTED_ACTIVITY_CHANGED", "REQUIREMENT_CHANGED", "DOCUMENT_CHANGED", "OTHER"]},
+    "severity": {"enum": ["CRITICAL", "IMPORTANT", "INFORMATIONAL", "EDITORIAL"]},
+    "fieldPath": {"type": ["string", "null"]},
+    "oldValue": {},
+    "newValue": {},
+    "evidenceId": {"type": ["string", "null"]},
+    "createdAt": {"type": "string", "format": "date-time"}
+  }
+}
