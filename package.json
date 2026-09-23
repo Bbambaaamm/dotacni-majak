@@ -6,6 +6,7 @@
   "scripts": {
     "test:schema": "python3 scripts/validate_schemas.py",
     "test:python": "python3 -m unittest discover -s tests/python -p 'test_*.py'",
-    "test": "npm run test:schema && npm run test:python"
+    "test": "npm run test:schema && npm run test:python",
+    "generate:contracts": "python3 scripts/generate_contracts.py"
   }
 }

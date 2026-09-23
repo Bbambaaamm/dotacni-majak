@@ -12,3 +12,6 @@ build/
 .env.*
 !.env.example
 .DS_Store
+
+# Build-time canonical contract artifacts
+packages/canonical-schema/generated/
