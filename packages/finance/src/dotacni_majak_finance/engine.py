@@ -112,7 +112,6 @@ class FinanceEvaluation:
     status: FinanceStatus
     scenario_id: str | None
     currency_code: str
-    instrument_type: FundingInstrumentType
     max_grant_minor: int | None
     own_eligible_contribution_minor: int | None
     ineligible_costs_minor: int | None
@@ -120,6 +119,7 @@ class FinanceEvaluation:
     minimum_real_cash_requirement_minor: int | None
     minimum_prefinancing_requirement_minor: int | None
     reason_codes: tuple[str, ...]
+    instrument_type: FundingInstrumentType = FundingInstrumentType.GRANT
     engine_version: str = "finance-v1"
 
 
