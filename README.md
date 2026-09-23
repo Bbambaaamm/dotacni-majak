@@ -67,3 +67,26 @@ tests/
 Podrobnosti: [ARCHITECTURE.md](ARCHITECTURE.md) · [ROADMAP.md](ROADMAP.md) · [DATA_MODEL.md](DATA_MODEL.md) · [SOURCE_ADAPTERS.md](SOURCE_ADAPTERS.md) · [INGESTION.md](INGESTION.md) · [BRAND.md](BRAND.md) · [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)
 
 > Dotační maják není poskytovatelem dotace. Rozhodující jsou vždy oficiální podmínky příslušného poskytovatele.
+
+
+## Lokální spuštění
+
+Po `npm install` spouštějte projekt z kořene repository:
+
+```bash
+npm run dev
+```
+
+Tento příkaz:
+1. aplikuje D1 migrace do lokální persistentní databáze,
+2. spustí API Worker na `http://127.0.0.1:8787`,
+3. spustí web na `http://localhost:5173`,
+4. Vite proxyuje `/api/*` do lokálního API.
+
+> Samotné `npm --workspace @dotacni-majak/web run dev` spustí pouze frontend. Vyhledávání pak nemá backend.
+
+### Důležitý stav dat
+
+Migrace vytvoří strukturu databáze, ale samy nestahují dotační výzvy. Dokud lokální ingestion nenaplní `grant_search_documents`, vyhledávání správně vrátí nulové výsledky — nesmí zobrazit hardcoded demo dotaci.
+
+QA/demo stavy výsledkové stránky jsou povoleny pouze explicitním parametrem `demoState`; běžný uživatelský search je nikdy nepoužívá.

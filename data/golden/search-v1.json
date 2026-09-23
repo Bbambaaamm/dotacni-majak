@@ -375,6 +375,45 @@
           ]
         }
       ]
+    },
+    {
+      "id": "swimming-pool",
+      "query": "rekonstrukce koupaliště",
+      "expected_terms": [
+        "OUTDOOR_SWIMMING_POOL",
+        "SWIMMING_FACILITY",
+        "SPORT_FACILITY",
+        "SPORT_INFRASTRUCTURE",
+        "RECONSTRUCTION",
+        "TECHNICAL_IMPROVEMENT"
+      ],
+      "candidates": [
+        {
+          "id": "generic-sport-infrastructure",
+          "label": "relevant",
+          "ontology_terms": [
+            "SPORT_INFRASTRUCTURE",
+            "SPORT_FACILITY",
+            "TECHNICAL_IMPROVEMENT",
+            "MODERNIZATION"
+          ]
+        },
+        {
+          "id": "water-management",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "WATER"
+          ]
+        },
+        {
+          "id": "business-digitalisation",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "DIGITALIZATION",
+            "BUSINESS"
+          ]
+        }
+      ]
     }
   ]
 }

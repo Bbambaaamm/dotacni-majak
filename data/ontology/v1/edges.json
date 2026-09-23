@@ -264,6 +264,24 @@
       "to": "COMMUNITY",
       "relation": "RELATED",
       "weight": 0.65
+    },
+    {
+      "from": "OUTDOOR_SWIMMING_POOL",
+      "to": "SWIMMING_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "SWIMMING_FACILITY",
+      "to": "SPORT_FACILITY",
+      "relation": "BROADER",
+      "weight": 1
+    },
+    {
+      "from": "OUTDOOR_SWIMMING_POOL",
+      "to": "OUTDOOR_SPORT_FACILITY",
+      "relation": "RELATED",
+      "weight": 0.85
     }
   ]
 }

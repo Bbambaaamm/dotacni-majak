@@ -12,7 +12,7 @@ import { hashShareToken } from "../src/share";
 type DbResolver = (
   query: string,
   values: unknown[],
-  mode: "first" | "run",
+  mode: "first" | "all" | "run",
 ) => unknown;
 
 function env(
@@ -32,6 +32,13 @@ function env(
           async first<T = unknown>() {
             const value = resolver ? resolver(query, values, "first") : dbResult;
             return value as T | null;
+          },
+          async all<T = unknown>() {
+            const value = resolver ? resolver(query, values, "all") : null;
+            if (value && typeof value === "object" && "results" in (value as object)) {
+              return value as D1ResultLike & { results?: T[] };
+            }
+            return { success: true, results: (Array.isArray(value) ? value : []) as T[] };
           },
           async run<T = unknown>() {
             const value = resolver ? resolver(query, values, "run") : null;
@@ -87,6 +94,47 @@ describe("api worker", () => {
       env(null),
     );
     expect(failed.status).toBe(503);
+  });
+
+  it("searches the D1 FTS index with the actual intent", async () => {
+    const response = await handleRequest(
+      new Request("https://example.test/search?intent=koupali%C5%A1t%C4%9B"),
+      env(null, (query, values, mode) => {
+        if (mode === "first" && query.includes("COUNT(*) AS count")) {
+          return { count: 1 };
+        }
+        if (mode === "all" && query.includes("grant_search_fts")) {
+          expect(values[0]).toContain("koupaliště");
+          return {
+            success: true,
+            results: [
+              {
+                grant_call_version_id: "v-swim",
+                grant_call_id: "g-swim",
+                title: "Modernizace sportovní infrastruktury",
+                summary: "Podpora sportovních zařízení.",
+                status: "OPEN",
+                submission_close_at: "2026-12-31T23:59:59Z",
+                provider_name: "Testovací poskytovatel",
+                official_detail_url: "https://example.test/grant",
+                rank: -2.5,
+              },
+            ],
+          };
+        }
+        return null;
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      intent: string;
+      results: Array<{ title: string; matchKind: string }>;
+      expandedTerms: string[];
+    };
+    expect(body.intent).toBe("koupaliště");
+    expect(body.results[0]?.title).toBe("Modernizace sportovní infrastruktury");
+    expect(body.results[0]?.matchKind).toBe("DIRECT");
+    expect(body.expandedTerms).toContain("Sportovní infrastruktura");
   });
 
   it("creates project and owner capability through a three-statement atomic batch", async () => {
