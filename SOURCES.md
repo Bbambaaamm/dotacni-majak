@@ -64,3 +64,15 @@
 - **Safety:** administrativní záznamy v kategorii Granty jsou konzervativně filtrovány; datum sejmutí z úřední desky se nikdy nepovažuje za deadline žádosti.
 - **Live smoke:** `scripts/smoke_praha_connector.py`.
 - **Coverage caveat:** RSS může obsahovat jen poslední část záznamů; tento connector je primárně monitoring nových/aktuálních grantových oznámení, ne kompletní historický archiv.
+
+
+## Karlovarský kraj — dotační programy
+
+- **Oficiální zdroj:** https://www.kr-karlovarsky.cz/dotace/dotacni-programy-karlovarskeho-kraje
+- **Discovery:** veřejný server-rendered katalog s pagination `?page=N`.
+- **Identity:** stabilní detailní URL `/dotace/{slug}` + deterministický source ID.
+- **Detail:** explicitní provider status, termíny příjmu, oblast, kontakt a oficiální dokumenty.
+- **Connector:** `connectors/karlovarsky`.
+- **RAW-first:** ano.
+- **Safety:** neveřejný/přihlašovací RAP systém se nescrapuje; status se mapuje z explicitního textu webu; disappearance není cancellation.
+- **Live smoke:** `scripts/smoke_karlovarsky_connector.py`.
