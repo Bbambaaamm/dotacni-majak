@@ -1,4 +1,13 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+
+const migration = spawnSync("npm", ["run", "dev:db:migrate"], {
+  stdio: "inherit",
+  shell: true,
+});
+
+if (migration.status !== 0) {
+  process.exit(migration.status ?? 1);
+}
 
 const children = [
   spawn("npm", ["run", "dev:api"], {
