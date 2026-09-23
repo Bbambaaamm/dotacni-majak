@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/applicant-profile.schema.json",
+  "title": "ApplicantProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "applicantType", "createdAt", "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "applicantType": {
+      "enum": [
+        "UNKNOWN", "NATURAL_PERSON", "SELF_EMPLOYED", "BUSINESS",
+        "MUNICIPALITY", "REGION", "ASSOCIATION", "SPORTS_CLUB",
+        "NONPROFIT", "SCHOOL", "CONTRIBUTORY_ORGANISATION",
+        "HOA", "COOPERATIVE", "AGRICULTURAL_ENTITY",
+        "RESEARCH_ORGANISATION", "OTHER"
+      ]
+    },
+    "ico": {"type": ["string", "null"], "pattern": "^\\d{8}$"},
+    "organisationName": {"type": ["string", "null"]},
+    "legalFormCode": {"type": ["string", "null"]},
+    "municipalityCode": {"type": ["string", "null"]},
+    "municipalityName": {"type": ["string", "null"]},
+    "regionCode": {"type": ["string", "null"]},
+    "municipalityPopulation": {"type": ["integer", "null"], "minimum": 0},
+    "municipalityPopulationAsOf": {"type": ["string", "null"], "format": "date"},
+    "vatStatus": {
+      "type": ["string", "null"],
+      "enum": ["UNKNOWN", "PAYER", "NON_PAYER", null]
+    },
+    "organisationSize": {
+      "type": ["string", "null"],
+      "enum": ["UNKNOWN", "MICRO", "SMALL", "MEDIUM", "LARGE", null]
+    },
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"}
+  }
+}
