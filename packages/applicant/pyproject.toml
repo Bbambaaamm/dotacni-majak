@@ -1,0 +1,15 @@
+[project]
+name = "dotacni-majak-applicant"
+version = "0.1.0"
+description = "Applicant profile and official public-data resolvers for Dotační maják"
+requires-python = ">=3.11"
+dependencies = [
+  "dotacni-majak-source-sdk>=0.2.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"

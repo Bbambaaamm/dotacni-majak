@@ -1,0 +1,14 @@
+{
+  "ico": "12345678",
+  "obchodniJmeno": "Testovací organizace",
+  "pravniForma": "706",
+  "sidlo": {
+    "kodObce": 123456,
+    "nazevObce": "Testovací obec",
+    "textovaAdresa": "Náměstí 1, Testovací obec"
+  },
+  "czNace": [
+    "93120",
+    "94990"
+  ]
+}

@@ -1,0 +1,20 @@
+code: ARES_PROFILE
+name: ARES – profil ekonomického subjektu
+authority: OFFICIAL
+country: CZ
+base_url: https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/
+detail_path: ekonomicke-subjekty/{ico}
+swagger_url: https://ares.gov.cz/swagger-ui/
+retrieval_mode: JSON_API
+auth: none
+rate_policy:
+  client_requests_per_second: 1
+  official_block_warning_per_minute: 500
+breaking_change_notice:
+  announced: 2026-09-01
+  planned_for: 2026-09-30
+  label: API 1.40 – zpětně nekompatibilní
+  rss: https://ares.gov.cz/ares-rss/rss
+privacy:
+  persist_only_normalized_required_fields: true
+status: IMPLEMENTED_PROFILE_RESOLVER

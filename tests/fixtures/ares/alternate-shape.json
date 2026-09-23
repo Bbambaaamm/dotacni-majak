@@ -1,0 +1,35 @@
+{
+  "icoId": "ARES_12345678",
+  "obchodniJmeno": [
+    {
+      "obchodniJmeno": "Starý název",
+      "primarniZaznam": false,
+      "platnostDo": "2025-01-01"
+    },
+    {
+      "obchodniJmeno": "Testovací organizace",
+      "primarniZaznam": true
+    }
+  ],
+  "pravniForma": {
+    "hodnota": "706"
+  },
+  "sidlo": [
+    {
+      "primarniZaznam": true,
+      "sidlo": {
+        "kodObce": 123456,
+        "nazevObce": "Testovací obec",
+        "textovaAdresa": "Náměstí 1, Testovací obec"
+      }
+    }
+  ],
+  "czNace": [
+    {
+      "kod": "93120"
+    },
+    {
+      "kod": "94990"
+    }
+  ]
+}
