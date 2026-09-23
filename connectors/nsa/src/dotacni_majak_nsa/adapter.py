@@ -248,9 +248,12 @@ class NsaAdapter(SourceAdapter):
                 href = urljoin(listing_url, anchor["href"])
                 if not title or "výzva" not in title.casefold():
                     continue
-                if "/dotace/" not in urlsplit(href).path:
+                parsed_href = urlsplit(href)
+                if parsed_href.hostname not in {"nsa.gov.cz", "www.nsa.gov.cz"}:
                     continue
-                if not _CALL_LINK_RE.search(urlsplit(href).path):
+                if "/dotace/" not in parsed_href.path:
+                    continue
+                if not _CALL_LINK_RE.search(parsed_href.path):
                     continue
 
                 external_id = _call_number(title, href)
