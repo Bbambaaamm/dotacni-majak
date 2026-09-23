@@ -6,7 +6,9 @@ import { CoveragePage } from "./pages/CoveragePage";
 import { ExportSummaryPage } from "./pages/ExportSummaryPage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
+import { ProjectsPage } from "./pages/ProjectsPage";
 import { SearchPage } from "./pages/SearchPage";
+import { SharedProjectPage } from "./pages/SharedProjectPage";
 import { SuggestSourcePage } from "./pages/SuggestSourcePage";
 import { resolveRoute } from "./lib/routes";
 
@@ -61,7 +63,13 @@ export function App() {
       content = <SuggestSourcePage />;
       break;
     case "projects":
-      content = <PlaceholderPage title="Moje projekty" />;
+      content = <ProjectsPage />;
+      break;
+    case "shared-project":
+      content = <SharedProjectPage />;
+      break;
+    case "how-it-works":
+      content = <PlaceholderPage title="Jak to funguje" />;
       break;
     default:
       content = <NotFound />;

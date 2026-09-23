@@ -23,6 +23,11 @@ describe("route foundation", () => {
     expect(resolveRoute("/export/regiony-2026").id).toBe("export-summary");
   });
 
+  it("resolves only well-shaped read-only share routes", () => {
+    expect(resolveRoute("/s/" + "A".repeat(43)).id).toBe("shared-project");
+    expect(resolveRoute("/s/tiny").id).toBe("not-found");
+  });
+
   it("does not silently redirect unknown route to home", () => {
     expect(resolveRoute("/neexistuje").id).toBe("not-found");
   });
