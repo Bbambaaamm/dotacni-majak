@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/historical-award.schema.json",
+  "title": "HistoricalAward",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "sourceId",
+    "externalId",
+    "recipientName",
+    "projectTitle",
+    "currencyCode",
+    "sourceUrl"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "minLength": 1 },
+    "sourceId": { "type": "string", "minLength": 1 },
+    "externalId": { "type": "string", "minLength": 1 },
+    "programmeId": { "type": ["string", "null"] },
+    "providerId": { "type": ["string", "null"] },
+    "recipientName": { "type": "string", "minLength": 1 },
+    "recipientIco": { "type": ["string", "null"] },
+    "projectTitle": { "type": "string", "minLength": 1 },
+    "projectDescription": { "type": ["string", "null"] },
+    "grantAmountMinor": { "type": ["integer", "null"], "minimum": 0 },
+    "totalCostMinor": { "type": ["integer", "null"], "minimum": 0 },
+    "currencyCode": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "decisionDate": { "type": ["string", "null"], "format": "date" },
+    "awardYear": { "type": ["integer", "null"], "minimum": 2000, "maximum": 2200 },
+    "locationId": { "type": ["string", "null"] },
+    "sourceUrl": { "type": "string", "format": "uri" },
+    "retrievedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}
