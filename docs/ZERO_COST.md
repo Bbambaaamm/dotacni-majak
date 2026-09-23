@@ -42,3 +42,26 @@ Proto:
 - před produkčním deploymentem se plán/dostupnost znovu ověří,
 - fallback je vždy FTS5 + ontologie + strukturované filtry,
 - systém nikdy neprovede automatický paid upgrade.
+
+
+## UsageBudgetManager
+
+Limity providera nejsou hardcoded v kódu. Runtime konfigurace dodává pro každý sledovaný metric explicitní `hard_limit`.
+
+Manager standardně používá prahy:
+- 70 % → NOTICE / WARN,
+- 85 % → WARNING / THROTTLE,
+- 95 % → CRITICAL / DEGRADE,
+- >100 % → EXHAUSTED / BLOCK nebo explicitně nakonfigurovaný fallback.
+
+Sledované metriky zahrnují:
+- Workers requests,
+- D1 reads/writes/storage,
+- R2 storage/Class A/Class B,
+- vector stored/query dimensions,
+- AI units,
+- GitHub Actions minutes.
+
+Rezervace, která by překročila hard limit, se **nezapočítá**. Volající dostane `granted=false` a musí použít bezpečný fallback. Pro semantic retrieval může být exhausted action explicitně `DEGRADE`, tedy pokračovat přes FTS5 + ontologii + filtry.
+
+Žádný limit v tomto modulu nepředstavuje aktuální ceník poskytovatele; konkrétní čísla se nastavují až po aktuálním ověření oficiální dokumentace.
