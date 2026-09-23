@@ -28,11 +28,23 @@ jobs:
       - name: Typecheck web
         run: npm run web:typecheck
 
+      - name: Typecheck API
+        run: npm run api:typecheck
+
+      - name: Validate Cloudflare config
+        run: npm run cloudflare:validate
+
       - name: Test web
         run: npm run web:test
 
+      - name: Test API
+        run: npm run api:test
+
       - name: Build web
         run: npm run web:build
+
+      - name: Dry-run API Worker build
+        run: npm run api:build
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
