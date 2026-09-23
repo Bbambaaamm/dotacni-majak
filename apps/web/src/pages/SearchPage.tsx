@@ -1,4 +1,6 @@
+import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
+import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import "./results.css";
 
 const reasons = [
@@ -9,6 +11,25 @@ const reasons = [
 ] as const;
 
 export function SearchPage() {
+  const params = new URLSearchParams(window.location.search);
+  const demoState = parseDemoResultState(params.get("demoState"));
+
+  if (demoState) {
+    return (
+      <div className="results-page">
+        <header className="results-head">
+          <p className="eyebrow">QA režim výsledků</p>
+          <h1>Rekonstrukce tenisových kurtů</h1>
+          <p className="results-lead">
+            Tento parametr slouží k reprodukovatelnému testování kritických
+            stavů výsledkové stránky bez závislosti na živém backendu.
+          </p>
+        </header>
+        <ResultStatePanel state={resultStateContent(demoState)} />
+      </div>
+    );
+  }
+
   return (
     <div className="results-page">
       <header className="results-head">
