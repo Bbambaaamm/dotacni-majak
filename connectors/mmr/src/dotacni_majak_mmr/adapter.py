@@ -184,6 +184,13 @@ def _external_id(title: str, url: str) -> str:
     if numbered:
         return "MMR-" + re.sub(r"[^A-Za-z0-9]+", "-", numbered.group(1)).strip("-").upper()
 
+    # Some MMR programme pages name calls as "2026 - 3. výzva" without an
+    # explicit call code. Keep a deterministic semantic identity instead of
+    # relying only on the current URL slug.
+    nno = re.search(r"nestátní\s+neziskov\w+.*?\b(20\d{2})\b.*?(\d+)\.\s*výzv", title, re.I)
+    if nno:
+        return f"MMR-NNO-{nno.group(1)}-{nno.group(2)}"
+
     slug = PurePosixPath(urlsplit(url).path.rstrip("/")).name
     normalized = re.sub(r"[^a-z0-9]+", "-", _normalize(slug)).strip("-")
     return f"MMR-{normalized[:100]}" if normalized else "MMR-" + hashlib.sha256(url.encode()).hexdigest()[:20]
