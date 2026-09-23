@@ -1,0 +1,4 @@
+idRozhodnuti;idDotace;castkaPozadovana;castkaRozhodnuta;rokRozhodnuti;navratnostIndikator;dPlatnost
+R1;D1;1000000;600000.00;2025;False;2025-06-01
+R2;D1;500000;250000.50;2025;False;2025-07-15
+R3;D2;3000000;3000000;2025;True;2025-08-01
