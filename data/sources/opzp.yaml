@@ -1,19 +1,23 @@
 code: OPZP
 name: Operační program Životní prostředí 2021–2027
 authority: OFFICIAL
-base_url: https://2021-2027.opzp.cz/
+base_url: https://opzp.cz/
 retrieval_modes:
   - HTML
   - PDF
+  - DOCX
+  - XLSX
 allowed_hosts:
-  - 2021-2027.opzp.cz
   - opzp.cz
-normal_refresh_minutes: 360
+  - www.opzp.cz
+  - 2021-2027.opzp.cz
+normal_refresh_minutes: 240
 max_concurrency: 2
-requests_per_second: 1.0
+requests_per_second: 0.5
 disappearance_confirmation_runs: 3
-adapter_version: research-v1
+adapter_version: 0.1.0
 research:
   verified_on: 2026-09-23
-  status: READY_FOR_HTML_CONNECTOR
-  calls_url: https://2021-2027.opzp.cz/nabidka-dotaci/
+  status: IMPLEMENTED
+  calls_url: https://opzp.cz/nabidka-dotaci
+  sample_detail_url: https://opzp.cz/dotace/108-vyzva/
