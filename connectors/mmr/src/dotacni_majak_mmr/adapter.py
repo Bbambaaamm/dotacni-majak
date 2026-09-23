@@ -235,7 +235,13 @@ def _artifact_role(title: str) -> str:
         return "CALL_DOCUMENT"
     if "zadost" in folded or "formular" in folded or "projektovy zamer" in folded:
         return "APPLICATION_FORM"
-    if "zasad" in folded or "pravid" in folded or "metodik" in folded:
+    if (
+        "zasad" in folded
+        or "pravid" in folded
+        or "metod" in folded
+        or "pokyn" in folded
+        or "priruc" in folded
+    ):
         return "GUIDELINES"
     return "ANNEX"
 
