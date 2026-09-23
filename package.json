@@ -1,0 +1,11 @@
+{
+  "name": "dotacni-majak",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dotační maják — Najde. Pohlídá. Dotáhne.",
+  "scripts": {
+    "test:schema": "python3 scripts/validate_schemas.py",
+    "test:python": "python3 -m unittest discover -s tests/python -p 'test_*.py'",
+    "test": "npm run test:schema && npm run test:python"
+  }
+}
