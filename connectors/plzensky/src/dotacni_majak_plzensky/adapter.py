@@ -35,6 +35,10 @@ INDEX_URL = "https://dotace.plzensky-kraj.cz/verejnost"
 _ALLOWED_HOSTS = {"dotace.plzensky-kraj.cz"}
 _LOCAL_TZ = ZoneInfo("Europe/Prague")
 _DETAIL_RE = re.compile(r"/verejnost/dotacnititul/(\d+)/?$")
+_GRID_CONFIGS = (
+    ("DotacniTitulyOtevrene", "zadostido"),
+    ("DotacniTitulyPripravovane", "zadostiod"),
+)
 
 
 def _clean(value: str) -> str:
