@@ -102,3 +102,15 @@
 - **Status safety:** stav pouze z explicitního Harmonogramu; disappearance není CLOSED/CANCELLED.
 - **Region:** CZ031.
 - **Live smoke:** `scripts/smoke_jihocesky_connector.py`.
+
+
+## Liberecký kraj — Dotace
+
+- **Oficiální zdroj:** https://dotace.kraj-lbc.cz/
+- **Discovery:** veřejný rozcestník oblastí → veřejné seznamy programů → detail programu s veřejným číselným `d<ID>`.
+- **Detail:** vyhlášení, zahájení, ukončení, aktuální popis, případná explicitní alokace a oficiální soubory.
+- **Connector:** `connectors/liberecky`.
+- **RAW-first:** ano.
+- **Safety:** záštity bez finanční podpory jsou vyřazeny; login/Identity občana se neautomatizuje; disappearance není cancellation.
+- **Region:** CZ051.
+- **Live smoke:** `scripts/smoke_liberecky_connector.py`.
