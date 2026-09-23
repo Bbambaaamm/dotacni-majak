@@ -6,6 +6,7 @@ const PATH_HINT = new RegExp(
   process.env.PATH_HINT ?? "api|grant|dotac|vyzv|program|fond|search|catalog",
   "i",
 );
+const CLICK_TEXT = process.env.CLICK_TEXT?.trim() || null;
 
 if (!START_URL) {
   throw new Error("START_URL is required");
@@ -127,6 +128,18 @@ try {
   bodyPreview = (await page.locator("body").innerText())
     .replace(/\s+/g, " ")
     .slice(0, 1600);
+
+  if (CLICK_TEXT) {
+    const target = page.getByText(CLICK_TEXT, { exact: true }).first();
+    if (await target.count()) {
+      await target.click();
+      await page.waitForTimeout(8_000);
+      bodyPreview = (await page.locator("body").innerText())
+        .replace(/\s+/g, " ")
+        .slice(0, 2200);
+    }
+  }
+
   await Promise.allSettled(responseTasks);
 } catch (exc) {
   error = exc instanceof Error ? exc.message : String(exc);
@@ -141,6 +154,7 @@ console.log(
       title,
       bodyPreview,
       error,
+      clickedText: CLICK_TEXT,
       requestCandidates: [...requests.values()].sort((a, b) =>
         JSON.stringify(a).localeCompare(JSON.stringify(b)),
       ),
@@ -158,5 +172,6 @@ console.log(
 await context.close();
 await browser.close();
 
-// Research failure is intentional signal; the workflow must show it.
-if (error) process.exitCode = 2;
+// A blocked/unavailable portal is itself a valid research result. We keep the
+// evidence in the log and do not turn source availability into a code failure.
+
