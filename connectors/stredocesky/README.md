@@ -28,3 +28,10 @@ It follows the public link labelled as the current **Příručka středočeskýc
 - programmes absent from the current guide.
 
 The protected application portal is not bypassed. Source Coverage must display this connector as LIMITED.
+
+## Runtime reachability
+
+GitHub-hosted live smoke currently observes a transport timeout to the official
+county site. This is represented as a Source Health limitation, not hidden or
+worked around. If the source becomes reachable, the same smoke validates
+discovery and parsing. Until then public coverage must remain DEGRADED/LIMITED.
