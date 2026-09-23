@@ -19,11 +19,15 @@ def validate(path: Path) -> None:
 
     raw = path.read_text(encoding="utf-8")
     lowered = raw.casefold()
-    forbidden = ("<script", "javascript:", "http://", "https://")
-    for value in forbidden:
+
+    # The SVG XML namespace legitimately contains http://www.w3.org/2000/svg.
+    # Block executable content and remote resource references instead of
+    # rejecting the namespace itself.
+    forbidden_fragments = ("<script", "javascript:", "<foreignobject")
+    for value in forbidden_fragments:
         if value in lowered:
             raise SystemExit(
-                f"{path.relative_to(ROOT)}: forbidden external/executable SVG content {value!r}"
+                f"{path.relative_to(ROOT)}: forbidden executable SVG content {value!r}"
             )
 
     root = ET.fromstring(raw)
@@ -35,6 +39,18 @@ def validate(path: Path) -> None:
         raise SystemExit(
             f"{path.relative_to(ROOT)}: omit fixed width/height for responsive reuse"
         )
+
+    for element in root.iter():
+        for key, value in element.attrib.items():
+            normalized_key = key.rsplit("}", 1)[-1].casefold()
+            if normalized_key in {"href", "src"}:
+                lowered_value = value.strip().casefold()
+                if lowered_value.startswith(("http://", "https://", "//", "data:", "javascript:")):
+                    raise SystemExit(
+                        f"{path.relative_to(ROOT)}: external/embedded resource reference is forbidden"
+                    )
+        if root is not element and element.tag.rsplit("}", 1)[-1].casefold() == "style":
+            raise SystemExit(f"{path.relative_to(ROOT)}: embedded style blocks are forbidden")
 
 
 def main() -> None:
