@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
@@ -72,6 +73,16 @@ def _parse_local_datetime(value: str | None) -> datetime | None:
         second,
         tzinfo=_LOCAL_TZ,
     ).astimezone(timezone.utc)
+
+
+def _grid_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        local = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_LOCAL_TZ)
+    except ValueError:
+        return None
+    return local.astimezone(timezone.utc)
 
 
 def _status(now: datetime, opens: datetime | None, closes: datetime | None) -> str:
@@ -219,43 +230,73 @@ class PlzenskyAdapter(SourceAdapter):
 
     async def discover(self, ctx: AdapterContext, checkpoint: SourceCheckpoint | None) -> DiscoveryPage:
         del checkpoint
-        response = await ctx.http.get(INDEX_URL)
-        if response.status_code >= 400:
-            raise RuntimeError(f"Plzeň eDotace index returned HTTP {response.status_code}")
-
-        snapshot_id = self._snapshot(
-            ctx,
-            source_url=INDEX_URL,
-            content=response.content,
-            mime_type=response.headers.get("content-type", "text/html").split(";", 1)[0],
-            headers=response.headers,
-        )
-
-        soup = BeautifulSoup(response.text, "html.parser")
         items: dict[str, DiscoveryItem] = {}
-        for anchor in soup.find_all("a", href=True):
-            url = urljoin(INDEX_URL, anchor["href"])
-            parsed = urlsplit(url)
-            if (parsed.hostname or "").lower() not in _ALLOWED_HOSTS:
-                continue
-            match = _DETAIL_RE.fullmatch(parsed.path)
-            if not match:
-                continue
-            title = _clean(anchor.get_text(" ", strip=True))
-            if not title:
-                row = anchor.find_parent("tr")
-                title = _clean(row.get_text(" ", strip=True)) if row else f"Dotační titul {match.group(1)}"
-            external_id = f"PLK-{match.group(1)}"
-            items[external_id] = DiscoveryItem(
-                external_id=external_id,
-                detail_url=url,
-                title_hint=title,
-                metadata={
-                    "numeric_id": int(match.group(1)),
-                    "discovery_snapshot_id": snapshot_id,
-                    "discovery_method": "official-html-index",
-                },
+
+        for grid_name, sort_name in _GRID_CONFIGS:
+            url = (
+                f"{INDEX_URL}?_name={grid_name}&page=1&rows=100"
+                f"&sidx={sort_name}&sord=asc&_search=false"
             )
+            response = await ctx.http.get(url)
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Plzeň eDotace grid {grid_name} returned HTTP {response.status_code}"
+                )
+
+            snapshot_id = self._snapshot(
+                ctx,
+                source_url=url,
+                content=response.content,
+                mime_type=response.headers.get("content-type", "application/json").split(";", 1)[0],
+                headers=response.headers,
+            )
+
+            try:
+                payload = json.loads(response.text)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"Plzeň eDotace grid {grid_name} returned invalid JSON"
+                ) from exc
+
+            rows = payload.get("rows")
+            if not isinstance(rows, list):
+                raise RuntimeError(
+                    f"Plzeň eDotace grid {grid_name} is missing rows[]"
+                )
+
+            for row in rows:
+                cell = row.get("cell") if isinstance(row, dict) else None
+                if not isinstance(cell, dict):
+                    continue
+                buttons = str(cell.get("buttons") or "")
+                match = re.search(r"/verejnost/dotacnititul/(\d+)/", buttons)
+                if not match:
+                    continue
+
+                numeric_id = int(match.group(1))
+                external_id = f"PLK-{numeric_id}"
+                detail_url = f"https://dotace.plzensky-kraj.cz/verejnost/dotacnititul/{numeric_id}/"
+                title = _clean(str(cell.get("nazevtitulu") or cell.get("nazevprogramu") or external_id))
+                opens = _grid_datetime(cell.get("zadostiod"))
+                closes = _grid_datetime(cell.get("zadostido"))
+
+                items[external_id] = DiscoveryItem(
+                    external_id=external_id,
+                    detail_url=detail_url,
+                    title_hint=title,
+                    native_status_hint=_status(ctx.now, opens, closes),
+                    metadata={
+                        "numeric_id": numeric_id,
+                        "department": cell.get("nazevodboru"),
+                        "programme": cell.get("nazevprogramu"),
+                        "year": cell.get("roktitulu"),
+                        "submission_open_at": opens.isoformat() if opens else None,
+                        "submission_close_at": closes.isoformat() if closes else None,
+                        "discovery_snapshot_id": snapshot_id,
+                        "discovery_grid": grid_name,
+                        "discovery_method": "official-public-jqgrid-json",
+                    },
+                )
 
         values = sorted(items.values(), key=lambda item: int(item.metadata["numeric_id"]))
         return DiscoveryPage(
@@ -299,8 +340,14 @@ class PlzenskyAdapter(SourceAdapter):
         title = _clean(heading.get_text(" ", strip=True)) if heading else (item.title_hint or item.external_id)
 
         published = _parse_local_datetime(_table_value(soup, ("Zveřejnění",)))
-        opens = _parse_local_datetime(_table_value(soup, ("Žádosti od",)))
-        closes = _parse_local_datetime(_table_value(soup, ("Žádosti do",)))
+        opens = (
+            _parse_local_datetime(_table_value(soup, ("Žádosti od",)))
+            or _grid_datetime(item.metadata.get("submission_open_at", "").replace("T", " ")[:19])
+        )
+        closes = (
+            _parse_local_datetime(_table_value(soup, ("Žádosti do",)))
+            or _grid_datetime(item.metadata.get("submission_close_at", "").replace("T", " ")[:19])
+        )
 
         allocation = _money_minor(
             _table_value(soup, ("Předpokládaný celkový objem finančních prostředků",))
@@ -323,7 +370,8 @@ class PlzenskyAdapter(SourceAdapter):
                 native_status=_status(ctx.now, opens, closes),
                 published_at=published,
                 raw_fields={
-                    "programme": "Plzeňský kraj — krajské dotační tituly",
+                    "programme": item.metadata.get("programme") or "Plzeňský kraj — krajské dotační tituly",
+                    "department": item.metadata.get("department"),
                     "sourceNumericId": item.metadata.get("numeric_id"),
                     "submissionOpenAt": opens.isoformat() if opens else None,
                     "submissionCloseAt": closes.isoformat() if closes else None,
