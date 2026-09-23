@@ -20,3 +20,12 @@
 - Pokud detail uvádí přesné časy soutěžní lhůty, jsou preferovány před souhrnným datem.
 - SISTA je pouze aplikační systém a connector jej nescrapuje.
 - První coverage zahrnuje OPEN možnosti; PLANNED soutěže z harmonogramu budou mapovány samostatně.
+
+
+## Dům zahraniční spolupráce (DZS)
+
+- Erasmus+ Výzva 2026: https://www.dzs.cz/en/node/3607
+- Evropský sbor solidarity — Projekty a granty: https://www.dzs.cz/program/evropsky-sbor-solidarity/projekty-granty
+- Connector rozděluje veřejně publikované termíny na jednotlivé grantové akce a sektory.
+- Jedna zdrojová stránka se během discovery ukládá do jednoho RAW snapshotu; jednotlivé records snapshot znovu používají.
+- Centralizované aktivity spravované přímo Evropskou komisí nejsou duplikovány a patří do EU Funding & Tenders coverage.
