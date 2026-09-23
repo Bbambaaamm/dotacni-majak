@@ -1,0 +1,16 @@
+[project]
+name = "dotacni-majak-pardubicky"
+version = "0.1.0"
+description = "Pardubický kraj regional Source Adapter for Dotační maják"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "dotacni-majak-source-sdk"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
