@@ -42,6 +42,9 @@ jobs:
       - name: Install Watch matcher
         run: python3 -m pip install -e packages/watches
 
+      - name: Install Workspace
+        run: python3 -m pip install -e packages/workspace
+
       - name: Generate canonical TypeScript/Python contracts
         run: python3 scripts/generate_contracts.py --output-root /tmp/canonical-contracts
 
@@ -55,4 +58,4 @@ jobs:
         run: python3 -m unittest discover -s tests/python -p 'test_*.py'
 
       - name: Compile Python sources
-        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src
+        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/workspace/src packages/search/src packages/watches/src
