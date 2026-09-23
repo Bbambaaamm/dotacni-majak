@@ -1,0 +1,20 @@
+code: KHK
+name: Královéhradecký kraj — dotační portál
+authority: OFFICIAL
+base_url: https://dotace.khk.cz/
+retrieval_modes: [API, JSON, PDF, DOCX]
+allowed_hosts:
+  - dotace.khk.cz
+  - dotisreactfunctions.azurewebsites.net
+allowed_post_paths:
+  - /api/Data/GetProjectSubprojectCollection
+  - /api/Data/GetSubproject
+  - /api/Data/GetSubprojectDocumentCollection
+normal_refresh_minutes: 240
+max_concurrency: 2
+requests_per_second: 1.0
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+coverage:
+  region_code: CZ052
+  document_download: metadata_only_until_contract_verified
