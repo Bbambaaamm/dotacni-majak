@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "gate": "v1-production",
+  "dependsOn": ["public-beta"],
+  "automated": [
+    "ci_green",
+    "schema_migration_compatibility_green",
+    "unit_integration_e2e_green",
+    "search_golden_dataset_green",
+    "eligibility_truth_tables_green",
+    "finance_regression_green",
+    "connector_contract_tests_green",
+    "source_live_smokes_match_declared_coverage",
+    "accessibility_automation_green",
+    "production_build_green",
+    "security_dependency_scan_acceptable",
+    "usage_budget_safe_or_degradation_verified"
+  ],
+  "manual": [
+    "public_beta_usability_evidence",
+    "keyboard_audit",
+    "screen_reader_audit",
+    "mobile_zoom_reflow_audit",
+    "privacy_review",
+    "security_threat_review",
+    "source_coverage_audit",
+    "provenance_spot_check",
+    "recovery_runbook_tabletop",
+    "backup_export_restore_verified",
+    "known_limitations_published",
+    "licence_governance_review",
+    "incident_contact_path_verified"
+  ],
+  "releaseEvidence": [
+    "release_sha",
+    "review_date",
+    "evidence_links",
+    "accepted_risks"
+  ],
+  "rule": "v1.0 requires all mandatory automated and manual evidence for the exact release candidate"
+}
