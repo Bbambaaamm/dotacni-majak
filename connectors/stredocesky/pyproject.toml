@@ -1,0 +1,17 @@
+[project]
+name = "dotacni-majak-stredocesky"
+version = "0.1.0"
+description = "Středočeský kraj LIMITED official funds-guide adapter"
+requires-python = ">=3.11"
+dependencies = [
+  "dotacni-majak-source-sdk",
+  "beautifulsoup4>=4.12,<5",
+  "pypdf>=6,<7"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
