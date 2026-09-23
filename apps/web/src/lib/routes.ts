@@ -7,6 +7,7 @@ export type RouteId =
   | "how-it-works"
   | "coverage"
   | "suggest-source"
+  | "changelog"
   | "not-found";
 
 export interface AppRoute {
@@ -27,6 +28,7 @@ export const utilityRoutes: readonly AppRoute[] = [
   { id: "how-it-works", path: "/jak-to-funguje", label: "Jak to funguje" },
   { id: "coverage", path: "/pokryti", label: "Pokrytí Majáku" },
   { id: "suggest-source", path: "/navrhnout-zdroj", label: "Navrhnout zdroj" },
+  { id: "changelog", path: "/changelog", label: "Changelog" },
 ] as const;
 
 export function resolveRoute(pathname: string): AppRoute {
