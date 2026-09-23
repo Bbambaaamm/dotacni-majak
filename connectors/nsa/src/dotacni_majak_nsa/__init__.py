@@ -1,1 +1,3 @@
-"""Národní sportovní agentura source adapter."""
+from .adapter import NsaAdapter
+
+__all__ = ["NsaAdapter"]
