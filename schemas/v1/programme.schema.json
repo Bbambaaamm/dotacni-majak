@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/programme.schema.json",
+  "title": "Programme",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "providerId", "name", "fundingOrigin"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "providerId": {"type": "string", "minLength": 1},
+    "code": {"type": ["string", "null"]},
+    "name": {"type": "string", "minLength": 1},
+    "fundingOrigin": {"enum": ["CZ_NATIONAL", "CZ_REGION", "CZ_MUNICIPAL", "EU_SHARED", "EU_DIRECT", "OTHER_PUBLIC"]},
+    "currencyDefault": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+    "validFrom": {"type": ["string", "null"], "format": "date"},
+    "validTo": {"type": ["string", "null"], "format": "date"},
+    "officialUrl": {"type": ["string", "null"], "format": "uri"}
+  }
+}
