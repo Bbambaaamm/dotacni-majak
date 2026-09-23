@@ -15,3 +15,6 @@ build/
 
 # Build-time canonical contract artifacts
 packages/canonical-schema/generated/
+
+# Local live source snapshots/imports
+.local/
