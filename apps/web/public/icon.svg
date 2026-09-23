@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Dotační maják">
+  <rect width="128" height="128" rx="24" fill="#0B2D48"/>
+  <path d="M52 103h24L70 48H58l-6 55Z" fill="#F8FAFC"/>
+  <path d="M54 42h20l-4-12H58l-4 12Z" fill="#20B8CD"/>
+  <path d="M24 44c12-9 22-13 32-14" fill="none" stroke="#20B8CD" stroke-width="7" stroke-linecap="round"/>
+  <path d="M104 44C92 35 82 31 72 30" fill="none" stroke="#20B8CD" stroke-width="7" stroke-linecap="round"/>
+  <path d="M44 104h40" stroke="#20B8CD" stroke-width="7" stroke-linecap="round"/>
+</svg>
