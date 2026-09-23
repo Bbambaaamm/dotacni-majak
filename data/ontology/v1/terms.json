@@ -1,0 +1,354 @@
+{
+  "version": "1.0.0",
+  "language": "cs",
+  "terms": [
+    {
+      "code": "SPORT",
+      "name": "Sport",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "SPORT_INFRASTRUCTURE",
+      "name": "Sportovní infrastruktura",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "SPORT_FACILITY",
+      "name": "Sportovní zařízení",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "OUTDOOR_SPORT_FACILITY",
+      "name": "Venkovní sportoviště",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "INDOOR_SPORT_FACILITY",
+      "name": "Vnitřní sportoviště",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "TENNIS",
+      "name": "Tenis",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "TENNIS_COURT",
+      "name": "Tenisový kurt",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "TENNIS_HALL",
+      "name": "Tenisová hala",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "FOOTBALL",
+      "name": "Fotbal",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "FOOTBALL_PITCH",
+      "name": "Fotbalové hřiště",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "ATHLETICS",
+      "name": "Atletika",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "ATHLETICS_TRACK",
+      "name": "Atletický ovál",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "PLAYGROUND",
+      "name": "Dětské hřiště",
+      "domain": "PUBLIC_SPACE",
+      "active": true
+    },
+    {
+      "code": "LIGHTING",
+      "name": "Osvětlení",
+      "domain": "BUILDINGS",
+      "active": true
+    },
+    {
+      "code": "SPORT_LIGHTING",
+      "name": "Osvětlení sportoviště",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "FENCING",
+      "name": "Oplocení",
+      "domain": "BUILDINGS",
+      "active": true
+    },
+    {
+      "code": "ACCESSIBILITY",
+      "name": "Bezbariérovost",
+      "domain": "BUILDINGS",
+      "active": true
+    },
+    {
+      "code": "RECONSTRUCTION",
+      "name": "Rekonstrukce",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "RENOVATION",
+      "name": "Obnova",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "MODERNIZATION",
+      "name": "Modernizace",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "TECHNICAL_IMPROVEMENT",
+      "name": "Technické zhodnocení",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "CONSTRUCTION",
+      "name": "Výstavba",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "INVESTMENT",
+      "name": "Investice",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "EQUIPMENT_PURCHASE",
+      "name": "Pořízení vybavení",
+      "domain": "ACTIVITY",
+      "active": true
+    },
+    {
+      "code": "ENERGY",
+      "name": "Energetika",
+      "domain": "ENERGY",
+      "active": true
+    },
+    {
+      "code": "ENERGY_SAVINGS",
+      "name": "Energetické úspory",
+      "domain": "ENERGY",
+      "active": true
+    },
+    {
+      "code": "PHOTOVOLTAICS",
+      "name": "Fotovoltaika",
+      "domain": "ENERGY",
+      "active": true
+    },
+    {
+      "code": "BUILDING_INSULATION",
+      "name": "Zateplení budovy",
+      "domain": "ENERGY",
+      "active": true
+    },
+    {
+      "code": "BUILDINGS",
+      "name": "Budovy",
+      "domain": "BUILDINGS",
+      "active": true
+    },
+    {
+      "code": "PUBLIC_BUILDING",
+      "name": "Veřejná budova",
+      "domain": "BUILDINGS",
+      "active": true
+    },
+    {
+      "code": "SCHOOL_BUILDING",
+      "name": "Školní budova",
+      "domain": "EDUCATION",
+      "active": true
+    },
+    {
+      "code": "EDUCATION",
+      "name": "Vzdělávání",
+      "domain": "EDUCATION",
+      "active": true
+    },
+    {
+      "code": "SCHOOL",
+      "name": "Škola",
+      "domain": "EDUCATION",
+      "active": true
+    },
+    {
+      "code": "DIGITALIZATION",
+      "name": "Digitalizace",
+      "domain": "DIGITALIZATION",
+      "active": true
+    },
+    {
+      "code": "BUSINESS_DIGITALIZATION",
+      "name": "Digitalizace podnikání",
+      "domain": "DIGITALIZATION",
+      "active": true
+    },
+    {
+      "code": "BUSINESS",
+      "name": "Podnikání",
+      "domain": "BUSINESS",
+      "active": true
+    },
+    {
+      "code": "SME",
+      "name": "Malý a střední podnik",
+      "domain": "BUSINESS",
+      "active": true
+    },
+    {
+      "code": "RESEARCH",
+      "name": "Výzkum a vývoj",
+      "domain": "RESEARCH",
+      "active": true
+    },
+    {
+      "code": "INNOVATION",
+      "name": "Inovace",
+      "domain": "RESEARCH",
+      "active": true
+    },
+    {
+      "code": "AGRICULTURE",
+      "name": "Zemědělství",
+      "domain": "AGRICULTURE",
+      "active": true
+    },
+    {
+      "code": "AGRICULTURAL_TECHNOLOGY",
+      "name": "Zemědělská technologie",
+      "domain": "AGRICULTURE",
+      "active": true
+    },
+    {
+      "code": "ENVIRONMENT",
+      "name": "Životní prostředí",
+      "domain": "ENVIRONMENT",
+      "active": true
+    },
+    {
+      "code": "WATER",
+      "name": "Voda",
+      "domain": "WATER",
+      "active": true
+    },
+    {
+      "code": "WASTEWATER",
+      "name": "Odpadní voda",
+      "domain": "WATER",
+      "active": true
+    },
+    {
+      "code": "SEWERAGE",
+      "name": "Kanalizace",
+      "domain": "WATER",
+      "active": true
+    },
+    {
+      "code": "WASTE",
+      "name": "Odpady",
+      "domain": "WASTE",
+      "active": true
+    },
+    {
+      "code": "TRANSPORT",
+      "name": "Doprava",
+      "domain": "TRANSPORT",
+      "active": true
+    },
+    {
+      "code": "CULTURE",
+      "name": "Kultura",
+      "domain": "CULTURE",
+      "active": true
+    },
+    {
+      "code": "HERITAGE",
+      "name": "Kulturní dědictví",
+      "domain": "HERITAGE",
+      "active": true
+    },
+    {
+      "code": "CULTURAL_MONUMENT",
+      "name": "Kulturní památka",
+      "domain": "HERITAGE",
+      "active": true
+    },
+    {
+      "code": "SOCIAL",
+      "name": "Sociální oblast",
+      "domain": "SOCIAL",
+      "active": true
+    },
+    {
+      "code": "SOCIAL_SERVICE",
+      "name": "Sociální služba",
+      "domain": "SOCIAL",
+      "active": true
+    },
+    {
+      "code": "HEALTH",
+      "name": "Zdraví",
+      "domain": "HEALTH",
+      "active": true
+    },
+    {
+      "code": "TOURISM",
+      "name": "Cestovní ruch",
+      "domain": "TOURISM",
+      "active": true
+    },
+    {
+      "code": "COMMUNITY",
+      "name": "Komunitní rozvoj",
+      "domain": "COMMUNITY",
+      "active": true
+    },
+    {
+      "code": "HOUSING",
+      "name": "Bydlení",
+      "domain": "HOUSING",
+      "active": true
+    },
+    {
+      "code": "PUBLIC_SPACE",
+      "name": "Veřejný prostor",
+      "domain": "PUBLIC_SPACE",
+      "active": true
+    },
+    {
+      "code": "SECURITY",
+      "name": "Bezpečnost",
+      "domain": "SECURITY",
+      "active": true
+    }
+  ]
+}
