@@ -153,8 +153,18 @@ try {
     .slice(0, 6000);
   links = await publicProgramLinks();
 
-  if (links.length) {
-    detailUrl = links[0].href;
+  // The React listing does not expose program cards as <a>; their public
+  // codes are delivered by GetProjectSubprojectCollection. Use the first
+  // captured public code, falling back to a known search-indexed public
+  // program only when the async capture finishes after the DOM inspection.
+  const capturedCode =
+    Array.isArray(grantCollectionSample) &&
+    grantCollectionSample[0]?.subprojects?.[0]?.memo
+      ? grantCollectionSample[0].subprojects[0].memo
+      : "26SPT10";
+  detailUrl = links[0]?.href ?? `https://dotace.khk.cz/grantProgram/${capturedCode}`;
+
+  if (detailUrl) {
     await page.goto(detailUrl, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
