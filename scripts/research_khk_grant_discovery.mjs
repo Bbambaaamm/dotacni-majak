@@ -1,9 +1,10 @@
 import { chromium } from "@playwright/test";
 
-const START_URL = "https://dotace.khk.cz/";
+const ROOT_URL = "https://dotace.khk.cz/";
+const LIST_URL = "https://dotace.khk.cz/grantProgram?year=2027&year=2026";
 
 function shape(value, depth = 0) {
-  if (depth > 4) return "<max-depth>";
+  if (depth > 5) return "<max-depth>";
   if (value === null) return null;
   if (Array.isArray(value)) {
     return {
@@ -46,7 +47,7 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   locale: "cs-CZ",
   userAgent:
-    "DotacniMajak-SourceResearch/0.2 (+https://github.com/Bbambaaamm/dotacni-majak)",
+    "DotacniMajak-SourceResearch/0.3 (+https://github.com/Bbambaaamm/dotacni-majak)",
 });
 const page = await context.newPage();
 
@@ -80,47 +81,53 @@ page.on("response", (response) => {
   responseTasks.push(task);
 });
 
+async function publicProgramLinks() {
+  return await page.locator('a[href*="/grantProgram/"]').evaluateAll((nodes) =>
+    nodes
+      .map((node) => ({
+        text: (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 220),
+        href: node.href,
+      }))
+      .filter((item) => /^https:\/\/dotace\.khk\.cz\/grantProgram\/[A-Za-z0-9_-]+\/?$/.test(item.href))
+      .filter(
+        (item, index, all) =>
+          all.findIndex((other) => other.href === item.href) === index,
+      )
+      .slice(0, 80),
+  );
+}
+
 let error = null;
-let initialUrl = null;
-let finalUrl = null;
-let clicked = false;
-let bodyPreview = null;
-let anchors = [];
+let listStatus = null;
+let listBodyPreview = null;
+let links = [];
+let detailUrl = null;
+let detailBodyPreview = null;
 
 try {
-  await page.goto(START_URL, {
+  const response = await page.goto(LIST_URL, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  initialUrl = page.url();
-  await page.waitForTimeout(8_000);
+  listStatus = response?.status() ?? null;
+  await page.waitForTimeout(10_000);
 
-  const target = page.getByText("DOTAČNÍ OBLASTI", { exact: true }).first();
-  if (await target.count()) {
-    clicked = true;
-    await target.click();
-    await page.waitForTimeout(8_000);
-  }
-
-  finalUrl = page.url();
-  bodyPreview = (await page.locator("body").innerText())
+  listBodyPreview = (await page.locator("body").innerText())
     .replace(/\s+/g, " ")
-    .slice(0, 5000);
+    .slice(0, 6000);
+  links = await publicProgramLinks();
 
-  anchors = await page.locator("a").evaluateAll((nodes) =>
-    nodes
-      .map((node) => ({
-        text: (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 180),
-        href: node.href,
-      }))
-      .filter((item) => item.href.startsWith("https://dotace.khk.cz/"))
-      .filter(
-        (item, index, all) =>
-          all.findIndex((other) => other.href === item.href && other.text === item.text) ===
-          index,
-      )
-      .slice(0, 250),
-  );
+  if (links.length) {
+    detailUrl = links[0].href;
+    await page.goto(detailUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await page.waitForTimeout(8_000);
+    detailBodyPreview = (await page.locator("body").innerText())
+      .replace(/\s+/g, " ")
+      .slice(0, 6500);
+  }
 
   await Promise.allSettled(responseTasks);
 } catch (exc) {
@@ -130,17 +137,20 @@ try {
 console.log(
   JSON.stringify(
     {
-      startUrl: START_URL,
-      initialUrl,
-      clicked,
-      finalUrl,
-      bodyPreview,
-      anchors,
+      rootUrl: ROOT_URL,
+      listUrl: LIST_URL,
+      listStatus,
+      listBodyPreview,
+      programLinks: links,
+      detailUrl,
+      detailBodyPreview,
       xhrContracts: [...contracts.values()].sort((a, b) =>
-        `${a.method} ${a.pathname}`.localeCompare(`${b.method} ${b.pathname}`),
+        `${a.method} ${a.origin}${a.pathname}`.localeCompare(
+          `${b.method} ${b.origin}${b.pathname}`,
+        ),
       ),
       note:
-        "No cookies/auth headers/request bodies/response bodies are logged; output contains public URLs, link text and JSON shapes only.",
+        "No cookies/auth headers/request bodies/response bodies are logged; output contains public URLs, rendered public text and JSON shapes only.",
       error,
     },
     null,
