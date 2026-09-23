@@ -717,12 +717,14 @@ class OpJakAdapter(SourceAdapter):
         body = _clean(soup.get_text(" ", strip=True))
 
         opens_match = re.search(
-            r"Datum zahájení příjmu žádostí[^:]*:?\s*(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
+            r"Datum zahájení příjmu žádostí(?: o podporu)?\s*:?\s*"
+            r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
             body,
             re.I,
         )
         closes_match = re.search(
-            r"Datum ukončení příjmu žádost[^:]*:\s*(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
+            r"Datum ukončení příjmu žádost(?:i|í)(?: o podporu)?\s*:?\s*"
+            r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
             body,
             re.I,
         )
