@@ -139,6 +139,9 @@ jobs:
       - name: Install Workspace
         run: python3 -m pip install -e packages/workspace
 
+      - name: Install Usage Budget package
+        run: python3 -m pip install -e packages/budget
+
       - name: Generate canonical TypeScript/Python contracts
         run: python3 scripts/generate_contracts.py --output-root /tmp/canonical-contracts
 
@@ -152,4 +155,4 @@ jobs:
         run: python3 -m unittest discover -s tests/python -p 'test_*.py'
 
       - name: Compile Python sources
-        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src connectors/optak/src connectors/irop/src connectors/mpsv/src connectors/mmr/src connectors/mk/src connectors/mze/src connectors/tacr/src connectors/dzs/src connectors/nrb/src connectors/msmt/src connectors/modernization-fund/src connectors/dotaceeu/src connectors/praha/src connectors/karlovarsky/src connectors/plzensky/src connectors/jihocesky/src connectors/liberecky/src connectors/ustecky/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/search/src packages/watches/src
+        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src connectors/optak/src connectors/irop/src connectors/mpsv/src connectors/mmr/src connectors/mk/src connectors/mze/src connectors/tacr/src connectors/dzs/src connectors/nrb/src connectors/msmt/src connectors/modernization-fund/src connectors/dotaceeu/src connectors/praha/src connectors/karlovarsky/src connectors/plzensky/src connectors/jihocesky/src connectors/liberecky/src connectors/ustecky/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/budget/src packages/search/src packages/watches/src
