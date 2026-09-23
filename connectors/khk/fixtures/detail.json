@@ -1,0 +1,25 @@
+{
+  "data": {
+    "id_Def_Subproject": 1156,
+    "memo": "26SPT10",
+    "name": "Podpora investic do sportovních objektů",
+    "dateBeg": "2026-11-20T08:00:00",
+    "dateEnd": "2026-12-11T12:00:00",
+    "desc": "Podpora investic do sportovních objektů na území Královéhradeckého kraje.",
+    "purposeList": "Rekonstrukce, modernizace a rozvoj sportovní infrastruktury.",
+    "applicantsRange": "Pr&aacute;vnick&aacute; osoba v oblasti sportu.<br />Obec na území kraje.",
+    "percentMaximum": 50,
+    "percentMaximumWeb": true,
+    "priceMinimum": 20000,
+    "priceMinimumWeb": true,
+    "priceMaximum": 500000,
+    "priceMaximumWeb": true,
+    "totalPrice": 7000000,
+    "totalPriceWeb": true,
+    "programLinks": "25SPT10,26SPT10"
+  },
+  "errorMessage": null,
+  "result": 1,
+  "secondsToLogOut": null,
+  "succeed": true
+}
