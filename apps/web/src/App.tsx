@@ -1,5 +1,6 @@
 import { AppShell } from "./components/AppShell";
 import { StatusBadge } from "./components/StatusBadge";
+import { ChangelogPage } from "./pages/ChangelogPage";
 import { ComparePage } from "./pages/ComparePage";
 import { CoveragePage } from "./pages/CoveragePage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
@@ -47,6 +48,9 @@ export function App() {
       break;
     case "coverage":
       content = <CoveragePage />;
+      break;
+    case "changelog":
+      content = <ChangelogPage />;
       break;
     case "projects":
       content = <PlaceholderPage title="Moje projekty" />;
