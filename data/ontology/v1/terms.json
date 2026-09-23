@@ -33,6 +33,18 @@
       "active": true
     },
     {
+      "code": "SWIMMING_FACILITY",
+      "name": "Plavecké zařízení",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
+      "code": "OUTDOOR_SWIMMING_POOL",
+      "name": "Koupaliště",
+      "domain": "SPORT",
+      "active": true
+    },
+    {
       "code": "TENNIS",
       "name": "Tenis",
       "domain": "SPORT",
