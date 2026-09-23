@@ -7,6 +7,12 @@
     "test:schema": "python3 scripts/validate_schemas.py",
     "test:python": "python3 -m unittest discover -s tests/python -p 'test_*.py'",
     "test": "npm run test:schema && npm run test:python",
-    "generate:contracts": "python3 scripts/generate_contracts.py"
-  }
+    "generate:contracts": "python3 scripts/generate_contracts.py",
+    "web:typecheck": "npm --workspace @dotacni-majak/web run typecheck",
+    "web:test": "npm --workspace @dotacni-majak/web run test",
+    "web:build": "npm --workspace @dotacni-majak/web run build"
+  },
+  "workspaces": [
+    "apps/web"
+  ]
 }
