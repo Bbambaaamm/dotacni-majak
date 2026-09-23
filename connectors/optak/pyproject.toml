@@ -1,0 +1,15 @@
+[project]
+name = "dotacni-majak-optak"
+version = "0.1.0"
+description = "OP TAK / Agentura pro podnikání a inovace source adapter"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12,<5"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
