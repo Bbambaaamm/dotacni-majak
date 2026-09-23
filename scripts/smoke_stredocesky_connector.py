@@ -27,14 +27,28 @@ async def main() -> None:
                 now=datetime.now(timezone.utc),
             )
             health = await adapter.healthcheck(ctx)
+
+            # The official Středočeský website is known to time out from some
+            # GitHub-hosted runners. That is a Source Health condition, not a
+            # parser failure and must not encourage bypassing the source.
             if health.status.value == "UNAVAILABLE":
-                raise RuntimeError(
-                    f"Středočeský public source unavailable: {health.detail}"
+                print(
+                    {
+                        "health": health.status.value,
+                        "coverage": "LIMITED_STREDOCESKE_FONDY_GUIDE",
+                        "note": (
+                            "Official source is unreachable from this runner. "
+                            "Connector stays LIMITED/DEGRADED; no bypass attempted."
+                        ),
+                        "detail": health.detail,
+                    }
                 )
+                return
+
             page = await adapter.discover(ctx, None)
             if not page.items:
                 raise RuntimeError(
-                    "Středočeský official funds guide produced zero programmes"
+                    "Reachable Středočeský official funds guide produced zero programmes"
                 )
             first = (await adapter.fetch_record(ctx, page.items[0])).record
             if first is None:
