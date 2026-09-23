@@ -1,6 +1,6 @@
 import { AppShell } from "./components/AppShell";
 import { StatusBadge } from "./components/StatusBadge";
-import { HomePage } from "./pages/HomePage";
+import { HomePage } from "./pages/HomePage";\nimport { SearchPage } from "./pages/SearchPage";\nimport { GrantDetailPage } from "./pages/GrantDetailPage";
 import { resolveRoute } from "./lib/routes";
 
 function PlaceholderPage({ title }: { title: string }) {
