@@ -1,0 +1,29 @@
+name: Karlovy Vary regional connector live smoke
+
+on:
+  pull_request:
+    paths:
+      - "connectors/karlovarsky/**"
+      - "scripts/smoke_karlovarsky_connector.py"
+      - ".github/workflows/karlovarsky-live-probe.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "47 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e connectors/karlovarsky
+      - name: Run Karlovy Vary live probe
+        run: PYTHONPATH=pipelines/ingestion/src python3 scripts/smoke_karlovarsky_connector.py
