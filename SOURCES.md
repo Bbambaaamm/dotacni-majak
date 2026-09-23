@@ -102,3 +102,16 @@
 - **Status safety:** stav pouze z explicitního Harmonogramu; disappearance není CLOSED/CANCELLED.
 - **Region:** CZ031.
 - **Live smoke:** `scripts/smoke_jihocesky_connector.py`.
+
+
+## Pardubický kraj — Dotační portál
+
+- **Oficiální zdroj:** https://dotace.pardubickykraj.cz/grants
+- **Discovery:** veřejný server-rendered katalog programů.
+- **Identity:** stabilní UUID z detail URL `/grants/<uuid>`.
+- **Detail:** cíl/popisy, oprávnění žadatelé, minimální/maximální dotace, spoluúčast, explicitní application window a official files.
+- **Connector:** `connectors/pardubicky`.
+- **RAW-first:** ano.
+- **Safety:** explicitní detailní termíny mají přednost; disappearance není cancellation; odeslání žádosti se neautomatizuje.
+- **Region:** CZ053.
+- **Live smoke:** `scripts/smoke_pardubicky_connector.py`.
