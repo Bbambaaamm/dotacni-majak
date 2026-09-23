@@ -146,6 +146,9 @@ class MpsvAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record.raw_fields["grantAmountMaxCzk"], 3_000_000)
         self.assertTrue(record.raw_fields["submissionOpenAt"])
         self.assertTrue(record.raw_fields["submissionCloseAt"])
+        self.assertTrue(
+            record.raw_fields["submissionCloseAt"].startswith("2026-09-16")
+        )
         self.assertEqual(
             {artifact.role for artifact in record.artifacts},
             {"GUIDELINES", "ANNEX"},
@@ -169,7 +172,11 @@ class MpsvAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(record)
         self.assertEqual(record.native_status, "OPEN")
         self.assertIn(
-            "registrované sociální služby",
+            "sociální služby",
+            record.raw_fields["supportedActivitiesText"],
+        )
+        self.assertIn(
+            "registrované",
             record.raw_fields["supportedActivitiesText"],
         )
         self.assertIn(
