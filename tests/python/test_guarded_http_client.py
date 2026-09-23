@@ -236,6 +236,95 @@ class GuardedHttpClientTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
+    async def test_post_json_requires_allowlisted_path_and_sets_json_content_type(self):
+        seen = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["method"] = request.method
+            seen["content_type"] = request.headers.get("content-type", "")
+            seen["body"] = request.content
+            return httpx.Response(200, content=b'{"ok":true}', request=request)
+
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/api/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            transport=httpx.MockTransport(handler),
+        )
+        try:
+            response = await client.post_json(
+                "https://example.com/api/search",
+                payload={"pageIndex": 0, "pageSize": 8},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(seen["method"], "POST")
+            self.assertEqual(
+                seen["content_type"],
+                "application/json; charset=utf-8",
+            )
+            self.assertEqual(
+                seen["body"],
+                b'{"pageIndex":0,"pageSize":8}',
+            )
+
+            with self.assertRaises(UrlNotAllowedError):
+                await client.post_json(
+                    "https://example.com/api/not-allowed",
+                    payload={},
+                )
+        finally:
+            await client.aclose()
+
+    async def test_post_json_rejects_oversized_body(self):
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/api/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            max_request_body_bytes=16,
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, request=request)
+            ),
+        )
+        try:
+            with self.assertRaises(RequestTooLargeError):
+                await client.post_json(
+                    "https://example.com/api/search",
+                    payload={"payload": "x" * 100},
+                )
+        finally:
+            await client.aclose()
+
+    async def test_post_json_302_redirect_is_not_followed(self):
+        calls = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            return httpx.Response(
+                302,
+                headers={"location": "https://example.com/api/search"},
+                request=request,
+            )
+
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/api/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            transport=httpx.MockTransport(handler),
+        )
+        try:
+            with self.assertRaises(GuardedHttpError):
+                await client.post_json(
+                    "https://example.com/api/search",
+                    payload={"page": 0},
+                )
+            self.assertEqual(calls, 1)
+        finally:
+            await client.aclose()
+
 
 if __name__ == "__main__":
     unittest.main()

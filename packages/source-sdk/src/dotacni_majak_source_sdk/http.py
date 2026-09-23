@@ -67,8 +67,8 @@ class GuardedHttpClient:
     """Read-only HTTP client for Source Adapters.
 
     GET/HEAD are available for allowlisted hosts. POST is available only
-    through post_multipart and only for explicitly allowlisted URL paths
-    intended for read-only search APIs.
+    through explicit constrained helpers (post_multipart/post_json) and only
+    for explicitly allowlisted URL paths intended for read-only search APIs.
     """
 
     RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
@@ -187,6 +187,7 @@ class GuardedHttpClient:
                 headers=headers,
                 max_response_bytes=limit,
                 files=None,
+                content=None,
             )
 
             if response.status_code not in self.REDIRECT_STATUS:
@@ -235,6 +236,71 @@ class GuardedHttpClient:
                 headers=headers,
                 max_response_bytes=limit,
                 files=files,
+                content=None,
+            )
+
+            if response.status_code not in self.REDIRECT_STATUS:
+                return response
+
+            location = response.headers.get("location")
+            if not location:
+                return response
+
+            next_url = urljoin(current_url, location)
+            await self._validate_url(next_url)
+            self._validate_post_path(next_url)
+
+            if response.status_code not in self.SAFE_REDIRECT_PRESERVE_METHOD:
+                raise GuardedHttpError(
+                    f"POST redirect status {response.status_code} is not followed"
+                )
+
+            if redirect_count >= self.max_redirects:
+                raise TooManyRedirectsError(
+                    f"redirect limit exceeded for {url!r}"
+                )
+
+            current_url = next_url
+            redirect_count += 1
+
+    async def post_json(
+        self,
+        url: str,
+        *,
+        payload: Any,
+        headers: Mapping[str, str] | None = None,
+        max_response_bytes: int | None = None,
+    ) -> GuardedResponse:
+        """POST bounded JSON to an explicitly allowlisted read-only API path."""
+
+        limit = self._response_limit(max_response_bytes)
+        body = json.dumps(
+            payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        if len(body) > self.max_request_body_bytes:
+            raise RequestTooLargeError(
+                "JSON payload exceeds configured request body limit: "
+                f"{len(body)} > {self.max_request_body_bytes}"
+            )
+
+        current_url = url
+        redirect_count = 0
+        json_headers = dict(headers or {})
+        json_headers["content-type"] = "application/json; charset=utf-8"
+
+        while True:
+            await self._validate_url(current_url)
+            self._validate_post_path(current_url)
+
+            response = await self._request_with_retries(
+                "POST",
+                current_url,
+                headers=json_headers,
+                max_response_bytes=limit,
+                files=None,
+                content=body,
             )
 
             if response.status_code not in self.REDIRECT_STATUS:
@@ -324,6 +390,7 @@ class GuardedHttpClient:
         headers: Mapping[str, str] | None,
         max_response_bytes: int,
         files: MultipartFiles | None,
+        content: bytes | None,
     ) -> GuardedResponse:
         last_error: Exception | None = None
 
@@ -335,6 +402,7 @@ class GuardedHttpClient:
                     headers=headers,
                     max_response_bytes=max_response_bytes,
                     files=files,
+                    content=content,
                 )
             except httpx.TransportError as exc:
                 last_error = exc
@@ -368,7 +436,11 @@ class GuardedHttpClient:
         headers: Mapping[str, str] | None,
         max_response_bytes: int,
         files: MultipartFiles | None,
+        content: bytes | None,
     ) -> GuardedResponse:
+        if files is not None and content is not None:
+            raise ValueError("request cannot contain both multipart files and raw content")
+
         await self._wait_for_rate_slot()
 
         request_headers = {
@@ -391,6 +463,7 @@ class GuardedHttpClient:
                     url,
                     headers=request_headers,
                     files=files,
+                    content=content,
                 ) as response:
                     declared_length = response.headers.get("content-length")
                     if declared_length:
