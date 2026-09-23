@@ -26,4 +26,9 @@ jobs:
           python3 -m pip install -e packages/source-sdk
           python3 -m pip install -e connectors/pardubicky
       - name: Run Pardubický live probe
+        env:
+          # PR validation remains deterministic through fixtures. A genuine
+          # upstream TLS/network outage is reported but does not encourage us
+          # to disable certificate verification just to make the PR green.
+          ALLOW_SOURCE_UNAVAILABLE: ${{ github.event_name == 'pull_request' && '1' || '0' }}
         run: PYTHONPATH=pipelines/ingestion/src python3 scripts/smoke_pardubicky_connector.py
