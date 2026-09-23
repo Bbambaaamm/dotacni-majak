@@ -147,3 +147,10 @@
 - RAP se pouze odkazuje; Maják jej nescrapuje.
 - Aktuální/ukončený index je explicitní status signál; disappearance != cancellation.
 - Region: CZ071.
+
+
+## Zlínský kraj — regionální dotační programy
+- Oficiální index: https://zlinskykraj.cz/dotace
+- Detailní stránky publikují kód programu, datum vyhlášení, interval příjmu, alokaci, oblast a dokumenty.
+- Elektronické formuláře se pouze odkazují; Maják je nescrapuje.
+- Region: CZ072.
