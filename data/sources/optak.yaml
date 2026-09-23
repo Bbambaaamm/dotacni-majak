@@ -1,0 +1,25 @@
+code: OPTAK
+name: OP TAK / Agentura pro podnikání a inovace
+authority: OFFICIAL
+base_url: https://apiagentura.gov.cz/
+retrieval_modes:
+  - HTML
+  - PDF
+  - DOCX
+  - XLSX
+allowed_hosts:
+  - apiagentura.gov.cz
+  - www.apiagentura.gov.cz
+normal_refresh_minutes: 240
+max_concurrency: 2
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+research:
+  verified_on: 2026-09-23
+  status: IMPLEMENTATION_READY
+  calls_url: https://apiagentura.gov.cz/cs/radce/vsechny-vyzvy/
+  sample_detail_url: https://apiagentura.gov.cz/cs/podporovane-aktivity-optak/poradenstvi-optak/poradenstvi-vyzva-iii/
+  notes:
+    - Public listing includes open and closed calls with dates and activity focus.
+    - Public detail exposes applicants, activities, support rate, costs, geographic restrictions and files.
