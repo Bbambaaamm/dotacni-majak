@@ -2,6 +2,7 @@ export type RouteId =
   | "home"
   | "search"
   | "projects"
+  | "shared-project"
   | "grant-detail"
   | "compare"
   | "how-it-works"
@@ -35,6 +36,15 @@ export const utilityRoutes: readonly AppRoute[] = [
 
 export function resolveRoute(pathname: string): AppRoute {
   const normalized = normalizePath(pathname);
+
+  if (/^\/s\/[A-Za-z0-9_-]{40,128}$/.test(normalized)) {
+    return {
+      id: "shared-project",
+      path: normalized,
+      label: "Sdílený projekt",
+    };
+  }
+
   return (
     [...routes, ...utilityRoutes].find((route) => route.path === normalized) ?? {
       id: "not-found",
