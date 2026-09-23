@@ -4,6 +4,7 @@ import { ComparePage } from "./pages/ComparePage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
+import { SuggestSourcePage } from "./pages/SuggestSourcePage";
 import { resolveRoute } from "./lib/routes";
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -46,6 +47,9 @@ export function App() {
       break;
     case "projects":
       content = <PlaceholderPage title="Moje projekty" />;
+      break;
+    case "suggest-source":
+      content = <SuggestSourcePage />;
       break;
     default:
       content = <NotFound />;
