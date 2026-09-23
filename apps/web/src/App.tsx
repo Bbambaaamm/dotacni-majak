@@ -1,6 +1,7 @@
 import { AppShell } from "./components/AppShell";
 import { StatusBadge } from "./components/StatusBadge";
 import { ComparePage } from "./pages/ComparePage";
+import { CoveragePage } from "./pages/CoveragePage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
@@ -43,6 +44,9 @@ export function App() {
       break;
     case "compare":
       content = <ComparePage />;
+      break;
+    case "coverage":
+      content = <CoveragePage />;
       break;
     case "projects":
       content = <PlaceholderPage title="Moje projekty" />;
