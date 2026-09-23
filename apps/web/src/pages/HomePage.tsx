@@ -1,4 +1,4 @@
-import { StatusBadge } from "../components/StatusBadge";
+import "./homepage.css";\n\nimport { StatusBadge } from "../components/StatusBadge";
 import { buildIntentSearchUrl, intentExamples } from "../lib/intent";
 
 const promiseItems = [
