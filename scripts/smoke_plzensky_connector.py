@@ -53,26 +53,23 @@ async def main() -> None:
                 for signal in signals:
                     print(signal[:500])
 
-                for needle in (
-                    "DotacniTitulyOtevrene",
-                    "DotacniTitulyPripravovane",
-                    "/verejnost/dotacnitituly",
-                    "jqGrid",
-                    "datatype",
-                    "postData",
+                for name, sortname in (
+                    ("DotacniTitulyOtevrene", "zadostido"),
+                    ("DotacniTitulyPripravovane", "zadostiod"),
                 ):
-                    start = 0
-                    printed = 0
-                    while printed < 3:
-                        pos = html.find(needle, start)
-                        if pos < 0:
-                            break
-                        left = max(0, pos - 1200)
-                        right = min(len(html), pos + 2200)
-                        context = " ".join(html[left:right].split())
-                        print("html-context", needle, context[:3400])
-                        start = pos + len(needle)
-                        printed += 1
+                    probe_url = (
+                        "https://dotace.plzensky-kraj.cz/verejnost"
+                        f"?_name={name}&page=1&rows=100"
+                        f"&sidx={sortname}&sord=asc&_search=false"
+                    )
+                    probe = await client.get(probe_url)
+                    print(
+                        "grid-probe",
+                        name,
+                        probe.status_code,
+                        probe.headers.get("content-type"),
+                        probe.text[:4000].replace("\n", " "),
+                    )
 
                 raise SystemExit("Plzeň live smoke discovered zero open/planned calls")
             first = page.items[0]
