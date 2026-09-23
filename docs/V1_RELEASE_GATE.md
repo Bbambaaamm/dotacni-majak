@@ -78,3 +78,20 @@ Nelze vydat v1.0, pokud:
 Každé v1.0 gate rozhodnutí musí mít datum, release SHA a odkaz na evidence.
 Issue #41 se neuzavírá pouze tímto dokumentem; uzavírá se až po skutečném auditu
 konkrétní produkční kandidátní verze.
+
+
+## Evidence workflow
+
+1. Copy `release/v1-evidence.example.json` to `release/v1-evidence.json` for a
+   concrete release candidate.
+2. Set the exact 40-character release commit SHA.
+3. Link evidence for every automated and manual check.
+4. Complete Public Beta gate (#40) before marking `manual.betaUsability=PASS`.
+5. Run the recovery scenarios from `docs/RUNBOOK.md`.
+6. Publicly disclose and explicitly accept every known limitation retained for
+   release.
+7. A human reviewer sets `decision.status=GO`, date, reviewer and rationale.
+8. Run the manual GitHub Action **v1.0 Release Gate**.
+
+The validator intentionally refuses to infer PASS from the existence of a
+document or from automated tests alone.
