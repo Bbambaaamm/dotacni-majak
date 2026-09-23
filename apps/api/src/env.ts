@@ -1,4 +1,5 @@
 export interface D1PreparedStatementLike {
+  bind(...values: unknown[]): D1PreparedStatementLike;
   first<T = unknown>(): Promise<T | null>;
 }
 
