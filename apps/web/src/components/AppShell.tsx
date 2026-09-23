@@ -34,6 +34,24 @@ export function AppShell({ children }: PropsWithChildren) {
       <main id="main-content" className="shell main-content">
         {children}
       </main>
+
+      <footer className="site-footer">
+        <div className="shell site-footer__grid">
+          <div>
+            <strong>Dotační maják</strong>
+            <p>Najde. Pohlídá. Dotáhne.</p>
+          </div>
+          <nav aria-label="Informace o projektu">
+            <a href="/jak-to-funguje">Jak to funguje</a>
+            <a href="/pokryti">Pokrytí Majáku</a>
+            <a href="https://github.com/Bbambaaamm/dotacni-majak">GitHub</a>
+          </nav>
+          <p className="site-footer__legal">
+            Dotační maják není poskytovatelem dotací. Rozhodující jsou vždy
+            oficiální podmínky příslušného poskytovatele.
+          </p>
+        </div>
+      </footer>
     </>
   );
 }

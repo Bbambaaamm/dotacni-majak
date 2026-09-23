@@ -1,4 +1,11 @@
-export type RouteId = "home" | "search" | "projects" | "not-found";
+export type RouteId =
+  | "home"
+  | "search"
+  | "projects"
+  | "how-it-works"
+  | "coverage"
+  | "suggest-source"
+  | "not-found";
 
 export interface AppRoute {
   id: RouteId;
@@ -12,10 +19,16 @@ export const routes: readonly AppRoute[] = [
   { id: "projects", path: "/projekty", label: "Moje projekty" },
 ] as const;
 
+export const utilityRoutes: readonly AppRoute[] = [
+  { id: "how-it-works", path: "/jak-to-funguje", label: "Jak to funguje" },
+  { id: "coverage", path: "/pokryti", label: "Pokrytí Majáku" },
+  { id: "suggest-source", path: "/navrhnout-zdroj", label: "Navrhnout zdroj" },
+] as const;
+
 export function resolveRoute(pathname: string): AppRoute {
   const normalized = normalizePath(pathname);
   return (
-    routes.find((route) => route.path === normalized) ?? {
+    [...routes, ...utilityRoutes].find((route) => route.path === normalized) ?? {
       id: "not-found",
       path: normalized,
       label: "Stránka nenalezena",
