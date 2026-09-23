@@ -53,7 +53,10 @@ class DotaceEuLocalMappingTest(unittest.TestCase):
             datetime(2026, 9, 24, tzinfo=timezone.utc),
         )
         self.assertEqual(mapped.status, "OPEN")
-        self.assertEqual(mapped.provider_name, "DotaceEU.cz")
+        self.assertEqual(
+            mapped.provider_name,
+            "Poskytovatel neuveden v agregovaném záznamu",
+        )
         self.assertIn("Obce a jejich organizace", mapped.summary)
         self.assertIn("Rozvoj infrastruktury", mapped.supported_activities)
         self.assertEqual(mapped.content_hash, "a" * 64)
