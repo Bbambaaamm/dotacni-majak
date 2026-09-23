@@ -127,3 +127,10 @@
 - **Aplikační portál:** pouze odkaz; přihlášený Portál dotací a služeb se nescrapuje.
 - **Region:** CZ042.
 - **Live smoke:** `scripts/smoke_ustecky_connector.py`.
+
+
+## Zlínský kraj — regionální dotační programy
+- Oficiální index: https://zlinskykraj.cz/dotace
+- Detailní stránky publikují kód programu, datum vyhlášení, interval příjmu, alokaci, oblast a dokumenty.
+- Elektronické formuláře se pouze odkazují; Maják je nescrapuje.
+- Region: CZ072.
