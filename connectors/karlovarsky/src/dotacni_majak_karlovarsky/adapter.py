@@ -94,22 +94,111 @@ def _date(value: str | None, *, end_of_day: bool = False) -> datetime | None:
     return local.astimezone(timezone.utc)
 
 
-def _explicit_datetime(body: str, prefix: str) -> datetime | None:
-    folded = _normalize(body)
-    p = _normalize(prefix)
-    pattern = (
-        re.escape(p)
-        + r"[^0-9]{0,50}"
-        + r"(\d{1,2})\.\s*(\d{1,2})\.\s*(20\d{2})"
-        + r"(?:\s*[,;]?\s*(\d{1,2})[.:](\d{2}))?"
+def _local_datetime(
+    date_value: str,
+    *,
+    hour: str | None = None,
+    minute: str | None = None,
+    end_of_day_if_no_time: bool = False,
+) -> datetime | None:
+    match = re.search(
+        r"\b(\d{1,2})\.\s*(\d{1,2})\.\s*(20\d{2})\b",
+        date_value,
     )
-    match = re.search(pattern, folded, re.I | re.S)
     if not match:
         return None
-    day, month, year = map(int, match.group(1, 2, 3))
-    hour = int(match.group(4) or 0)
-    minute = int(match.group(5) or 0)
-    return datetime(year, month, day, hour, minute, tzinfo=_LOCAL_TZ).astimezone(timezone.utc)
+    day, month, year = map(int, match.groups())
+    if hour is None or minute is None:
+        local_time = time(23, 59, 59) if end_of_day_if_no_time else time.min
+        local = datetime.combine(
+            datetime(year, month, day).date(),
+            local_time,
+            tzinfo=_LOCAL_TZ,
+        )
+    else:
+        local = datetime(
+            year,
+            month,
+            day,
+            int(hour),
+            int(minute),
+            tzinfo=_LOCAL_TZ,
+        )
+    return local.astimezone(timezone.utc)
+
+
+def _application_window(body: str) -> tuple[datetime | None, datetime | None]:
+    """Extract only explicitly labelled application dates.
+
+    Prefer the detailed sentence with exact local times. If that sentence is
+    absent, fall back to the provider's separate "Příjem elektronických
+    žádostí od/do" date labels. We deliberately do not search for generic
+    words "od" / "do", which occur frequently in unrelated page content.
+    """
+
+    folded = _normalize(body)
+
+    detailed = re.search(
+        r"lhuta\s+pro\s+podavani\s+elektronickych\s+zadosti"
+        r".{0,180}?\bod\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
+        r"(?:\s*,?\s*(\d{1,2})[.:](\d{2}))?"
+        r"(?:\s*hodin)?"
+        r".{0,120}?\bdo\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
+        r"(?:\s*,?\s*(\d{1,2})[.:](\d{2}))?",
+        folded,
+        re.I | re.S,
+    )
+    if detailed:
+        opens = _local_datetime(
+            detailed.group(1),
+            hour=detailed.group(2),
+            minute=detailed.group(3),
+        )
+        closes = _local_datetime(
+            detailed.group(4),
+            hour=detailed.group(5),
+            minute=detailed.group(6),
+            end_of_day_if_no_time=True,
+        )
+        return opens, closes
+
+    open_match = re.search(
+        r"prijem\s+elektronickych\s+zadosti\s+od\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
+        r"(?:\s*,?\s*(\d{1,2})[.:](\d{2}))?",
+        folded,
+        re.I,
+    )
+    close_match = re.search(
+        r"prijem\s+elektronickych\s+zadosti\s+do\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})"
+        r"(?:\s*,?\s*(\d{1,2})[.:](\d{2}))?",
+        folded,
+        re.I,
+    )
+
+    opens = (
+        _local_datetime(
+            open_match.group(1),
+            hour=open_match.group(2),
+            minute=open_match.group(3),
+        )
+        if open_match
+        else None
+    )
+    closes = (
+        _local_datetime(
+            close_match.group(1),
+            hour=close_match.group(2),
+            minute=close_match.group(3),
+            end_of_day_if_no_time=True,
+        )
+        if close_match
+        else None
+    )
+    return opens, closes
 
 
 def _status_from_text(body: str) -> str:
@@ -328,14 +417,7 @@ class KarlovarskyAdapter(SourceAdapter):
         body = _clean(soup.get_text(" ", strip=True))
         folded = _normalize(body)
 
-        opens = _explicit_datetime(body, "od")
-        closes = _explicit_datetime(body, "do")
-        if opens is None:
-            m = re.search(r"prijem elektronickych zadosti od\s+(\d{1,2}\.\d{1,2}\.20\d{2})", folded)
-            opens = _date(m.group(1)) if m else None
-        if closes is None:
-            m = re.search(r"prijem elektronickych zadosti do\s+(\d{1,2}\.\d{1,2}\.20\d{2})", folded)
-            closes = _date(m.group(1), end_of_day=True) if m else None
+        opens, closes = _application_window(body)
 
         area = _labeled_text(soup, "Oblast")
         contact = _labeled_text(soup, "Kontaktní osoba")
