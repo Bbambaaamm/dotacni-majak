@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "packages" / "finance" / "src"))
 from dotacni_majak_finance import (
     FinanceEngine,
     FinanceStatus,
+    FundingInstrumentType,
     FundingScenario,
     PaymentMode,
     ProjectFinanceInput,
@@ -169,6 +170,38 @@ class FinanceEngineTest(unittest.TestCase):
         self.assertEqual(status, FinanceStatus.NEEDS_INFORMATION)
         self.assertIsNone(selected)
         self.assertIn("SCENARIO_APPLICABILITY_UNKNOWN", reasons)
+
+    def test_non_grant_instrument_never_uses_grant_calculator(self):
+        project = ProjectFinanceInput(
+            currency_code="CZK",
+            total_project_cost_minor=czk(10_000_000),
+            eligible_costs_minor=czk(10_000_000),
+            ineligible_costs_minor=0,
+            nonrecoverable_vat_minor=0,
+        )
+        scenario = FundingScenario(
+            id="nrb-guarantee",
+            currency_code="CZK",
+            instrument_type=FundingInstrumentType.GUARANTEE,
+            support_rate_max_bps=7000,
+        )
+
+        result = self.engine.evaluate(project, scenario)
+
+        self.assertEqual(
+            result.status,
+            FinanceStatus.INSTRUMENT_NOT_SUPPORTED,
+        )
+        self.assertEqual(
+            result.instrument_type,
+            FundingInstrumentType.GUARANTEE,
+        )
+        self.assertIn(
+            "INSTRUMENT_GUARANTEE_REQUIRES_SPECIALIZED_ENGINE",
+            result.reason_codes,
+        )
+        self.assertIsNone(result.max_grant_minor)
+        self.assertIsNone(result.minimum_real_cash_requirement_minor)
 
     def test_component_sum_mismatch_is_error(self):
         project = ProjectFinanceInput(
