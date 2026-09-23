@@ -59,15 +59,36 @@ const selectedPublicBodies = {};
 let selectedDetailSample = null;
 let selectedDocumentSample = null;
 let detailDownloadLinks = [];
+let documentDownloadContract = null;
+let browserDownload = null;
 
 page.on("response", (response) => {
   const task = (async () => {
     const request = response.request();
     const item = sanitizeRequest(request);
     if (!item) return;
+
+    const rawContentType = response.headers()["content-type"] ?? "";
+    const disposition = response.headers()["content-disposition"] ?? "";
+    if (
+      !documentDownloadContract &&
+      (
+        /application\/(pdf|zip|octet-stream|vnd\.)/i.test(rawContentType) ||
+        /attachment/i.test(disposition) ||
+        /document|download|file/i.test(item.pathname)
+      )
+    ) {
+      documentDownloadContract = {
+        ...item,
+        status: response.status(),
+        contentType: rawContentType,
+        hasAttachmentDisposition: /attachment/i.test(disposition),
+      };
+    }
+
     if (!(item.resourceType === "xhr" || item.resourceType === "fetch")) return;
 
-    const contentType = response.headers()["content-type"] ?? "";
+    const contentType = rawContentType;
     let responseShape = null;
     if (contentType.includes("application/json")) {
       try {
@@ -260,6 +281,39 @@ try {
         )
         .slice(0, 40),
     );
+
+    const firstDocumentTitle =
+      Array.isArray(selectedDocumentSample) && selectedDocumentSample[0]?.title
+        ? selectedDocumentSample[0].title
+        : "Podmínky dotačního programu";
+    const documentControl = page
+      .getByText(firstDocumentTitle, { exact: false })
+      .first();
+
+    if (await documentControl.count()) {
+      const downloadPromise = page
+        .waitForEvent("download", { timeout: 8_000 })
+        .catch(() => null);
+      await documentControl.click({ timeout: 8_000 }).catch(() => null);
+      const download = await downloadPromise;
+      if (download) {
+        try {
+          const u = new URL(download.url());
+          browserDownload = {
+            origin: u.origin,
+            pathname: u.pathname,
+            queryKeys: [...new Set([...u.searchParams.keys()])].sort(),
+            suggestedFilename: download.suggestedFilename(),
+          };
+        } catch {
+          browserDownload = {
+            suggestedFilename: download.suggestedFilename(),
+          };
+        }
+        await download.cancel().catch(() => null);
+      }
+      await page.waitForTimeout(2_000);
+    }
   }
 
   await Promise.allSettled(responseTasks);
@@ -283,6 +337,8 @@ console.log(
       selectedDetailSample,
       selectedDocumentSample,
       detailDownloadLinks,
+      documentDownloadContract,
+      browserDownload,
       xhrContracts: [...contracts.values()].sort((a, b) =>
         `${a.method} ${a.origin}${a.pathname}`.localeCompare(
           `${b.method} ${b.origin}${b.pathname}`,
