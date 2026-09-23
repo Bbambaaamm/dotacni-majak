@@ -1,25 +1,7 @@
 import { AppShell } from "./components/AppShell";
-import { Button } from "./components/Button";
 import { StatusBadge } from "./components/StatusBadge";
+import { HomePage } from "./pages/HomePage";
 import { resolveRoute } from "./lib/routes";
-
-function FoundationHome() {
-  return (
-    <section className="foundation-card" aria-labelledby="foundation-heading">
-      <StatusBadge kind="info" label="Foundation aplikace" />
-      <h1 id="foundation-heading">Dotační maják</h1>
-      <p className="lead">Najde. Pohlídá. Dotáhne.</p>
-      <p>
-        Webová základna je připravená. Produktová homepage a skutečné výsledky
-        budou implementované v navazujících issues.
-      </p>
-      <div className="action-row">
-        <Button>Najít možnosti</Button>
-        <Button variant="secondary">Pohlídat záměr</Button>
-      </div>
-    </section>
-  );
-}
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -48,7 +30,7 @@ export function App() {
   let content;
   switch (route.id) {
     case "home":
-      content = <FoundationHome />;
+      content = <HomePage />;
       break;
     case "search":
       content = <PlaceholderPage title="Najít dotaci" />;
