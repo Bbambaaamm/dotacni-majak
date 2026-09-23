@@ -76,3 +76,16 @@
 - **RAW-first:** ano.
 - **Safety:** neveřejný/přihlašovací RAP systém se nescrapuje; status se mapuje z explicitního textu webu; disappearance není cancellation.
 - **Live smoke:** `scripts/smoke_karlovarsky_connector.py`.
+
+
+## Jihočeský kraj — vyhlášené dotace
+
+- **Oficiální zdroj:** https://www.kraj-jihocesky.cz/ku_dotace/vyhlasene
+- **Discovery:** jedna veřejná server-rendered stránka s aktuálně vyhlášenými programy.
+- **Obsah:** název, charakteristika, harmonogram, aplikační odkaz a soubory.
+- **Identity:** deterministická kombinace data zveřejnění a názvu; poskytovatel na stránce nepublikuje samostatné veřejné ID položky.
+- **Connector:** `connectors/jihocesky`.
+- **RAW-first:** ano; jedna discovery stránka = jeden sdílený RAW snapshot pro nalezené records.
+- **Status safety:** stav pouze z explicitního Harmonogramu; disappearance není CLOSED/CANCELLED.
+- **Region:** CZ031.
+- **Live smoke:** `scripts/smoke_jihocesky_connector.py`.
