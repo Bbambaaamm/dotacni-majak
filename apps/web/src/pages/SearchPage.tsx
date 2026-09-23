@@ -133,11 +133,30 @@ export function SearchPage() {
         </section>
       ) : null}
 
-      {!loading && !error && data && data.results.length === 0 ? (
+      {!loading && !error && data?.indexState === "EMPTY" ? (
+        <section className="next-action" role="status">
+          <div>
+            <p className="eyebrow">Lokální index je prázdný</p>
+            <h2>Vyhledávání je zapojené, ale databáze zatím nemá dotační data.</h2>
+            <p>
+              To není skutečný výsledek „žádná dotace“. Nejdřív musí proběhnout
+              ingestion oficiálních zdrojů do lokálního D1 indexu.
+            </p>
+          </div>
+          <a className="button button--secondary button-link" href="/pokryti">
+            Zobrazit pokrytí zdrojů
+          </a>
+        </section>
+      ) : null}
+
+      {!loading &&
+      !error &&
+      data?.indexState === "READY" &&
+      data.results.length === 0 ? (
         <ResultStatePanel state={resultStateContent("NO_RESULTS")} />
       ) : null}
 
-      {!loading && !error && data && data.results.length > 0 ? (
+      {!loading && !error && data?.indexState === "READY" && data.results.length > 0 ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
