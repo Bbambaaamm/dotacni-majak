@@ -230,16 +230,25 @@ def _mime_hint(url: str) -> str | None:
 
 
 def _artifact_role(title: str, call_title: str) -> str:
+    del call_title
     lowered = title.casefold()
-    normalized_call = re.sub(r"\s+", " ", call_title.casefold()).strip()
-    if normalized_call and normalized_call in lowered:
-        return "CALL_DOCUMENT"
+
+    # Classify explicit rules/forms before the generic call-document rule.
+    # API sometimes uses '-' and sometimes '–' in otherwise identical titles,
+    # so exact title containment is intentionally avoided.
     if "pravidla pro žadatele" in lowered or "příručka" in lowered or "prirucka" in lowered:
         return "GUIDELINES"
-    if "formulář" in lowered or "žádost" in lowered:
+    if "formulář" in lowered or ("žádost" in lowered and "výzva" not in lowered):
         return "APPLICATION_FORM"
     if "faq" in lowered or "časté dotazy" in lowered:
         return "FAQ"
+    if (
+        "výzva" in lowered
+        and "příloha" not in lowered
+        and "pravidla" not in lowered
+        and "archiv" not in lowered
+    ):
+        return "CALL_DOCUMENT"
     return "ANNEX"
 
 
