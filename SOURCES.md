@@ -76,3 +76,16 @@
 - **RAW-first:** ano.
 - **Safety:** neveřejný/přihlašovací RAP systém se nescrapuje; status se mapuje z explicitního textu webu; disappearance není cancellation.
 - **Live smoke:** `scripts/smoke_karlovarsky_connector.py`.
+
+
+## Plzeňský kraj — eDotace
+
+- **Oficiální zdroj:** https://dotace.plzensky-kraj.cz/verejnost
+- **Discovery:** veřejné JSON gridy eDotace pro otevřené a připravované dotační tituly.
+- **Stable source identity:** číselné ID z URL `/verejnost/dotacnititul/{id}/`.
+- **Detail:** účel, důvod, potenciální žadatelé, explicitní termíny, finance, administrátoři a přílohy.
+- **Connector:** `connectors/plzensky`.
+- **RAW-first:** ano.
+- **Status safety:** stav je odvozen z explicitních termínů „Žádosti od/do“; zmizení z indexu není CLOSED/CANCELLED.
+- **Finance:** částky se převádějí do integer minor units.
+- **Live smoke:** `scripts/smoke_plzensky_connector.py`.
