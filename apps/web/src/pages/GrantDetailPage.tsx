@@ -1,3 +1,4 @@
+import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
 import "./results.css";
 
@@ -62,6 +63,11 @@ export function GrantDetailPage() {
           </p>
         </aside>
       </div>
+
+      <RelevanceFeedback
+        grantCallVersionId="fixture:nsa-regiony-2026:v1"
+        matcherVersion="hybrid-v1"
+      />
 
       <div className="sticky-action">
         <button className="button button--primary" type="button">Chci tuto dotaci</button>
