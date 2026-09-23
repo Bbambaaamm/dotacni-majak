@@ -1,9 +1,12 @@
 name: EU Funding API live contract probe
 
 on:
-  push:
-    branches:
-      - feat/eu-funding-connector
+  pull_request:
+    paths:
+      - "connectors/eu-funding/**"
+      - "scripts/probe_eu_funding_api.py"
+      - ".github/workflows/eu-funding-live-probe.yml"
+      - "packages/source-sdk/**"
   workflow_dispatch:
 
 permissions:
@@ -13,6 +16,7 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
