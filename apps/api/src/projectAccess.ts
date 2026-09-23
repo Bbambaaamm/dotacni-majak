@@ -1,4 +1,4 @@
-import type { D1PreparedStatementLike, Env } from "./env";
+import type { Env } from "./env";
 import { hashShareToken } from "./share";
 
 const OWNER_TOKEN_DOMAIN = "dotacni-majak-project-owner-v1\0";
@@ -145,10 +145,10 @@ export async function createProjectShare(
   projectId: string,
   ownerToken: string,
   env: Env,
-  *,
-  expiresInDays = DEFAULT_SHARE_DAYS,
-  now = new Date(),
+  options: { expiresInDays?: number; now?: Date } = {},
 ): Promise<{ shareId: string; token: string; expiresAt: string }> {
+  const expiresInDays = options.expiresInDays ?? DEFAULT_SHARE_DAYS;
+  const now = options.now ?? new Date();
   assertProjectId(projectId);
   if (!TOKEN_RE.test(ownerToken)) {
     throw new ApiInputError("OWNER_CAPABILITY_INVALID", 404);
@@ -339,10 +339,15 @@ export async function parseShareOptions(request: Request): Promise<number> {
   }
   const days = (body as Record<string, unknown>).expiresInDays;
   if (days == null) return DEFAULT_SHARE_DAYS;
-  if (!Number.isSafeInteger(days) || (days as number) < 1 || (days as number) > MAX_SHARE_DAYS) {
+  if (
+    typeof days !== "number"
+    || !Number.isSafeInteger(days)
+    || days < 1
+    || days > MAX_SHARE_DAYS
+  ) {
     throw new ApiInputError("INVALID_SHARE_EXPIRY");
   }
-  return days as number;
+  return days;
 }
 
 async function boundedJsonBody(request: Request): Promise<unknown> {
