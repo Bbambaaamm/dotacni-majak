@@ -301,7 +301,7 @@ def render_import_sql(
     statements = [
         "PRAGMA foreign_keys = ON;",
         "BEGIN IMMEDIATE;",
-        f"""INSERT INTO source_runs(
+        f"""INSERT OR IGNORE INTO source_runs(
           id,source_id,started_at,finished_at,status,records_seen,
           new_records,changed_records,error_count,adapter_version
         ) VALUES (
