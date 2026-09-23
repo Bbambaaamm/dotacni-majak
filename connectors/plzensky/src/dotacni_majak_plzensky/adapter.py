@@ -85,6 +85,18 @@ def _grid_datetime(value: str | None) -> datetime | None:
     return local.astimezone(timezone.utc)
 
 
+def _iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_LOCAL_TZ)
+    return parsed.astimezone(timezone.utc)
+
+
 def _status(now: datetime, opens: datetime | None, closes: datetime | None) -> str:
     current = now.astimezone(timezone.utc)
     if opens and current < opens:
@@ -342,11 +354,11 @@ class PlzenskyAdapter(SourceAdapter):
         published = _parse_local_datetime(_table_value(soup, ("Zveřejnění",)))
         opens = (
             _parse_local_datetime(_table_value(soup, ("Žádosti od",)))
-            or _grid_datetime(item.metadata.get("submission_open_at", "").replace("T", " ")[:19])
+            or _iso_datetime(item.metadata.get("submission_open_at"))
         )
         closes = (
             _parse_local_datetime(_table_value(soup, ("Žádosti do",)))
-            or _grid_datetime(item.metadata.get("submission_close_at", "").replace("T", " ")[:19])
+            or _iso_datetime(item.metadata.get("submission_close_at"))
         )
 
         allocation = _money_minor(
