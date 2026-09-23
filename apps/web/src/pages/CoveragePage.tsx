@@ -31,6 +31,16 @@ const fixture = [
     lastSuccessLabel: "vývojový fixture",
   }),
   toPublicSourceCoverage({
+    code: "STC",
+    name: "Středočeský kraj — Příručka středočeských fondů",
+    category: "Kraj",
+    status: "HEALTHY",
+    lastCheckedLabel: "vývojový fixture",
+    lastSuccessLabel: "vývojový fixture",
+    limitation:
+      "LIMITED — sledujeme programy výslovně uvedené v aktuální oficiální Příručce středočeských fondů; chráněný EDP neobcházíme.",
+  }),
+  toPublicSourceCoverage({
     code: "JDP",
     name: "Jednotný dotační portál",
     category: "ČR",
