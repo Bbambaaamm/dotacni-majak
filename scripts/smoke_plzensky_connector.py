@@ -31,6 +31,27 @@ async def main() -> None:
             print("health", health.status.value, health.detail)
             print("discovered", page.total_hint)
             if not page.items:
+                import re
+                response = await client.get("https://dotace.plzensky-kraj.cz/verejnost")
+                html = response.text
+                signals = []
+                for pattern in (
+                    r'https?://[^"\'<> ]+',
+                    r'[^"\']*dotacnititul[^"\']*',
+                    r'<form[^>]+>',
+                    r'<script[^>]+src=["\'][^"\']+',
+                ):
+                    for match in re.findall(pattern, html, re.I):
+                        value = " ".join(match.split())
+                        if value not in signals:
+                            signals.append(value)
+                        if len(signals) >= 40:
+                            break
+                    if len(signals) >= 40:
+                        break
+                print("diagnostic-signals")
+                for signal in signals:
+                    print(signal[:500])
                 raise SystemExit("Plzeň live smoke discovered zero open/planned calls")
             first = page.items[0]
             result = await adapter.fetch_record(ctx, first)
