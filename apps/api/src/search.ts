@@ -20,6 +20,7 @@ export interface GrantSearchResponse {
   intent: string;
   results: GrantSearchResult[];
   expandedTerms: string[];
+  indexState: "READY" | "EMPTY";
 }
 
 interface SearchRow {
@@ -139,6 +140,19 @@ export async function searchGrants(
   const intent = normalizeSearchIntent(rawIntent);
   const boundedLimit = Math.min(Math.max(limit, 1), 50);
 
+  const countRow = await db
+    .prepare("SELECT COUNT(*) AS count FROM grant_search_documents")
+    .first<{ count: number }>();
+  const indexState = (countRow?.count ?? 0) > 0 ? "READY" : "EMPTY";
+  if (indexState === "EMPTY") {
+    return {
+      intent,
+      results: [],
+      expandedTerms: expandIntentTerms(intent),
+      indexState,
+    };
+  }
+
   const directQuery = buildDirectFtsQuery(intent);
   const directRows = await queryFts(db, directQuery, boundedLimit);
 
@@ -157,5 +171,5 @@ export async function searchGrants(
     }
   }
 
-  return { intent, results, expandedTerms };
+  return { intent, results, expandedTerms, indexState };
 }
