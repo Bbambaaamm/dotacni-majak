@@ -92,3 +92,20 @@ Current result:
 - KHK: **implement now**
 - Středočeský: **continue research**
 - Vysočina: **find alternate official source; do not bypass portal protection**
+
+
+## Středočeský kraj — LIMITED OFFICIAL FUNDS-GUIDE COVERAGE
+
+Po neúspěšných pokusech o veřejný portál/search endpoint byl ověřen bezpečnější oficiální zdroj:
+`https://stredoceskykraj.cz/web/urad/dotace`.
+
+Tato stránka přímo odkazuje na aktuální veřejnou **Příručku středočeských fondů**, která obsahuje přehled vyhlášených programů, termíny, alokace, oprávněné žadatele, výše podpory a spoluúčasti.
+
+Implementace:
+- `connectors/stredocesky`
+- coverage marker: `LIMITED_STREDOCESKE_FONDY_GUIDE`
+- region: `CZ020`
+- RAW-first landing page + guide PDF
+- page-level provenance
+- protected EDP se neobchází
+- coverage se nevydává za kompletní seznam všech forem podpory Středočeského kraje

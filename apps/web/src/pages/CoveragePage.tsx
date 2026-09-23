@@ -31,6 +31,16 @@ const fixture = [
     lastSuccessLabel: "vývojový fixture",
   }),
   toPublicSourceCoverage({
+    code: "STC",
+    name: "Středočeský kraj — Příručka středočeských fondů",
+    category: "Kraj",
+    status: "DEGRADED",
+    lastCheckedLabel: "live smoke — GitHub runner timeout",
+    lastSuccessLabel: "ověřeno z veřejného oficiálního dokumentu při research",
+    limitation:
+      "LIMITED — sledujeme programy výslovně uvedené v aktuální oficiální Příručce středočeských fondů. Oficiální web z GitHub runneru timeoutuje; chráněný EDP neobcházíme.",
+  }),
+  toPublicSourceCoverage({
     code: "JDP",
     name: "Jednotný dotační portál",
     category: "ČR",
