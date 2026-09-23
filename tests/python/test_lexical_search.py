@@ -117,7 +117,7 @@ class LexicalSearchTest(unittest.TestCase):
         )
         hits = self.connection.execute(
             "SELECT count(*) FROM grant_search_fts "
-            "WHERE grant_search_fts MATCH 'sportovni'"
+            "WHERE grant_search_fts MATCH 'tenis'"
         ).fetchone()[0]
         self.assertEqual(hits, 0)
 
