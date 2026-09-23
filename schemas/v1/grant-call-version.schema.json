@@ -14,24 +14,111 @@
     "verificationStatus"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.0.0" },
-    "grantCallId": { "type": "string", "minLength": 1 },
-    "versionNumber": { "type": "integer", "minimum": 1 },
-    "capturedAt": { "type": "string", "format": "date-time" },
-    "effectiveFrom": { "type": ["string", "null"], "format": "date-time" },
-    "effectiveTo": { "type": ["string", "null"], "format": "date-time" },
-    "title": { "type": "string", "minLength": 1 },
-    "summary": { "type": ["string", "null"] },
-    "status": {
-      "enum": ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"]
+    "schemaVersion": {
+      "const": "1.0.0"
     },
-    "submissionOpenAt": { "type": ["string", "null"], "format": "date-time" },
-    "submissionCloseAt": { "type": ["string", "null"], "format": "date-time" },
-    "currencyCode": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" },
-    "officialDetailUrl": { "type": ["string", "null"], "format": "uri" },
-    "contentHash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "grantCallId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effectiveFrom": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "effectiveTo": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ANNOUNCED",
+        "PLANNED",
+        "OPEN",
+        "PAUSED",
+        "CLOSED",
+        "CANCELLED",
+        "ARCHIVED"
+      ]
+    },
+    "submissionOpenAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "submissionCloseAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "currencyCode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Z]{3}$"
+    },
+    "officialDetailUrl": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    },
+    "contentHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
     "verificationStatus": {
-      "enum": ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"]
+      "enum": [
+        "AUTO_EXTRACTED",
+        "PARTIALLY_VERIFIED",
+        "VERIFIED",
+        "NEEDS_REVIEW"
+      ]
+    },
+    "fundingInstrumentType": {
+      "type": "string",
+      "enum": [
+        "GRANT",
+        "LOAN",
+        "GUARANTEE",
+        "EQUITY",
+        "MIXED",
+        "OTHER"
+      ],
+      "default": "GRANT"
     }
   }
 }
