@@ -17,6 +17,8 @@ from dotacni_majak_source_sdk import AdapterContext, GuardedHttpClient
 
 INDEX = (ROOT / "connectors" / "plzensky" / "fixtures" / "index.html").read_text(encoding="utf-8")
 DETAIL = (ROOT / "connectors" / "plzensky" / "fixtures" / "detail.html").read_text(encoding="utf-8")
+GRID_OPEN = (ROOT / "connectors" / "plzensky" / "fixtures" / "grid-open.json").read_text(encoding="utf-8")
+GRID_PLANNED = (ROOT / "connectors" / "plzensky" / "fixtures" / "grid-planned.json").read_text(encoding="utf-8")
 
 
 async def public_resolver(host: str, port: int) -> list[str]:
@@ -31,6 +33,11 @@ class PlzenskyAdapterTest(unittest.IsolatedAsyncioTestCase):
     def handler(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path.rstrip("/")
         if path == "/verejnost":
+            grid = request.url.params.get("_name")
+            if grid == "DotacniTitulyOtevrene":
+                return httpx.Response(200, text=GRID_OPEN, headers={"content-type": "application/json"}, request=request)
+            if grid == "DotacniTitulyPripravovane":
+                return httpx.Response(200, text=GRID_PLANNED, headers={"content-type": "application/json"}, request=request)
             return httpx.Response(200, text=INDEX, headers={"content-type": "text/html"}, request=request)
         if path in {"/verejnost/dotacnititul/1589", "/verejnost/dotacnititul/1593"}:
             return httpx.Response(200, text=DETAIL, headers={"content-type": "text/html; charset=utf-8"}, request=request)
@@ -65,7 +72,9 @@ class PlzenskyAdapterTest(unittest.IsolatedAsyncioTestCase):
                 await client.aclose()
         self.assertEqual(health.status.value, "HEALTHY")
         self.assertEqual(page.total_hint, 2)
-        self.assertEqual({x.external_id for x in page.items}, {"PLK-1589", "PLK-1593"})
+        self.assertEqual({x.external_id for x in page.items}, {"PLK-1589", "PLK-1605"})
+        planned = next(x for x in page.items if x.external_id == "PLK-1605")
+        self.assertEqual(planned.native_status_hint, "PLANNED")
 
     async def test_detail_extracts_dates_finance_applicants_and_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
