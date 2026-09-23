@@ -11,10 +11,15 @@
     "web:typecheck": "npm --workspace @dotacni-majak/web run typecheck",
     "web:test": "npm --workspace @dotacni-majak/web run test",
     "web:build": "npm --workspace @dotacni-majak/web run build",
-    "web:a11y": "playwright test tests/e2e/accessibility.spec.ts"
+    "web:a11y": "playwright test tests/e2e/accessibility.spec.ts",
+    "api:typecheck": "npm --workspace @dotacni-majak/api run typecheck",
+    "api:test": "npm --workspace @dotacni-majak/api run test",
+    "api:build": "npm --workspace @dotacni-majak/api run build",
+    "cloudflare:validate": "node scripts/validate_cloudflare_config.mjs"
   },
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "apps/api"
   ],
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
