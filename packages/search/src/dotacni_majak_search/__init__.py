@@ -34,4 +34,23 @@ __all__ = [
     "VectorBudgetUsage",
     "VectorBudgetManager",
     "VectorBudgetExceeded",
+    "HybridRanker",
+    "HybridSignals",
+    "HybridWeights",
+    "MatchBand",
+    "MatchReasonCode",
+    "RankedGrantMatch",
+    "bm25_rank_to_relevance",
+    "ontology_overlap",
 ]
+
+from .ranking import (
+    HybridRanker,
+    HybridSignals,
+    HybridWeights,
+    MatchBand,
+    MatchReasonCode,
+    RankedGrantMatch,
+    bm25_rank_to_relevance,
+    ontology_overlap,
+)
