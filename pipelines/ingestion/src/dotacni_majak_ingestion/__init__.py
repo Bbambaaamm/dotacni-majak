@@ -30,13 +30,6 @@ from .quarantine import (
     QuarantineItem,
     QuarantineReason,
 )
-from .health import (
-    HealthReason,
-    ScheduleHealthInput,
-    SourceHealthEvaluator,
-    SourceHealthSnapshot,
-    SourceHealthStatus,
-)
 from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
 from .state import IngestionState, PresenceState
 
@@ -48,8 +41,6 @@ __all__ = [
     "RecordPipeline", "PassthroughRecordPipeline", "RawSnapshotRequiredError",
     "QualityGateConfig", "QualityGateDecision", "QualityGateStatus",
     "QualityViolation", "SourceRunObservation", "SourceRunQualityGate",
-    "HealthReason", "ScheduleHealthInput", "SourceHealthEvaluator",
-    "SourceHealthSnapshot", "SourceHealthStatus",
     "OutboxEvent", "OutboxEventType", "OutboxStatus",
     "InMemoryOutboxRepository",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
