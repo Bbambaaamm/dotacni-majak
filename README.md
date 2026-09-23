@@ -79,14 +79,27 @@ npm run dev
 
 Tento příkaz:
 1. aplikuje D1 migrace do lokální persistentní databáze,
-2. spustí API Worker na `http://127.0.0.1:8787`,
-3. spustí web na `http://localhost:5173`,
-4. Vite proxyuje `/api/*` do lokálního API.
+2. pokud lokální NSA data chybí nebo jsou starší než 6 hodin, pokusí se je obnovit z oficiálního webu přes bezpečný Source Adapter,
+3. uloží RAW snapshots do lokálního ignorovaného adresáře `.local/raw`,
+4. naplní canonical D1 a FTS search index,
+5. spustí API Worker na `http://127.0.0.1:8787`,
+6. spustí web na `http://localhost:5173`,
+7. Vite proxyuje `/api/*` do lokálního API.
 
 > Samotné `npm --workspace @dotacni-majak/web run dev` spustí pouze frontend. Vyhledávání pak nemá backend.
 
-### Důležitý stav dat
+### Lokální dotační data
 
-Migrace vytvoří strukturu databáze, ale samy nestahují dotační výzvy. Dokud lokální ingestion nenaplní `grant_search_documents`, vyhledávání správně vrátí nulové výsledky — nesmí zobrazit hardcoded demo dotaci.
+První end-to-end lokální zdroj je **Národní sportovní agentura**. Refresh lze spustit explicitně:
+
+```bash
+npm run dev:data:refresh
+```
+
+Příkaz si vytvoří lokální Python `.venv`, nainstaluje pouze potřebné open-source dependency pro Source SDK + NSA connector, stáhne veřejné listing/detail stránky přes GuardedHttpClient a idempotentně je publikuje do lokální D1.
+
+Pokud je oficiální zdroj dočasně nedostupný, `npm run dev` se přesto spustí a web ukáže poslední dostupná nebo prázdná data. Výpadek zdroje nevytváří falešné výzvy.
+
+Pro vývoj bez automatického refreshu lze nastavit `DEV_SKIP_AUTO_REFRESH=1`.
 
 QA/demo stavy výsledkové stránky jsou povoleny pouze explicitním parametrem `demoState`; běžný uživatelský search je nikdy nepoužívá.
