@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Dotační maják — světlá značka</title>
+  <g fill="none" stroke="#F8FAFC" stroke-linecap="round">
+    <path d="M12 19C18 14 23 12 28 11" stroke-width="4"/>
+    <path d="M52 19C46 14 41 12 36 11" stroke-width="4"/>
+    <path d="M20 54h24" stroke-width="4"/>
+  </g>
+  <path d="M26 18h12l-2.2-7h-7.6L26 18Z" fill="#F8FAFC"/>
+  <path d="M27.5 21h9L40 52H24l3.5-31Z" fill="#F8FAFC"/>
+  <path d="M29.8 27h4.4l.9 8h-6.2l.9-8Z" fill="#0B2D48"/>
+</svg>
