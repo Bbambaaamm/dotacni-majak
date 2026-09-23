@@ -23,3 +23,14 @@ Pagination is public and stable via `pocet=24&stranka=N`.
 - aggregate roundup articles are excluded rather than incorrectly converted
   into one grant call
 - if exact application dates cannot be proven, status remains ANNOUNCED
+
+
+## Public index contract
+
+Discovery starts at:
+
+`https://www.kr-vysocina.cz/vismo/rejstrik.asp?id_org=450008&p1=122604&p3=.&rh=397`
+
+The official index publicly exposes pagination with `pocet=24&stranka=N`. The adapter discovers those same-origin page links rather than assuming a fixed number of pages.
+
+A public article is only a grant candidate when its text clearly signals programme announcement/application intake for the current year. Historical awards/results remain news context and are excluded from active-call discovery.
