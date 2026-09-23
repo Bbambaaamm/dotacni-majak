@@ -231,6 +231,41 @@
       "type": "EXACT",
       "weight": 1,
       "language": "cs"
+    },
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisových kurtů",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "ENERGY_SAVINGS",
+      "text": "energetická úspora",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SCHOOL",
+      "text": "školy",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "EQUIPMENT_PURCHASE",
+      "text": "vybavení",
+      "type": "RELATED",
+      "weight": 0.75,
+      "language": "cs"
+    },
+    {
+      "term": "EQUIPMENT_PURCHASE",
+      "text": "pořízení",
+      "type": "RELATED",
+      "weight": 0.55,
+      "language": "cs"
     }
   ]
 }
