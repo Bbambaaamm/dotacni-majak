@@ -171,7 +171,10 @@ class ProjectWatchMatcher:
 
         if candidate.finance_status is FinanceStatus.SCENARIO_NOT_APPLICABLE:
             return WatchMatchStatus.NOT_FINANCIALLY_COMPATIBLE
-        if candidate.finance_status is FinanceStatus.ERROR:
+        if candidate.finance_status in {
+            FinanceStatus.ERROR,
+            FinanceStatus.INSTRUMENT_NOT_SUPPORTED,
+        }:
             return WatchMatchStatus.NEEDS_REVIEW
         if (
             candidate.finance_status is FinanceStatus.NEEDS_INFORMATION

@@ -16,32 +16,108 @@
     "evaluatedAt"
   ],
   "properties": {
-    "schemaVersion": {"const": "1.0.0"},
-    "id": {"type": "string", "minLength": 1},
-    "projectId": {"type": "string", "minLength": 1},
-    "grantCallVersionId": {"type": "string", "minLength": 1},
-    "fundingScenarioId": {"type": ["string", "null"]},
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "grantCallVersionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fundingScenarioId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "status": {
       "enum": [
         "COMPLETE",
         "NEEDS_INFORMATION",
         "SCENARIO_NOT_APPLICABLE",
-        "ERROR"
+        "ERROR",
+        "INSTRUMENT_NOT_SUPPORTED"
       ]
     },
-    "currencyCode": {"type": "string", "pattern": "^[A-Z]{3}$"},
-    "maxGrantMinor": {"type": ["integer", "null"], "minimum": 0},
-    "ownEligibleContributionMinor": {"type": ["integer", "null"], "minimum": 0},
-    "ineligibleCostsMinor": {"type": ["integer", "null"], "minimum": 0},
-    "nonrecoverableVatMinor": {"type": ["integer", "null"], "minimum": 0},
-    "minimumRealCashRequirementMinor": {"type": ["integer", "null"], "minimum": 0},
-    "minimumPrefinancingRequirementMinor": {"type": ["integer", "null"], "minimum": 0},
+    "currencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "maxGrantMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "ownEligibleContributionMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "ineligibleCostsMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "nonrecoverableVatMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "minimumRealCashRequirementMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "minimumPrefinancingRequirementMinor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
     "reasonCodes": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
     },
-    "engineVersion": {"type": "string", "minLength": 1},
-    "evaluatedAt": {"type": "string", "format": "date-time"}
+    "engineVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "instrumentType": {
+      "type": "string",
+      "enum": [
+        "GRANT",
+        "LOAN",
+        "GUARANTEE",
+        "EQUITY",
+        "MIXED",
+        "OTHER"
+      ],
+      "default": "GRANT"
+    }
   }
 }

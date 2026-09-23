@@ -63,3 +63,32 @@ Own eligible contribution = 350 000 Kč.
 Minimum real cash requirement = 350 000 + 400 000 + 100 000 = **850 000 Kč**.
 
 To je číslo, které má UI upřednostnit před samotným „90 %“.
+
+## Typ finančního nástroje
+
+Dotační maják nesmí zaměňovat různé formy veřejné podpory.
+
+Canonical `FundingInstrumentType`:
+- `GRANT` — nevratná dotace/příspěvek,
+- `LOAN` — úvěr, včetně zvýhodněného nebo bezúročného,
+- `GUARANTEE` — záruka/ručení za financování,
+- `EQUITY` — kapitálový nástroj,
+- `MIXED` — kombinace více forem,
+- `OTHER` — jiný veřejný finanční nástroj.
+
+Současný deterministický finance engine počítá pouze `GRANT`.
+Pro ostatní typy vrací `INSTRUMENT_NOT_SUPPORTED` a nikdy neinterpretuje např. „70% záruka“ jako „70% dotace“.
+
+Specializované kalkulátory pro úvěry/záruky mohou být přidány později, ale musí modelovat vlastní parametry jako:
+- jistinu,
+- úrok,
+- splatnost,
+- odklad,
+- případné odpuštění části jistiny,
+- výši záruky a zaručovaného úvěru,
+- poplatky,
+- cash-flow.
+
+### Backward compatibility
+Stávající grantové scénáře mají default `GRANT`. Nové negrantové zdroje musí instrument type nastavit explicitně.
+

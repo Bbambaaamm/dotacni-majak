@@ -100,6 +100,21 @@ class ProjectWatchMatcherTest(unittest.TestCase):
         )
         self.assertFalse(result.match.notification_candidate)
 
+    def test_unsupported_finance_instrument_requires_review_not_rejection(self):
+        result = self.matcher.reevaluate(
+            self.watch,
+            candidate(finance=FinanceStatus.INSTRUMENT_NOT_SUPPORTED),
+        )
+        self.assertEqual(
+            result.match.status,
+            WatchMatchStatus.NEEDS_REVIEW,
+        )
+        self.assertFalse(result.match.notification_candidate)
+        self.assertIn(
+            "FINANCE_INSTRUMENT_NOT_SUPPORTED",
+            result.match.reason_codes,
+        )
+
     def test_weak_relevance_is_not_a_match(self):
         result = self.matcher.reevaluate(
             self.watch,

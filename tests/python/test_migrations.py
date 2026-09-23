@@ -60,6 +60,42 @@ class MigrationTest(unittest.TestCase):
         }:
             self.assertIn(name, indexes)
 
+    def test_funding_instrument_defaults_to_grant_and_rejects_unknown_value(self):
+        connection = self.migrate()
+        connection.execute(
+            "INSERT INTO providers(id,name,provider_type) VALUES ('p','Provider','NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO programmes(id,provider_id,name,funding_origin) VALUES ('pr','p','Program','CZ_NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO grant_calls(id,programme_id,canonical_slug,current_status,current_title,first_seen_at,created_at,updated_at) "
+            "VALUES ('g','pr','g','OPEN','Grant','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,status,verification_status,created_at) "
+            "VALUES ('v','g',1,'2026-01-01T00:00:00Z','Grant','OPEN','VERIFIED','2026-01-01T00:00:00Z')"
+        )
+        version_type = connection.execute(
+            "SELECT funding_instrument_type FROM grant_call_versions WHERE id='v'"
+        ).fetchone()[0]
+        self.assertEqual(version_type, "GRANT")
+
+        connection.execute(
+            "INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code) "
+            "VALUES ('f','v','default','CZK')"
+        )
+        scenario_type = connection.execute(
+            "SELECT instrument_type FROM funding_scenarios WHERE id='f'"
+        ).fetchone()[0]
+        self.assertEqual(scenario_type, "GRANT")
+
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,instrument_type) "
+                "VALUES ('bad','v','bad','CZK','COUPON')"
+            )
+
     def test_invalid_support_rate_is_rejected(self):
         connection = self.migrate()
         connection.execute(

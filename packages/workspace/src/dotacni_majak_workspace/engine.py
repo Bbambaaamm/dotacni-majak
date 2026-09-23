@@ -363,6 +363,19 @@ class WorkspaceEngine:
                 )
             ]
 
+        if finance.status is FinanceStatus.INSTRUMENT_NOT_SUPPORTED:
+            return [
+                self._system_task(
+                    workspace_id,
+                    "finance-instrument-not-supported",
+                    "Tento typ podpory vyžaduje specializovaný finanční výpočet",
+                    WorkspaceTaskSource.FINANCE,
+                    WorkspaceTaskStatus.BLOCKED,
+                    "FINANCE_INSTRUMENT_NOT_SUPPORTED",
+                    priority=5,
+                )
+            ]
+
         if finance.status is FinanceStatus.ERROR:
             return [
                 self._system_task(
