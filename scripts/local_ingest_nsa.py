@@ -46,9 +46,8 @@ def canonical_status(native_status: str | None, *, published: bool) -> str:
     if value in ACTIVE_CANONICAL:
         return value
     # Native UNKNOWN means that the adapter does not have enough information
-    # to claim OPEN/CLOSED. Keep it out of default search unless it was at
-    # least publicly announced.
-    return "ANNOUNCED" if published else "DRAFT"
+    # to claim OPEN/CLOSED/ANNOUNCED. Keep it out of default search.
+    return "DRAFT"
 
 
 def content_hash_from_record(record) -> str:
