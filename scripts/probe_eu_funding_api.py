@@ -82,6 +82,20 @@ async def main() -> None:
         + json.dumps(interesting, ensure_ascii=False, default=str)[:10000]
     )
 
+    for key in (
+        "links",
+        "latestInfos",
+        "supportInfo",
+        "budgetOverview",
+        "typesOfAction",
+        "topicConditions",
+    ):
+        value = metadata.get(key) if isinstance(metadata, dict) else None
+        print(
+            "META_" + key.upper() + "="
+            + json.dumps(value, ensure_ascii=False, default=str)[:4000]
+        )
+
 
 if __name__ == "__main__":
     asyncio.run(main())
