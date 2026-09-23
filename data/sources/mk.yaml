@@ -1,0 +1,22 @@
+code: MKCR
+name: Ministerstvo kultury — granty a dotace
+authority: OFFICIAL
+base_url: https://www.mk.gov.cz/
+retrieval_modes: [HTML, PDF, DOCX, XLSX]
+allowed_hosts: [mk.gov.cz, www.mk.gov.cz]
+normal_refresh_minutes: 360
+max_concurrency: 2
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+coverage:
+  complete: false
+  strategy: single-call pages discovered from bounded official MK grant indexes
+research:
+  verified_on: 2026-09-23
+  status: IMPLEMENTATION_READY
+  central_index: https://www.mk.gov.cz/granty-a-dotace-cs-1234
+  notes:
+    - Results and settlement pages are excluded from active GrantCall discovery.
+    - Aggregate annual pages are discovery sources, not automatically one grant.
+    - Authenticated DPMK is out of scope.
