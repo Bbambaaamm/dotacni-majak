@@ -138,3 +138,12 @@
 - RAW-first, disappearance != cancellation.
 - Pokud stránka publikuje více kol podání, connector je nespojuje do falešného kontinuálního intervalu.
 - Region: CZ080.
+
+
+## Jihomoravský kraj — dotační portál
+- Dotační oblasti: https://dotace.kr-jihomoravsky.cz/Oblasti.aspx
+- Discovery: veřejné oblastní seznamy `/Folders/...aspx` → detail programu `/Grants/<id>-...aspx`.
+- Veřejný detail publikuje alokaci, účel, termín příjmu, lokalizaci a u titulů také příjemce, min/max podporu a spoluúčast.
+- Stav konkrétní žádosti ani Portál obcí se nescrapuje.
+- Stable source ID = číselné ID detailu.
+- Region: CZ064.
