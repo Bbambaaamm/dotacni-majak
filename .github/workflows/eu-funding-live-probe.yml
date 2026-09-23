@@ -1,22 +1,24 @@
-name: EU Funding API live contract probe
+name: EU Funding connector live smoke
 
 on:
   pull_request:
     paths:
       - "connectors/eu-funding/**"
-      - "scripts/probe_eu_funding_api.py"
+      - "scripts/smoke_eu_funding_connector.py"
       - ".github/workflows/eu-funding-live-probe.yml"
       - "packages/source-sdk/**"
+      - "pipelines/ingestion/**"
   workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
 
 permissions:
   contents: read
 
 jobs:
-  probe:
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    continue-on-error: true
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
 
@@ -27,5 +29,5 @@ jobs:
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
 
-      - name: Probe official EU Funding & Tenders API
-        run: python3 scripts/probe_eu_funding_api.py
+      - name: Smoke-test official EU Funding & Tenders connector
+        run: python3 scripts/smoke_eu_funding_connector.py
