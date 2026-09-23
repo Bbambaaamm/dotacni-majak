@@ -1,0 +1,20 @@
+name: v1.0 Release Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Require release-candidate evidence
+        run: python3 scripts/validate_v1_release.py --require-gate release/v1-evidence.json
