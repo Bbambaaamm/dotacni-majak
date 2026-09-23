@@ -72,6 +72,7 @@ export function GrantDetailPage() {
       <div className="sticky-action">
         <button className="button button--primary" type="button">Chci tuto dotaci</button>
         <button className="button button--secondary" type="button">Sledovat</button>
+        <a className="button button--tertiary button-link" href="/export/regiony-2026">Exportovat přehled</a>
       </div>
     </article>
   );
