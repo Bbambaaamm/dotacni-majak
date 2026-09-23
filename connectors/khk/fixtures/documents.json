@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "id_Document": 500001,
+      "title": "26SPT10 Podmínky dotačního programu",
+      "note": "Podrobnosti o programu",
+      "ext": ".pdf",
+      "size": 391415
+    },
+    {
+      "id_Document": 500002,
+      "title": "26SPT10 Vzor žádosti o dotaci",
+      "note": "Vzor",
+      "ext": ".pdf",
+      "size": 207534
+    }
+  ],
+  "errorMessage": null,
+  "result": 1,
+  "secondsToLogOut": null,
+  "succeed": true
+}
