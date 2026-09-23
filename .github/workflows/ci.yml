@@ -18,8 +18,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Source SDK
-        run: python3 -m pip install -e packages/source-sdk
+      - name: Install Python packages used by foundation tests
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e connectors/nsa
 
       - name: Validate canonical schemas
         run: python3 scripts/validate_schemas.py
