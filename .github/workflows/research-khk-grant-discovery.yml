@@ -1,0 +1,25 @@
+name: KHK grant discovery research
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research_khk_grant_discovery.mjs"
+      - ".github/workflows/research-khk-grant-discovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Probe public KHK grant discovery
+        run: node scripts/research_khk_grant_discovery.mjs
