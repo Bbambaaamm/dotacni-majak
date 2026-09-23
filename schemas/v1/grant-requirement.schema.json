@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/grant-requirement.schema.json",
+  "title": "GrantRequirement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "grantCallVersionId", "requirementType", "title", "necessity"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallVersionId": {"type": "string", "minLength": 1},
+    "requirementType": {"enum": ["DOCUMENT", "ACTION", "PERMIT", "DECLARATION", "REGISTRATION", "APPROVAL", "OTHER"]},
+    "title": {"type": "string", "minLength": 1},
+    "description": {"type": ["string", "null"]},
+    "necessity": {"enum": ["REQUIRED", "CONDITIONAL", "RECOMMENDED"]},
+    "conditionGroupId": {"type": ["string", "null"]},
+    "phase": {"type": ["string", "null"]},
+    "evidenceId": {"type": ["string", "null"]}
+  }
+}

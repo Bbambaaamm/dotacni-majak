@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/field-evidence.schema.json",
+  "title": "FieldEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "entityType", "entityId", "fieldPath", "documentVersionId", "verificationStatus", "createdAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "entityType": {"type": "string", "minLength": 1},
+    "entityId": {"type": "string", "minLength": 1},
+    "fieldPath": {"type": "string", "minLength": 1},
+    "documentVersionId": {"type": "string", "minLength": 1},
+    "documentSectionId": {"type": ["string", "null"]},
+    "pageFrom": {"type": ["integer", "null"], "minimum": 1},
+    "pageTo": {"type": ["integer", "null"], "minimum": 1},
+    "evidenceText": {"type": ["string", "null"]},
+    "extractionMethod": {"type": ["string", "null"]},
+    "extractorVersion": {"type": ["string", "null"]},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "verificationStatus": {"enum": ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"]},
+    "createdAt": {"type": "string", "format": "date-time"}
+  }
+}
