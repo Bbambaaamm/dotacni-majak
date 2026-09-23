@@ -1,0 +1,26 @@
+code: MMR
+name: Ministerstvo pro místní rozvoj — národní dotace
+authority: OFFICIAL
+base_url: https://mmr.gov.cz/
+retrieval_modes:
+  - HTML
+  - PDF
+  - DOCX
+  - XLSX
+allowed_hosts:
+  - mmr.gov.cz
+  - www.mmr.gov.cz
+normal_refresh_minutes: 360
+max_concurrency: 2
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+coverage:
+  complete: false
+  seed: https://mmr.gov.cz/cs/narodni-dotace
+  notes:
+    - Bounded crawl of the public National Grants section only.
+    - Authenticated DIS ZAD is intentionally out of scope.
+research:
+  verified_on: 2026-09-23
+  status: IMPLEMENTATION_READY
