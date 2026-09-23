@@ -294,6 +294,48 @@
       "type": "INFLECTION",
       "weight": 1,
       "language": "cs"
+    },
+    {
+      "term": "OUTDOOR_SWIMMING_POOL",
+      "text": "koupaliště",
+      "type": "EXACT",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "OUTDOOR_SWIMMING_POOL",
+      "text": "venkovní bazén",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "SWIMMING_FACILITY",
+      "text": "plavecký bazén",
+      "type": "SYNONYM",
+      "weight": 0.95,
+      "language": "cs"
+    },
+    {
+      "term": "SWIMMING_FACILITY",
+      "text": "bazén",
+      "type": "RELATED",
+      "weight": 0.8,
+      "language": "cs"
+    },
+    {
+      "term": "SWIMMING_FACILITY",
+      "text": "plavecký areál",
+      "type": "SYNONYM",
+      "weight": 0.9,
+      "language": "cs"
+    },
+    {
+      "term": "SWIMMING_FACILITY",
+      "text": "aquapark",
+      "type": "RELATED",
+      "weight": 0.75,
+      "language": "cs"
     }
   ]
 }
