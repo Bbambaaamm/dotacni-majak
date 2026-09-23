@@ -16,6 +16,7 @@ export interface GrantSearchResponse {
   intent: string;
   results: GrantSearchResult[];
   expandedTerms: string[];
+  indexState: "READY" | "EMPTY";
 }
 
 export class SearchApiError extends Error {
