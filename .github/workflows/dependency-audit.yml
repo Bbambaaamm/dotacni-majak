@@ -1,0 +1,57 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "43 4 * * 4"
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Resolve npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high
+
+  python-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install project dependencies in isolated environment
+        shell: bash
+        run: |
+          python -m venv .audit-venv
+          source .audit-venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit
+          python -m pip install -e packages/source-sdk
+          for manifest in packages/*/pyproject.toml connectors/*/pyproject.toml; do
+            if [ -f "$manifest" ] && [ "$(dirname "$manifest")" != "packages/source-sdk" ]; then
+              python -m pip install -e "$(dirname "$manifest")"
+            fi
+          done
+          pip-audit --local --skip-editable
