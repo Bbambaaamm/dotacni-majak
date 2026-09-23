@@ -1,0 +1,31 @@
+name: Research Stredocesky public portal
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research_public_portal_endpoints.mjs"
+      - ".github/workflows/research-stredocesky-public-portal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install root dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Probe public portal metadata
+        env:
+          START_URL: "https://dotace.stredoceskykraj.cz/"
+          SOURCE_LABEL: "Středočeský kraj"
+          PATH_HINT: "api|dotac|grant|vyzv|program|search"
+        run: node scripts/research_public_portal_endpoints.mjs
