@@ -21,7 +21,10 @@ jobs:
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
 
-      - name: Install NSA connector test dependencies\n        run: python3 -m pip install -e connectors/nsa\n\n      - name: Validate canonical schemas
+      - name: Install NSA connector test dependencies
+        run: python3 -m pip install -e connectors/nsa
+
+      - name: Validate canonical schemas
         run: python3 scripts/validate_schemas.py
 
       - name: Validate ontology data
@@ -31,4 +34,4 @@ jobs:
         run: python3 -m unittest discover -s tests/python -p 'test_*.py'
 
       - name: Compile Python sources
-        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src
+        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src
