@@ -76,3 +76,15 @@ Veřejný result: ELIGIBLE / LIKELY_ELIGIBLE / NEEDS_INFORMATION / INELIGIBLE / 
 - JSON = snapshoty a řídké/dynamické hodnoty.
 - Každá kritická podmínka/finance/deadline musí být dohledatelná přes `field_evidence`.
 - Historická podpora nikdy není aktivní výzva.
+
+
+## Eligibility DSL invariants
+
+Attribute Registry používá stabilní klíče `applicant.*` / `project.*`.
+Rules jsou strom `RuleSet → RuleGroup → RuleCondition`.
+
+- Group: AND / OR / NOT
+- Žádný arbitrary eval/script.
+- UNKNOWN policy: PROPAGATE / NOT_APPLICABLE; nikdy FAIL.
+- Jeden RuleSet může mít nejvýše jeden root group na DB úrovni; evaluator vyžaduje právě jeden.
+- RuleCondition může mít provenance přes `field_evidence`.

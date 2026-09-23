@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/eligibility-rule-set.schema.json",
+  "title": "EligibilityRuleSet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "grantCallVersionId", "name",
+    "rootGroupId", "completenessStatus", "verificationStatus"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallVersionId": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "rootGroupId": {"type": "string", "minLength": 1},
+    "completenessStatus": {
+      "enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]
+    },
+    "verificationStatus": {
+      "enum": [
+        "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"
+      ]
+    }
+  }
+}
