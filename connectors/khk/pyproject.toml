@@ -1,0 +1,13 @@
+[project]
+name = "dotacni-majak-khk"
+version = "0.1.0"
+description = "Královéhradecký kraj Source Adapter for Dotační maják"
+requires-python = ">=3.11"
+dependencies = ["dotacni-majak-source-sdk"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
