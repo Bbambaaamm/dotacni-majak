@@ -9,6 +9,8 @@ sys.path.insert(0, str(ROOT / "packages" / "source-sdk" / "src"))
 
 from dotacni_majak_source_sdk.http import (
     GuardedHttpClient,
+    GuardedHttpError,
+    RequestTooLargeError,
     ResponseTooLargeError,
     UnsafeAddressError,
     UrlNotAllowedError,
@@ -154,6 +156,83 @@ class GuardedHttpClientTest(unittest.IsolatedAsyncioTestCase):
             response = await client.get("https://example.com/data")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(calls, 2)
+        finally:
+            await client.aclose()
+
+    async def test_post_multipart_requires_allowlisted_path(self):
+        seen = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["method"] = request.method
+            seen["url"] = str(request.url)
+            seen["content_type"] = request.headers.get("content-type", "")
+            return httpx.Response(200, content=b"{}", request=request)
+
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            transport=httpx.MockTransport(handler),
+        )
+        try:
+            response = await client.post_multipart(
+                "https://example.com/search",
+                json_parts={"query": {"bool": {"must": []}}},
+                text_parts={"sort": "deadline"},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(seen["method"], "POST")
+            self.assertIn("multipart/form-data", seen["content_type"])
+            with self.assertRaises(UrlNotAllowedError):
+                await client.post_multipart(
+                    "https://example.com/not-allowed",
+                    json_parts={"query": {}},
+                )
+        finally:
+            await client.aclose()
+
+    async def test_post_multipart_rejects_oversized_request_body(self):
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            max_request_body_bytes=16,
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, request=request)
+            ),
+        )
+        try:
+            with self.assertRaises(RequestTooLargeError):
+                await client.post_multipart(
+                    "https://example.com/search",
+                    json_parts={"query": {"payload": "x" * 100}},
+                )
+        finally:
+            await client.aclose()
+
+    async def test_post_302_redirect_is_not_followed(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                302,
+                headers={"location": "https://example.com/search"},
+                request=request,
+            )
+
+        client = GuardedHttpClient(
+            allowed_hosts={"example.com"},
+            allowed_post_paths={"/search"},
+            resolver=public_resolver,
+            sleeper=no_sleep,
+            transport=httpx.MockTransport(handler),
+        )
+        try:
+            with self.assertRaises(GuardedHttpError):
+                await client.post_multipart(
+                    "https://example.com/search",
+                    json_parts={"query": {}},
+                )
         finally:
             await client.aclose()
 
