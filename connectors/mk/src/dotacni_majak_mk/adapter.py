@@ -91,7 +91,8 @@ def _deadline(body: str) -> datetime | None:
         r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
         r"(?:příjem|prijem)\s+žádostí(?:[^.]{0,80})?\s+do\s+"
         r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
-        r"(?:uzávěrka|uzaverka|termín uzávěrky|termin uzaverky)\s*:?\s*"
+        r"(?:uzávěrka|uzaverka|termín uzávěrky|termin uzaverky)"
+        r"[^.:]{0,80}:?\s*"
         r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
     )
     for pattern in patterns:
@@ -232,6 +233,21 @@ def _sentence(body: str, starts: tuple[str, ...]) -> str | None:
     return None
 
 
+def _paragraph(soup: BeautifulSoup, starts: tuple[str, ...]) -> str | None:
+    """Prefer paragraph boundaries over sentence splitting.
+
+    Czech numeric dates contain periods (e.g. 29. 9. 2025), therefore
+    sentence splitting can accidentally fragment the source text and cause a
+    later token such as "podání žádosti" to match the wrong fragment.
+    """
+    for element in soup.find_all(["p", "li"]):
+        value = _clean(element.get_text(" ", strip=True))
+        folded = _normalize(value)
+        if any(token in folded for token in starts):
+            return value
+    return None
+
+
 class MkAdapter(SourceAdapter):
     descriptor = SourceDescriptor(
         code="MKCR",
@@ -350,9 +366,36 @@ class MkAdapter(SourceAdapter):
         closes = _deadline(body)
 
         code_match = re.search(r"výzva\s+č\.\s*(\d{3,5})", title, re.I)
-        purpose = _sentence(body, ("cilem ", "vyzva je zameren", "ministerstvo kultury vyhlasuje"))
-        applicants = _sentence(body, ("zadatelem ", "zadateli ", "opravneni zadatele"))
-        application = _sentence(body, ("podani zadosti", "zadosti se podava", "prijem zadosti"))
+        purpose = _paragraph(
+            soup,
+            ("cilem ", "vyzva je zameren", "ministerstvo kultury vyhlasuje"),
+        ) or _sentence(
+            body,
+            ("cilem ", "vyzva je zameren", "ministerstvo kultury vyhlasuje"),
+        )
+        applicants = _paragraph(
+            soup,
+            ("zadatelem ", "zadateli ", "opravneni zadatele"),
+        ) or _sentence(
+            body,
+            ("zadatelem ", "zadateli ", "opravneni zadatele"),
+        )
+        application = _paragraph(
+            soup,
+            (
+                "podani zadosti probiha",
+                "zadosti se podava",
+                "zadost se podava",
+                "prijem zadosti probiha",
+            ),
+        ) or _sentence(
+            body,
+            (
+                "podani zadosti probiha",
+                "zadosti se podava",
+                "zadost se podava",
+            ),
+        )
 
         return RecordFetchResult(
             state=FetchState.MODIFIED,
