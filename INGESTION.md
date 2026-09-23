@@ -33,47 +33,66 @@ Chyby: RETRYABLE_FAILED / QUARANTINED / PERMANENT_FAILED.
 - Každý krok idempotentní.
 - RAW snapshot nikdy nepřeskakovat.
 - Reprocess novou verzí parseru bez nového downloadu.
-- Publish až po quality gate.
+- Publish až po validation gate.
 - Indexy/notifikace přes retryable outbox.
+- Discovery checkpoint se posouvá až po úspěšném zpracování celé stránky.
+
+## Run-level Data Quality Gate
+
+Po dokončení discovery se kvalita běhu posuzuje proti rolling baseline a interním metrikám:
+- počet nalezených záznamů,
+- HTTP error rate,
+- parse success rate,
+- validation success rate,
+- neočekávaná změna struktury zdroje.
+
+Příklad:
+
+```
+běžně 118–122 výzev
+aktuální run 0 výzev
+→ SOURCE DEGRADED
+→ destructive_changes_allowed = false
+```
+
+**Degradovaný run nesmí provést destruktivní reconciliation** — tedy hromadně uzavřít, zrušit nebo odstranit poslední známé canonical záznamy jen proto, že aktuální parser nic nenašel.
+
+Bezpečné nové/aktualizované záznamy mohou být zpracovány, pokud samy projdou validation/provenance gates. Podezřelé payloady se ukládají do quarantine a předchozí publikovaná verze zůstává last-known-good.
+
+## Quarantine
+
+Quarantine je oddělená od canonical publikace. Používá se minimálně pro:
+- validation/schema failure,
+- quality-gate problém,
+- nejednoznačnou duplicitu,
+- security rejection,
+- další případy vyžadující review.
+
+Quarantine item musí nést source/external identity, důvod a pokud možno odkaz na RAW payload.
+
+## Transactional Outbox
+
+Canonical změna a odpovídající outbox event musí být vloženy **ve stejné databázové transakci**.
+
+Typické eventy:
+- SEARCH_REINDEX_REQUIRED
+- VECTOR_REINDEX_REQUIRED
+- CHANGE_DETECTION_REQUIRED
+- WATCH_REEVALUATION_REQUIRED
+- NOTIFICATION_REQUIRED
+
+`dedupe_key` je unikátní. Consumer používá at-least-once delivery a idempotentní handler. Selhání Vectorize nebo notification providera proto neztratí canonical update; event zůstane PENDING/FAILED k retry.
 
 ## Disappearance safety
+
 SEEN → MISSING_CANDIDATE → CONFIRMED_MISSING.
 
 CONFIRMED_MISSING pouze znamená, že záznam už na zdroji není vidět. Neznamená automaticky CLOSED/CANCELLED.
 
+Canonical status CLOSED/CANCELLED vzniká pouze z autoritativního důkazu.
+
 ## Source run quality gate
-Výrazný pokles počtu záznamů, parse success nebo změna struktury zdroje → SOURCE_DEGRADED a blokace destruktivních změn.
 
+Výrazný propad počtu záznamů, vysoká chybovost nebo změna struktury zdroje → DEGRADED a blokace destruktivních změn.
 
-## Data quality gate
-
-Po dokončení source run se vyhodnocují signály kvality proti rolling baseline:
-
-- výrazný propad počtu nalezených záznamů,
-- HTTP error rate,
-- parse success rate,
-- validation success rate,
-- neočekávaná strukturální změna zdroje.
-
-Výsledek je `HEALTHY` nebo `DEGRADED`.
-
-### Kritický invariant
-`DEGRADED` run může přinést nové nedestruktivní informace, ale **nesmí být použit k hromadnému uzavření, zrušení nebo smazání posledních důvěryhodných canonical záznamů**.
-
-První prázdný run bez historické baseline se automaticky nepovažuje za rozbitý zdroj; teprve stabilní baseline dovoluje detekovat kolaps typu 120 → 0.
-
-## Quarantine
-
-Nová data, která neprojdou schema/validation/security/duplicate gate, se nepřepisují přes poslední publikovanou verzi. Jsou uložena do `quarantine_items` s explicitním důvodem a zůstávají tam do vědomého vyřešení.
-
-## Transactional outbox
-
-Vedlejší práce po canonical publish se reprezentuje outbox událostmi:
-
-- `SEARCH_REINDEX_REQUIRED`
-- `VECTOR_REINDEX_REQUIRED`
-- `CHANGE_DETECTION_REQUIRED`
-- `WATCH_REEVALUATION_REQUIRED`
-- `NOTIFICATION_REQUIRED`
-
-`dedupe_key` je unikátní idempotency guard. Persistentní D1 implementace musí canonical write a příslušný outbox event uložit v jedné databázové transakci; selhání workeru nesmí událost ztratit.
+Poslední ověřená data zůstávají publikovaná a Source Health musí umět uživateli ukázat stáří posledního úspěšného běhu.
