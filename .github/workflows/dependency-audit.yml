@@ -48,8 +48,9 @@ jobs:
           source .audit-venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install pip-audit
+          python -m pip install -e packages/source-sdk
           for manifest in packages/*/pyproject.toml connectors/*/pyproject.toml; do
-            if [ -f "$manifest" ]; then
+            if [ -f "$manifest" ] && [ "$(dirname "$manifest")" != "packages/source-sdk" ]; then
               python -m pip install -e "$(dirname "$manifest")"
             fi
           done
