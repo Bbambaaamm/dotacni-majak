@@ -29,3 +29,13 @@
 - Connector rozděluje veřejně publikované termíny na jednotlivé grantové akce a sektory.
 - Jedna zdrojová stránka se během discovery ukládá do jednoho RAW snapshotu; jednotlivé records snapshot znovu používají.
 - Centralizované aktivity spravované přímo Evropskou komisí nejsou duplikovány a patří do EU Funding & Tenders coverage.
+
+
+## Národní rozvojová banka (NRB)
+
+- Úvěry: https://www.nrb.cz/podnikatele/uvery/
+- Záruky: https://www.nrb.cz/podnikatele/zaruky/
+- Produkty jsou klasifikovány jako `LOAN`, `GUARANTEE` nebo `MIXED`; nejsou automaticky vydávány za dotace.
+- Status `PAUSED` je zachován jako samostatný stav.
+- Connector extrahuje veřejné parametry úvěru/záruky, příspěvkovou složku a oficiální dokumenty.
+- WebKlient ani e-podatelna se nescrapují.
