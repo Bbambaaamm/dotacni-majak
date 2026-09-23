@@ -1,0 +1,14 @@
+code: CZSO_POPULATION
+name: ČSÚ DataStat – počet obyvatel obcí
+authority: OFFICIAL_OPEN_DATA
+country: CZ
+base_url: https://data.csu.gov.cz/
+dataset_code: OBY02E
+dataset_info: https://data.csu.gov.cz/datastat/info/SADA/OBY02E
+api_swagger: https://data.csu.gov.cz/api/dotaz/v1/swagger-ui/index.html
+retrieval_mode: DATASTAT_API
+granularity: municipality
+status: RESOLVER_INTERFACE_READY_IMPORT_PENDING
+notes:
+  - Use filtered/ad-hoc API or normalized snapshot; do not download multi-million-row dataset per user request.
+  - Always store population as_of date and source reference.
