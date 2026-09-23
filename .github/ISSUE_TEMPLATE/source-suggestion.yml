@@ -1,0 +1,61 @@
+name: Navrhnout dotační zdroj
+description: Navrhněte oficiální dotační portál nebo zdroj, který Dotační maják zatím nesleduje.
+title: "[Zdroj] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Díky za návrh. Zdroj se nikdy nezařadí automaticky — nejdřív ověříme, kdo jej provozuje, zda je oficiální a jak jej lze bezpečně monitorovat.
+
+        **Nevkládejte přihlašovací údaje, osobní údaje ani neveřejné odkazy.**
+  - type: input
+    id: name
+    attributes:
+      label: Název zdroje / programu
+      placeholder: Např. Dotační portál kraje…
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Veřejná URL
+      description: Pouze veřejně dostupná http(s) adresa. Návrh projde ručním review.
+      placeholder: https://…
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Poskytovatel
+      placeholder: Např. kraj, ministerstvo, fond…
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Přibližný typ zdroje
+      options:
+        - Český národní zdroj
+        - Krajský / regionální zdroj
+        - Městský / obecní zdroj
+        - Evropský zdroj
+        - MAS / CLLD
+        - Jiný veřejný zdroj
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Proč by měl Maják zdroj sledovat?
+      description: Stačí stručně. Nepřidávejte osobní ani citlivé údaje.
+      placeholder: Jaké výzvy zdroj zveřejňuje a komu mohou pomoci?
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Potvrzení
+      options:
+        - label: Odkaz je podle mého vědomí veřejný a neobsahuje přihlašovací nebo neveřejné údaje.
+          required: true

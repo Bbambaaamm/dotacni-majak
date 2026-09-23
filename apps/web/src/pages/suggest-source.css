@@ -1,0 +1,63 @@
+.suggest-source-page {
+  display: grid;
+  gap: 48px;
+}
+
+.suggest-source-head {
+  max-width: 760px;
+}
+
+.suggest-source-head h1 {
+  margin: 8px 0 16px;
+  color: #0b2d48;
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  line-height: 1.05;
+}
+
+.suggest-source-card,
+.suggest-source-principle {
+  max-width: 840px;
+  border: 1px solid #dce4ea;
+  border-radius: 16px;
+  background: #fff;
+  padding: clamp(24px, 5vw, 40px);
+}
+
+.suggest-source-card ol {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0 32px;
+  padding-left: 24px;
+}
+
+.suggest-source-card li {
+  padding-left: 8px;
+}
+
+.suggest-source-card li strong,
+.suggest-source-card li span {
+  display: block;
+}
+
+.suggest-source-card li span,
+.suggest-source-note {
+  margin-top: 6px;
+  color: #52606d;
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.suggest-source-principle h2 {
+  color: #0b2d48;
+}
+
+@media (max-width: 720px) {
+  .suggest-source-page {
+    gap: 32px;
+  }
+}
