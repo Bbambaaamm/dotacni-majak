@@ -95,4 +95,4 @@ Canonical status CLOSED/CANCELLED vzniká pouze z autoritativního důkazu.
 
 Výrazný propad počtu záznamů, vysoká chybovost nebo změna struktury zdroje → DEGRADED a blokace destruktivních změn.
 
-Poslední ověřená data zůstávají publikovaná a Source Health musí umět uživateli ukázat stáří posledního úspěšného běhu.
+Poslední ověřená data zůstávají publikovaná a Source Health musí umět uživateli ukázat stáří posledního úspěšného běhu. Prahové hodnoty quality gate jsou konfigurovatelné per source a jejich změna musí být reviewovatelná.
