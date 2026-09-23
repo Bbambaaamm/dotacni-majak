@@ -23,7 +23,7 @@ for (const [path, label] of routes) {
 test("skip link funguje z klávesnice", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
-  const skip = page.getByRole("link", { name: /přejít na hlavní obsah/i });
+  const skip = page.getByRole("link", { name: /přeskočit na hlavní obsah/i });
   await expect(skip).toBeFocused();
   await skip.press("Enter");
   await expect(page.locator("main")).toBeFocused();
