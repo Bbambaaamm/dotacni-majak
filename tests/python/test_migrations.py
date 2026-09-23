@@ -35,7 +35,8 @@ class MigrationTest(unittest.TestCase):
             "document_versions", "document_sections", "field_evidence",
             "grant_deadlines", "funding_scenarios", "grant_requirements",
             "projects", "change_events", "data_quality_issues",
-            "quarantine_items", "outbox_events",
+            "quarantine_items", "outbox_events", "source_health",
+            "scheduler_watchdog_events",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -54,6 +55,8 @@ class MigrationTest(unittest.TestCase):
             "idx_change_call_created",
             "idx_quality_issues_source_created",
             "idx_outbox_pending",
+            "idx_source_health_status",
+            "idx_watchdog_source_created",
         }:
             self.assertIn(name, indexes)
 
