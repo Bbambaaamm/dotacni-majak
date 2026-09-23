@@ -3,6 +3,16 @@ from .lexical import (
     SqliteLexicalSearch,
     build_fts_query,
 )
+from .ranking import (
+    HybridRanker,
+    HybridSignals,
+    HybridWeights,
+    MatchBand,
+    MatchReasonCode,
+    RankedGrantMatch,
+    bm25_rank_to_relevance,
+    ontology_overlap,
+)
 from .semantic import (
     EmbeddingProvider,
     InMemoryCosineIndex,
@@ -43,14 +53,3 @@ __all__ = [
     "bm25_rank_to_relevance",
     "ontology_overlap",
 ]
-
-from .ranking import (
-    HybridRanker,
-    HybridSignals,
-    HybridWeights,
-    MatchBand,
-    MatchReasonCode,
-    RankedGrantMatch,
-    bm25_rank_to_relevance,
-    ontology_overlap,
-)
