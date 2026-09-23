@@ -19,22 +19,45 @@ function safeCandidate(urlString, method, resourceType) {
   }
 }
 
-function shape(value, depth = 0) {
+const SAFE_PUBLIC_LITERAL_KEYS = new Set([
+  "filterTree",
+  "fixedFilterId",
+  "fkName",
+  "fkValue",
+  "pageIndex",
+  "pageSize",
+  "sort",
+  "operator",
+  "propName",
+  "value",
+  "isDescending",
+  "treatNullLowest",
+]);
+
+function shape(value, depth = 0, parentKey = "") {
   if (depth > 4) return "<max-depth>";
   if (value === null) return null;
   if (Array.isArray(value)) {
     return {
       type: "array",
       length: value.length,
-      sample: value.length ? shape(value[0], depth + 1) : null,
+      sample: value.length ? shape(value[0], depth + 1, parentKey) : null,
     };
   }
   if (typeof value === "object") {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map((key) => [key, shape(value[key], depth + 1)]),
+        .map((key) => [key, shape(value[key], depth + 1, key)]),
     );
+  }
+  if (
+    SAFE_PUBLIC_LITERAL_KEYS.has(parentKey) &&
+    (typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean")
+  ) {
+    return value;
   }
   if (typeof value === "string") return "<string>";
   if (typeof value === "number") return "<number>";
@@ -167,6 +190,13 @@ try {
   bodyPreview = (await page.locator("body").innerText())
     .replace(/\s+/g, " ")
     .slice(0, 1200);
+
+  const detailLink = page.getByText("Detail", { exact: true }).first();
+  if (await detailLink.count()) {
+    await detailLink.click();
+    await page.waitForTimeout(5_000);
+  }
+
   await Promise.allSettled(responseTasks);
 } catch (exc) {
   error = exc instanceof Error ? exc.message : String(exc);
