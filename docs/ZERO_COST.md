@@ -30,3 +30,15 @@ Varování např. 70/85/95 %.
 
 ## Finanční bezpečnost produktu
 Externí provider nesmí být přidán tak, aby po vyčerpání free limitu začal bez explicitního schválení účtovat.
+
+
+## Semantic/vector provider caveat (2026-09-23)
+
+Cloudflare dokumentace aktuálně není zcela konzistentní ohledně dostupnosti Vectorize na Workers Free: Vectorize pricing stránka publikuje free kvóty, zatímco Workers pricing stránka současně obsahuje formulaci „currently only available on the Workers paid plan“.
+
+Proto:
+- Vectorize není hard dependency,
+- limity jsou runtime konfigurace,
+- před produkčním deploymentem se plán/dostupnost znovu ověří,
+- fallback je vždy FTS5 + ontologie + strukturované filtry,
+- systém nikdy neprovede automatický paid upgrade.
