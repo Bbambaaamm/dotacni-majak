@@ -115,6 +115,9 @@ jobs:
       - name: Install Ústecký regional connector test dependencies
         run: python3 -m pip install -e connectors/ustecky
 
+      - name: Install Zlínský regional connector test dependencies
+        run: python3 -m pip install -e connectors/zlinsky
+
       - name: Install Applicant profile package
         run: python3 -m pip install -e packages/applicant
 
