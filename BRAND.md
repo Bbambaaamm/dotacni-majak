@@ -17,3 +17,7 @@ Roboty, AI sparkles, mozky, neuronové sítě, hologramy nebo generický chatbot
 Lidská čeština, konkrétní data a částky, minimálně úředního jazyka.
 
 Nikdy neslibovat získání dotace. „Dotáhne“ znamená dotáhnout proces k připravené žádosti, ne garantovat schválení.
+
+
+### Produkční assety
+Viz [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md). Web používá samostatný SVG symbol a živý textový wordmark, aby značka zůstala ostrá, přístupná a snadno lokalizovatelná.
