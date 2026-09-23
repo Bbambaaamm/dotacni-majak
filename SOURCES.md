@@ -39,3 +39,16 @@
 - Status `PAUSED` je zachován jako samostatný stav.
 - Connector extrahuje veřejné parametry úvěru/záruky, příspěvkovou složku a oficiální dokumenty.
 - WebKlient ani e-podatelna se nescrapují.
+
+
+## MF ReD — historické podpory
+
+- **Účel:** pouze historické příklady podpořených projektů; nikdy aktivní výzvy.
+- **Autorita:** Ministerstvo financí / Registr dotací (IS ReD).
+- **Oficiální dokumentace:** https://data.mf.gov.cz/topics/dotace
+- **Formát:** komprimované CSV distribuce pro Dotace, Příjemce pomoci a Rozhodnutí.
+- **Aktualizace:** Dotace jsou v katalogu označeny jako čtvrtletní.
+- **Connector:** `connectors/red-history`.
+- **RAW-first:** ano; každý ze tří exportů se ukládá samostatně.
+- **Safety:** návratná finanční pomoc není zobrazena jako historický grant.
+- **Live smoke:** `scripts/smoke_red_history.py`.
