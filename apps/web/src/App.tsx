@@ -1,6 +1,8 @@
 import { AppShell } from "./components/AppShell";
 import { StatusBadge } from "./components/StatusBadge";
-import { HomePage } from "./pages/HomePage";\nimport { SearchPage } from "./pages/SearchPage";\nimport { GrantDetailPage } from "./pages/GrantDetailPage";
+import { GrantDetailPage } from "./pages/GrantDetailPage";
+import { HomePage } from "./pages/HomePage";
+import { SearchPage } from "./pages/SearchPage";
 import { resolveRoute } from "./lib/routes";
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -33,7 +35,10 @@ export function App() {
       content = <HomePage />;
       break;
     case "search":
-      content = <PlaceholderPage title="Najít dotaci" />;
+      content = <SearchPage />;
+      break;
+    case "grant-detail":
+      content = <GrantDetailPage />;
       break;
     case "projects":
       content = <PlaceholderPage title="Moje projekty" />;
