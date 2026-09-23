@@ -34,11 +34,11 @@ const fixture = [
     code: "STC",
     name: "Středočeský kraj — Příručka středočeských fondů",
     category: "Kraj",
-    status: "HEALTHY",
-    lastCheckedLabel: "vývojový fixture",
-    lastSuccessLabel: "vývojový fixture",
+    status: "DEGRADED",
+    lastCheckedLabel: "live smoke — GitHub runner timeout",
+    lastSuccessLabel: "ověřeno z veřejného oficiálního dokumentu při research",
     limitation:
-      "LIMITED — sledujeme programy výslovně uvedené v aktuální oficiální Příručce středočeských fondů; chráněný EDP neobcházíme.",
+      "LIMITED — sledujeme programy výslovně uvedené v aktuální oficiální Příručce středočeských fondů. Oficiální web z GitHub runneru timeoutuje; chráněný EDP neobcházíme.",
   }),
   toPublicSourceCoverage({
     code: "JDP",
