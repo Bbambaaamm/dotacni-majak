@@ -17,8 +17,30 @@ interface ManagedProject extends OwnedProject {
   intent: string;
 }
 
+function loadSessionProject(): ManagedProject | null {
+  try {
+    const raw = sessionStorage.getItem("dotacni-majak:active-project");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ManagedProject>;
+    if (
+      typeof parsed.projectId !== "string"
+      || !/^prj_[a-f0-9]{32}$/.test(parsed.projectId)
+      || typeof parsed.ownerCapability !== "string"
+      || !/^[A-Za-z0-9_-]{40,128}$/.test(parsed.ownerCapability)
+      || typeof parsed.title !== "string"
+      || typeof parsed.intent !== "string"
+    ) {
+      sessionStorage.removeItem("dotacni-majak:active-project");
+      return null;
+    }
+    return parsed as ManagedProject;
+  } catch {
+    return null;
+  }
+}
+
 export function ProjectsPage() {
-  const [project, setProject] = useState<ManagedProject | null>(null);
+  const [project, setProject] = useState<ManagedProject | null>(() => loadSessionProject());
   const [share, setShare] = useState<ShareLink | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
