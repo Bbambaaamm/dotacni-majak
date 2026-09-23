@@ -9,6 +9,7 @@ export interface D1ResultLike {
 export interface D1PreparedStatementLike {
   bind(...values: unknown[]): D1PreparedStatementLike;
   first<T = unknown>(): Promise<T | null>;
+  all<T = unknown>(): Promise<D1ResultLike & { results?: T[] }>;
   run<T = unknown>(): Promise<D1ResultLike & { results?: T[] }>;
 }
 
