@@ -1,0 +1,17 @@
+code: VYS
+name: Kraj Vysočina — veřejná oznámení Fondu Vysočiny
+authority: OFFICIAL
+base_url: https://www.kr-vysocina.cz/
+retrieval_modes: [HTML, PDF, DOCX]
+allowed_hosts:
+  - www.kr-vysocina.cz
+  - kr-vysocina.cz
+normal_refresh_minutes: 360
+max_concurrency: 2
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+coverage:
+  region_code: CZ063
+  level: LIMITED
+  note: Official Kraj announcement index; protected fondvysociny.cz catalogue is not bypassed.
