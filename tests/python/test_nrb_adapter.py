@@ -9,10 +9,18 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "connectors" / "nrb" / "src"))
 sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
+sys.path.insert(0, str(ROOT / "packages" / "finance" / "src"))
 
 from dotacni_majak_ingestion.snapshot import LocalRawSnapshotStore
 from dotacni_majak_nrb import NrbAdapter
 from dotacni_majak_source_sdk import AdapterContext, GuardedHttpClient
+from dotacni_majak_finance import (
+    FinanceEngine,
+    FinanceStatus,
+    FundingInstrumentType,
+    FundingScenario,
+    ProjectFinanceInput,
+)
 
 
 def fixture(name):
@@ -114,6 +122,24 @@ class NrbAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record.raw_fields["fundingInstrumentType"], "MIXED")
         self.assertEqual(record.raw_fields["interestRateBps"], 0)
         self.assertTrue(any("20 %" in text for text in record.raw_fields["contributionTexts"]))
+
+    async def test_guarantee_cannot_be_calculated_as_grant(self):
+        scenario = FundingScenario(
+            id="national-guarantee",
+            currency_code="CZK",
+            instrument_type=FundingInstrumentType.GUARANTEE,
+            support_rate_max_bps=7000,
+        )
+        project = ProjectFinanceInput(
+            currency_code="CZK",
+            total_project_cost_minor=10_000_000_00,
+            eligible_costs_minor=10_000_000_00,
+            ineligible_costs_minor=0,
+            nonrecoverable_vat_minor=0,
+        )
+        result = FinanceEngine().evaluate(project, scenario)
+        self.assertEqual(result.status, FinanceStatus.INSTRUMENT_NOT_SUPPORTED)
+        self.assertIsNone(result.max_grant_minor)
 
     async def test_paused_loan_stays_paused(self):
         with tempfile.TemporaryDirectory() as tmp:
