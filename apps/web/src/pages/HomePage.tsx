@@ -264,7 +264,15 @@ export function HomePage() {
           <div className="workspace-card__readiness">
             <span>Připravenost projektu</span>
             <strong>6 / 9 kroků</strong>
-            <div className="progress-track" aria-label="6 z 9 kroků dokončeno">
+            <div
+              className="progress-track"
+              role="progressbar"
+              aria-label="Připravenost projektu"
+              aria-valuemin={0}
+              aria-valuemax={9}
+              aria-valuenow={6}
+              aria-valuetext="6 z 9 kroků dokončeno"
+            >
               <span style={{ width: "66.7%" }} />
             </div>
           </div>

@@ -10,9 +10,14 @@
     "generate:contracts": "python3 scripts/generate_contracts.py",
     "web:typecheck": "npm --workspace @dotacni-majak/web run typecheck",
     "web:test": "npm --workspace @dotacni-majak/web run test",
-    "web:build": "npm --workspace @dotacni-majak/web run build"
+    "web:build": "npm --workspace @dotacni-majak/web run build",
+    "web:a11y": "playwright test tests/e2e/accessibility.spec.ts"
   },
   "workspaces": [
     "apps/web"
-  ]
+  ],
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.58.2"
+  }
 }

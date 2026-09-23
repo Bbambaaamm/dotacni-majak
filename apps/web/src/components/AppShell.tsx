@@ -31,7 +31,7 @@ export function AppShell({ children }: PropsWithChildren) {
         </div>
       </header>
 
-      <main id="main-content" className="shell main-content">
+      <main id="main-content" className="shell main-content" tabIndex={-1}>
         {children}
       </main>
 
