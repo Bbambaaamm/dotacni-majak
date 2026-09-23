@@ -1,32 +1,104 @@
+import { useEffect, useState } from "react";
+
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
+import {
+  searchErrorMessage,
+  searchGrants,
+  type GrantSearchResponse,
+} from "../lib/searchApi";
 import "./results.css";
 
-const reasons = [
-  ["success", "Podporuje technické zhodnocení sportovní infrastruktury"],
-  ["success", "Sportovní spolek patří mezi podporované žadatele"],
-  ["success", "Rozpočet 4 mil. Kč odpovídá známým limitům"],
-  ["unknown", "Potřebujeme ověřit vztah k nemovitosti"],
-] as const;
+function normalizedIntent(): string {
+  const params = new URLSearchParams(window.location.search);
+  return (params.get("intent") ?? "").trim().replace(/\s+/g, " ");
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "OPEN":
+      return "Lze podat žádost";
+    case "PLANNED":
+      return "Plánovaná výzva";
+    case "ANNOUNCED":
+      return "Vyhlášená výzva";
+    default:
+      return status;
+  }
+}
+
+function dateLabel(value: string | null): string {
+  if (!value) return "Není uvedeno";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("cs-CZ", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  }).format(parsed);
+}
 
 export function SearchPage() {
   const params = new URLSearchParams(window.location.search);
+  const intent = normalizedIntent();
   const demoState = parseDemoResultState(params.get("demoState"));
+  const [data, setData] = useState<GrantSearchResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(intent && !demoState));
+
+  useEffect(() => {
+    if (!intent || demoState) return;
+
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+
+    searchGrants(intent, controller.signal)
+      .then((result) => {
+        setData(result);
+        setLoading(false);
+      })
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted) return;
+        setError(searchErrorMessage(reason));
+        setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [intent, demoState]);
 
   if (demoState) {
     return (
       <div className="results-page">
         <header className="results-head">
           <p className="eyebrow">QA režim výsledků</p>
-          <h1>Rekonstrukce tenisových kurtů</h1>
+          <h1>{intent || "Testovací scénář výsledků"}</h1>
           <p className="results-lead">
-            Tento parametr slouží k reprodukovatelnému testování kritických
-            stavů výsledkové stránky bez závislosti na živém backendu.
+            QA stav je zobrazen pouze kvůli explicitnímu parametru
+            <code> demoState</code>. Nejde o běžný výsledek vyhledávání.
           </p>
         </header>
         <ResultStatePanel state={resultStateContent(demoState)} />
+      </div>
+    );
+  }
+
+  if (!intent) {
+    return (
+      <div className="results-page">
+        <header className="results-head">
+          <p className="eyebrow">Najít dotaci</p>
+          <h1>Co chcete uskutečnit?</h1>
+          <p className="results-lead">
+            Začněte popisem záměru. Nemusíte znát název programu ani dotační
+            terminologii.
+          </p>
+        </header>
+        <a className="button button--primary button-link" href="/">
+          Zadat záměr
+        </a>
       </div>
     );
   }
@@ -35,76 +107,153 @@ export function SearchPage() {
     <div className="results-page">
       <header className="results-head">
         <p className="eyebrow">Výsledky pro váš záměr</p>
-        <h1>Rekonstrukce tenisových kurtů</h1>
+        <h1>{intent}</h1>
         <p className="results-lead">
-          Hledáme podle významu projektu, ne pouze podle slov „tenisový kurt“.
-          Relevance, způsobilost a financování hodnotíme odděleně.
+          Hledáme v indexovaných dotačních výzvách a používáme také širší pojmy
+          z dotační ontologie. Relevance není totéž co způsobilost.
         </p>
       </header>
 
-      <section aria-labelledby="next-question" className="next-action">
-        <div>
-          <p className="eyebrow">Co udělat teď</p>
-          <h2 id="next-question">Doplňte vztah k tenisovému areálu.</h2>
-          <p>Tato odpověď může změnit způsobilost u několika nalezených možností.</p>
-        </div>
-        <button className="button button--primary" type="button">Doplnit údaj</button>
-      </section>
-
-      <section aria-labelledby="results-title">
-        <div className="section-heading">
+      {loading ? (
+        <section className="next-action" aria-live="polite">
           <div>
-            <h2 id="results-title">Nalezené možnosti</h2>
-            <p>Ukázková karta používá strukturu připravenou pro živá canonical data.</p>
+            <p className="eyebrow">Vyhledáváme</p>
+            <h2>Porovnáváme váš záměr s dostupnými výzvami.</h2>
+            <p>Výsledek nebude doplněn žádnými modelovými nebo vymyšlenými daty.</p>
           </div>
-          <button className="button button--secondary" type="button">Pohlídat tento záměr</button>
-        </div>
+        </section>
+      ) : null}
 
-        <article className="grant-card">
-          <div className="grant-card__top">
+      {error ? (
+        <section className="next-action" role="alert">
+          <div>
+            <p className="eyebrow">Vyhledávání není dostupné</p>
+            <h2>Výsledky teď neumíme bezpečně zobrazit.</h2>
+            <p>{error}</p>
+          </div>
+          <a className="button button--secondary button-link" href="/">
+            Upravit záměr
+          </a>
+        </section>
+      ) : null}
+
+      {!loading && !error && data && data.results.length === 0 ? (
+        <ResultStatePanel state={resultStateContent("NO_RESULTS")} />
+      ) : null}
+
+      {!loading && !error && data && data.results.length > 0 ? (
+        <section aria-labelledby="results-title">
+          <div className="section-heading">
             <div>
-              <StatusBadge kind="info" label="Podání skončilo — historický testovací záznam" />
-              <h3>Regiony 2026 — investice pod 10 mil. Kč</h3>
-              <p>Národní sportovní agentura</p>
+              <h2 id="results-title">Nalezené možnosti</h2>
+              <p>
+                {data.results.length} výsledků. Způsobilost a financování se
+                vyhodnocují odděleně a nejsou zde doplňovány odhadem.
+              </p>
             </div>
-            <span className="match-label">Velmi dobrá tematická shoda</span>
+            <a
+              className="button button--secondary button-link"
+              href={`/projekty?intent=${encodeURIComponent(intent)}`}
+            >
+              Pohlídat tento záměr
+            </a>
           </div>
 
-          <div className="grant-grid">
-            <section>
-              <h4>Proč ji vidíte</h4>
-              <ul className="reason-list">
-                {reasons.map(([kind, text]) => (
-                  <li key={text}>
-                    <StatusBadge kind={kind} label={text} />
-                  </li>
-                ))}
-              </ul>
-            </section>
+          <div className="results-list">
+            {data.results.map((grant) => (
+              <article className="grant-card" key={grant.grantCallVersionId}>
+                <div className="grant-card__top">
+                  <div>
+                    <StatusBadge kind="info" label={statusLabel(grant.status)} />
+                    <h3>{grant.title}</h3>
+                    <p>{grant.providerName}</p>
+                  </div>
+                  <span className="match-label">
+                    {grant.matchKind === "DIRECT"
+                      ? "Přímá tematická shoda"
+                      : "Nalezeno přes širší význam"}
+                  </span>
+                </div>
 
-            <section className="facts">
-              <h4>Rychlý přehled</h4>
-              <dl>
-                <div><dt>Způsobilost</dt><dd>Potřebujeme 1 údaj</dd></div>
-                <div><dt>Rozpočet projektu</dt><dd>4 000 000 Kč</dd></div>
-                <div><dt>Termín</dt><dd>ověří detail výzvy</dd></div>
-                <div><dt>Zdroj</dt><dd>oficiální NSA</dd></div>
-              </dl>
-            </section>
+                {grant.summary ? (
+                  <p className="results-lead">{grant.summary}</p>
+                ) : null}
+
+                <div className="grant-grid">
+                  <section>
+                    <h4>Proč ji vidíte</h4>
+                    <ul className="reason-list">
+                      <li>
+                        <StatusBadge
+                          kind="success"
+                          label={
+                            grant.matchKind === "DIRECT"
+                              ? "Text výzvy odpovídá slovům vašeho záměru"
+                              : "Výzva odpovídá širším pojmům odvozeným z vašeho záměru"
+                          }
+                        />
+                      </li>
+                      <li>
+                        <StatusBadge
+                          kind="unknown"
+                          label="Způsobilost konkrétního žadatele zatím není v tomto výsledku vyhodnocena"
+                        />
+                      </li>
+                    </ul>
+                  </section>
+
+                  <section className="facts">
+                    <h4>Rychlý přehled</h4>
+                    <dl>
+                      <div>
+                        <dt>Stav</dt>
+                        <dd>{statusLabel(grant.status)}</dd>
+                      </div>
+                      <div>
+                        <dt>Termín podání</dt>
+                        <dd>{dateLabel(grant.submissionCloseAt)}</dd>
+                      </div>
+                      <div>
+                        <dt>Poskytovatel</dt>
+                        <dd>{grant.providerName}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                </div>
+
+                <div className="grant-card__actions">
+                  {grant.officialDetailUrl ? (
+                    <a
+                      className="button button--primary button-link"
+                      href={grant.officialDetailUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Otevřít oficiální zdroj
+                    </a>
+                  ) : (
+                    <span className="fine-print">
+                      Oficiální detail zatím není v indexu dostupný.
+                    </span>
+                  )}
+                </div>
+
+                <RelevanceFeedback
+                  grantCallVersionId={grant.grantCallVersionId}
+                  matcherVersion="fts-ontology-v1"
+                />
+              </article>
+            ))}
           </div>
+        </section>
+      ) : null}
 
-          <div className="grant-card__actions">
-            <a className="button button--primary button-link" href="/dotace/regiony-2026">Zobrazit detail</a>
-            <button className="button button--secondary" type="button">Sledovat</button>
-            <a className="button button--tertiary button-link" href="/porovnat">Porovnat</a>
-          </div>
-
-          <RelevanceFeedback
-            grantCallVersionId="fixture:nsa-regiony-2026:v1"
-            matcherVersion="hybrid-v1"
-          />
-        </article>
-      </section>
+      {data?.expandedTerms.length ? (
+        <details className="detail-section">
+          <summary>Jaké širší pojmy Maják použil?</summary>
+          <p>{data.expandedTerms.join(" · ")}</p>
+        </details>
+      ) : null}
     </div>
   );
 }
