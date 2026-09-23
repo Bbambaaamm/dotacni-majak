@@ -61,12 +61,31 @@ let selectedDocumentSample = null;
 let detailDownloadLinks = [];
 let documentDownloadContract = null;
 let browserDownload = null;
+let documentControlHtml = null;
+let clickPhase = false;
+const clickRequests = [];
 
 page.on("response", (response) => {
   const task = (async () => {
     const request = response.request();
     const item = sanitizeRequest(request);
     if (!item) return;
+
+    if (clickPhase) {
+      const clickItem = { ...item };
+      if (
+        item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
+        /document|download|file/i.test(item.pathname)
+      ) {
+        try {
+          const rawBody = request.postData();
+          clickItem.publicBody = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+          clickItem.publicBody = "<unparseable-json>";
+        }
+      }
+      clickRequests.push(clickItem);
+    }
 
     const rawContentType = response.headers()["content-type"] ?? "";
     const disposition = response.headers()["content-disposition"] ?? "";
@@ -286,15 +305,40 @@ try {
       Array.isArray(selectedDocumentSample) && selectedDocumentSample[0]?.title
         ? selectedDocumentSample[0].title
         : "Podmínky dotačního programu";
-    const documentControl = page
+    const documentText = page
       .getByText(firstDocumentTitle, { exact: false })
       .first();
 
-    if (await documentControl.count()) {
+    if (await documentText.count()) {
+      const handle = await documentText.elementHandle();
+      if (handle) {
+        documentControlHtml = await handle.evaluate((node) => {
+          const control = node.closest("a,button,[role='button']");
+          const selected = control ?? node;
+          return {
+            tag: selected.tagName,
+            role: selected.getAttribute("role"),
+            href: selected.getAttribute("href"),
+            type: selected.getAttribute("type"),
+            className: selected.getAttribute("class"),
+            outerHTML: selected.outerHTML.slice(0, 2500),
+          };
+        });
+      }
+
+      const interactive = documentText.locator(
+        "xpath=ancestor-or-self::a[1] | ancestor-or-self::button[1] | ancestor-or-self::*[@role='button'][1]"
+      ).first();
+      const clickTarget = (await interactive.count()) ? interactive : documentText;
+
       const downloadPromise = page
-        .waitForEvent("download", { timeout: 8_000 })
+        .waitForEvent("download", { timeout: 10_000 })
         .catch(() => null);
-      await documentControl.click({ timeout: 8_000 }).catch(() => null);
+      clickPhase = true;
+      await clickTarget.click({ timeout: 10_000 }).catch(() => null);
+      await page.waitForTimeout(3_000);
+      clickPhase = false;
+
       const download = await downloadPromise;
       if (download) {
         try {
@@ -312,7 +356,6 @@ try {
         }
         await download.cancel().catch(() => null);
       }
-      await page.waitForTimeout(2_000);
     }
   }
 
@@ -339,6 +382,8 @@ console.log(
       detailDownloadLinks,
       documentDownloadContract,
       browserDownload,
+      documentControlHtml,
+      clickRequests,
       xhrContracts: [...contracts.values()].sort((a, b) =>
         `${a.method} ${a.origin}${a.pathname}`.localeCompare(
           `${b.method} ${b.origin}${b.pathname}`,
