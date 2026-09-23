@@ -152,8 +152,6 @@ def render_python(schemas: list[tuple[Path, dict[str, Any]]]) -> str:
     lines = [
         "# GENERATED FILE — DO NOT EDIT.",
         "# Source: schemas/v1/*.schema.json",
-        "from __future__ import annotations",
-        "",
         "from typing import Any, Literal",
         "",
         "from pydantic import BaseModel, ConfigDict",
