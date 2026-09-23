@@ -38,6 +38,7 @@ class MigrationTest(unittest.TestCase):
             "quarantine_items", "outbox_events", "source_health",
             "scheduler_watchdog_events", "historical_awards",
             "historical_award_ontology_terms", "relevance_feedback",
+            "project_share_links", "share_audit_events",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -61,6 +62,9 @@ class MigrationTest(unittest.TestCase):
             "idx_historical_awards_programme_year",
             "idx_historical_award_terms_term",
             "idx_relevance_feedback_matcher_judgment",
+            "idx_projects_owner_updated",
+            "idx_project_share_links_active",
+            "idx_share_audit_project_created",
         }:
             self.assertIn(name, indexes)
 
@@ -98,6 +102,22 @@ class MigrationTest(unittest.TestCase):
             connection.execute(
                 "INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,instrument_type) "
                 "VALUES ('bad','v','bad','CZK','COUPON')"
+            )
+
+    def test_share_token_hash_is_unique(self):
+        connection = self.migrate()
+        connection.execute(
+            "INSERT INTO projects(id,owner_user_id,natural_language_intent,currency_code,created_at,updated_at) "
+            "VALUES ('p1','u1','test','CZK','2026-09-23T00:00:00Z','2026-09-23T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO project_share_links(id,project_id,owner_user_id,token_hash,created_at) "
+            "VALUES ('s1','p1','u1','hash','2026-09-23T00:00:00Z')"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO project_share_links(id,project_id,owner_user_id,token_hash,created_at) "
+                "VALUES ('s2','p1','u1','hash','2026-09-23T00:00:00Z')"
             )
 
     def test_invalid_support_rate_is_rejected(self):
