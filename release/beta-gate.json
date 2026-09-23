@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "gate": "public-beta",
+  "automated": [
+    "ci_green",
+    "canonical_schema_valid",
+    "migration_tests_green",
+    "search_regression_green",
+    "eligibility_truth_tables_green",
+    "finance_tests_green",
+    "accessibility_automation_green",
+    "source_health_visible",
+    "no_result_watch_flow_available"
+  ],
+  "manual": [
+    "keyboard_walkthrough",
+    "screen_reader_walkthrough",
+    "mobile_reflow_review",
+    "privacy_review",
+    "security_review",
+    "usability_obec",
+    "usability_spolek",
+    "usability_obcan",
+    "usability_firma",
+    "usability_skola",
+    "critical_misunderstandings_resolved"
+  ],
+  "rule": "all automated and manual gates must have evidence before public beta"
+}
