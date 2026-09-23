@@ -64,3 +64,16 @@
 - **Safety:** administrativní záznamy v kategorii Granty jsou konzervativně filtrovány; datum sejmutí z úřední desky se nikdy nepovažuje za deadline žádosti.
 - **Live smoke:** `scripts/smoke_praha_connector.py`.
 - **Coverage caveat:** RSS může obsahovat jen poslední část záznamů; tento connector je primárně monitoring nových/aktuálních grantových oznámení, ne kompletní historický archiv.
+
+
+## Plzeňský kraj — eDotace
+
+- **Oficiální zdroj:** https://dotace.plzensky-kraj.cz/verejnost
+- **Discovery:** server-rendered veřejný index otevřených a připravovaných dotačních titulů.
+- **Stable source identity:** číselné ID z URL `/verejnost/dotacnititul/{id}/`.
+- **Detail:** účel, důvod, potenciální žadatelé, explicitní termíny, finance, administrátoři a přílohy.
+- **Connector:** `connectors/plzensky`.
+- **RAW-first:** ano.
+- **Status safety:** stav je odvozen z explicitního „Žádosti od/do“; zmizení z indexu není CLOSED/CANCELLED.
+- **Finance:** částky se převádějí do integer minor units.
+- **Live smoke:** `scripts/smoke_plzensky_connector.py`.
