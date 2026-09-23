@@ -127,3 +127,14 @@
 - **Aplikační portál:** pouze odkaz; přihlášený Portál dotací a služeb se nescrapuje.
 - **Region:** CZ042.
 - **Live smoke:** `scripts/smoke_ustecky_connector.py`.
+
+
+## Moravskoslezský kraj — regionální dotační programy
+
+- Oficiální veřejný index: https://www.msk.cz/cs/temata/dotace/
+- Detail programu: veřejné stránky `/cs/temata/dotace/<slug>-<numeric-id>/`
+- Detail veřejně uvádí termíny, často kód programu, podmínky a přílohy.
+- Connector nescrapuje ePodatelnu.
+- RAW-first, disappearance != cancellation.
+- Pokud stránka publikuje více kol podání, connector je nespojuje do falešného kontinuálního intervalu.
+- Region: CZ080.
