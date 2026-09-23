@@ -44,6 +44,7 @@ export function AppShell({ children }: PropsWithChildren) {
           <nav aria-label="Informace o projektu">
             <a href="/jak-to-funguje">Jak to funguje</a>
             <a href="/pokryti">Pokrytí Majáku</a>
+            <a href="/changelog">Changelog</a>
             <a href="https://github.com/Bbambaaamm/dotacni-majak">GitHub</a>
           </nav>
           <p className="site-footer__legal">
