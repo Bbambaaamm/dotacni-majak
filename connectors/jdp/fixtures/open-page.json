@@ -1,0 +1,53 @@
+{
+  "statusCode": 200,
+  "result": {
+    "hasNextPage": true,
+    "hasPreviousPage": false,
+    "items": [
+      {
+        "id": "11111111-2222-3333-4444-555555555555",
+        "kod": "TEST-2026-A",
+        "nazev": "Podpora veřejné infrastruktury",
+        "popis": "Testovací veřejná výzva.",
+        "stavVyzva": "OPEN_CODE",
+        "stavVyzvaLong": "Běžící",
+        "stavVyzvaLongWeb": "Otevřená",
+        "datumZacatek": "2026-09-08T00:00:00",
+        "datumKonec": "2026-09-30T23:59:59",
+        "castkaPodporaZadostMin": 100000,
+        "castkaPodporaZadostMax": 5000000,
+        "castkaVyzvaCelkem": 100000000,
+        "miraPodporaZadostMax": 80,
+        "cedpKodyFond_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "danovePrijmyObceKDatu": null,
+        "typLong": "Dotace",
+        "zobrazitKalkulacku": true,
+        "link": "/public/detail/test-2026-a"
+      },
+      {
+        "id": "66666666-7777-8888-9999-000000000000",
+        "kod": "TEST-2026-B",
+        "nazev": "Podpora sportu",
+        "popis": "Druhý testovací záznam.",
+        "stavVyzva": "OPEN_CODE",
+        "stavVyzvaLong": "Běžící",
+        "stavVyzvaLongWeb": "Otevřená",
+        "datumZacatek": "2026-09-20T08:00:00",
+        "datumKonec": "2026-10-15T12:00:00",
+        "castkaPodporaZadostMin": null,
+        "castkaPodporaZadostMax": 750000,
+        "castkaVyzvaCelkem": 25000000,
+        "miraPodporaZadostMax": 70,
+        "cedpKodyFond_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "danovePrijmyObceKDatu": null,
+        "typLong": "Dotace",
+        "zobrazitKalkulacku": false,
+        "link": "https://external.example.invalid/application"
+      }
+    ],
+    "pageIndex": 0,
+    "pageSize": 2,
+    "totalCount": 3,
+    "totalPages": 2
+  }
+}

@@ -178,3 +178,18 @@
 - **Region:** CZ053.
 - **Live smoke:** `scripts/smoke_pardubicky_connector.py`.
 - **Aktuální provozní caveat (2026-09-23):** GitHub-hosted Ubuntu runner hlásí při TLS handshaku `CERTIFICATE_VERIFY_FAILED` pro veřejný portál. TLS ověřování se **nevypíná**. PR fixture CI zůstává gating; PR live smoke toleruje pouze explicitní `UNAVAILABLE`, zatímco scheduled/manual smoke zůstává strict a tím udržuje problém viditelný v Source Health.
+
+
+## Jednotný dotační portál MF (JDP)
+
+- **Oficiální veřejný portál:** https://jdp2.mf.gov.cz/
+- **Public API discovery:** `POST /jdp_api/api/nxwebedppublicdashboard/kodyvyzva`.
+- **Health/status:** `GET /jdp_api/api/NxWebEDPPublicDashboard/KodyVyzvaStav`.
+- **Connector:** `connectors/jdp`.
+- **RAW-first:** ano; každá API discovery page se ukládá jako immutable RAW snapshot.
+- **Stable source identity:** veřejné UUID pole `id`.
+- **Veřejná metadata:** kód, název, popis, stav, termíny, min/max podpora, alokace, max. míra podpory jako source value a typ nástroje.
+- **Aktuální coverage:** první verze záměrně ingestuje pouze veřejně **Otevřené / Běžící** výzvy přes request template pozorovaný na veřejné homepage. Ostatní stavy neodhadujeme.
+- **Finance safety:** částky se převádějí do integer minor units; `miraPodporaZadostMax` zůstává source value, dokud centrální finance normalization nepotvrdí scale/jednotku.
+- **Safety:** žádné přihlášení, podávání žádostí ani privátní API; disappearance není cancellation.
+- **Live smoke:** `scripts/smoke_jdp_connector.py`.
