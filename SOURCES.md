@@ -52,3 +52,15 @@
 - **RAW-first:** ano; každý ze tří exportů se ukládá samostatně.
 - **Safety:** návratná finanční pomoc není zobrazena jako historický grant.
 - **Live smoke:** `scripts/smoke_red_history.py`.
+
+
+## Hlavní město Praha — regionální dotace
+
+- **Oficiální zdroj:** Elektronická úřední deska MHMP, kategorie Granty.
+- **Discovery:** veřejný RSS feed úřední desky s `kategorie_id=24`.
+- **Detail:** oficiální notice-board detail na pražských doménách.
+- **Connector:** `connectors/praha`.
+- **RAW-first:** ano; RSS i detail se snapshotují.
+- **Safety:** administrativní záznamy v kategorii Granty jsou konzervativně filtrovány; datum sejmutí z úřední desky se nikdy nepovažuje za deadline žádosti.
+- **Live smoke:** `scripts/smoke_praha_connector.py`.
+- **Coverage caveat:** RSS může obsahovat jen poslední část záznamů; tento connector je primárně monitoring nových/aktuálních grantových oznámení, ne kompletní historický archiv.
