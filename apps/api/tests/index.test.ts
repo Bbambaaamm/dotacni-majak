@@ -100,6 +100,9 @@ describe("api worker", () => {
     const response = await handleRequest(
       new Request("https://example.test/search?intent=koupali%C5%A1t%C4%9B"),
       env(null, (query, values, mode) => {
+        if (mode === "first" && query.includes("COUNT(*) AS count")) {
+          return { count: 1 };
+        }
         if (mode === "all" && query.includes("grant_search_fts")) {
           expect(values[0]).toContain("koupaliště");
           return {
