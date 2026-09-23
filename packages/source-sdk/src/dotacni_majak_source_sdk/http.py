@@ -407,8 +407,13 @@ class GuardedHttpClient:
             except httpx.TransportError as exc:
                 last_error = exc
                 if attempt >= self.retries:
+                    # Expose only the transport exception class/message for
+                    # operations diagnostics. Request headers/body are never
+                    # included, so connector credentials/payloads cannot leak
+                    # through this error path.
                     raise GuardedHttpError(
-                        f"transport failure for {url!r}"
+                        "transport failure "
+                        f"({type(exc).__name__}: {exc}) for {url!r}"
                     ) from exc
                 await self._sleep(self._backoff_seconds(attempt))
                 continue
