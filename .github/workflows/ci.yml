@@ -34,6 +34,12 @@ jobs:
       - name: Build web
         run: npm run web:build
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility smoke tests
+        run: npm run web:a11y
+
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
 
