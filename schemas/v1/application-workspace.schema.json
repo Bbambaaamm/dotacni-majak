@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/application-workspace.schema.json",
+  "title": "ApplicationWorkspace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "projectId",
+    "grantCallId",
+    "baselineGrantVersionId",
+    "status",
+    "tasks"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "projectId": {"type": "string", "minLength": 1},
+    "grantCallId": {"type": "string", "minLength": 1},
+    "baselineGrantVersionId": {"type": "string", "minLength": 1},
+    "status": {
+      "enum": ["PREPARING","READY_TO_SUBMIT","SUBMITTED","ARCHIVED"]
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id","title","source","necessity","status",
+          "blocking","priority"
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "source": {
+            "enum": ["REQUIREMENT","ELIGIBILITY","FINANCE","USER"]
+          },
+          "necessity": {
+            "enum": ["REQUIRED","CONDITIONAL","RECOMMENDED"]
+          },
+          "status": {
+            "enum": ["TODO","IN_PROGRESS","DONE","NOT_APPLICABLE","BLOCKED"]
+          },
+          "blocking": {"type": "boolean"},
+          "priority": {"type": "integer"},
+          "referenceId": {"type": ["string","null"]},
+          "reasonCode": {"type": ["string","null"]},
+          "dueAt": {"type": ["string","null"], "format": "date-time"},
+          "note": {"type": ["string","null"]}
+        }
+      }
+    }
+  }
+}
