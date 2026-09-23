@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0",
+  "release": {
+    "version": "1.0.0",
+    "sha": "0123456789abcdef0123456789abcdef01234567",
+    "candidateBuiltAt": "2026-09-23T22:00:00Z"
+  },
+  "automated": {
+    "ci": {"status": "PENDING", "evidence": ""},
+    "schemaMigrations": {"status": "PENDING", "evidence": ""},
+    "regression": {"status": "PENDING", "evidence": ""},
+    "searchGolden": {"status": "PENDING", "evidence": ""},
+    "eligibility": {"status": "PENDING", "evidence": ""},
+    "finance": {"status": "PENDING", "evidence": ""},
+    "connectorContracts": {"status": "PENDING", "evidence": ""},
+    "sourceSmokes": {"status": "PENDING", "evidence": ""},
+    "accessibilityAutomation": {"status": "PENDING", "evidence": ""},
+    "productionBuildDryRun": {"status": "PENDING", "evidence": ""},
+    "dependencySecurity": {"status": "PENDING", "evidence": ""},
+    "usageBudget": {"status": "PENDING", "evidence": ""}
+  },
+  "manual": {
+    "betaUsability": {"status": "PENDING", "evidence": ""},
+    "keyboardAudit": {"status": "PENDING", "evidence": ""},
+    "screenReaderAudit": {"status": "PENDING", "evidence": ""},
+    "mobileZoomReflowAudit": {"status": "PENDING", "evidence": ""},
+    "privacyReview": {"status": "PENDING", "evidence": ""},
+    "securityThreatReview": {"status": "PENDING", "evidence": ""},
+    "sourceCoverageAudit": {"status": "PENDING", "evidence": ""},
+    "provenanceSpotCheck": {"status": "PENDING", "evidence": ""},
+    "recoveryTabletop": {"status": "PENDING", "evidence": ""},
+    "backupExportRestore": {"status": "PENDING", "evidence": ""},
+    "licenseGovernanceReview": {"status": "PENDING", "evidence": ""},
+    "incidentContactReview": {"status": "PENDING", "evidence": ""}
+  },
+  "knownLimitations": [
+    {
+      "id": "LIMIT-EXAMPLE",
+      "summary": "Example only — replace with the real release limitation register.",
+      "publiclyDisclosed": false,
+      "riskAccepted": false
+    }
+  ],
+  "decision": {
+    "status": "PENDING",
+    "reviewedAt": null,
+    "reviewer": "",
+    "rationale": ""
+  }
+}
