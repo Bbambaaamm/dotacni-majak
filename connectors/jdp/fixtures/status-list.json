@@ -1,0 +1,15 @@
+{
+  "statusCode": 200,
+  "result": [
+    {
+      "stavVyzva": "A",
+      "stavVyzvaLong": "Běžící",
+      "stavVyzvaLongWeb": "Otevřená"
+    },
+    {
+      "stavVyzva": "B",
+      "stavVyzvaLong": "Budoucí",
+      "stavVyzvaLongWeb": "Nezahájena"
+    }
+  ]
+}
