@@ -103,10 +103,44 @@ class PardubickyAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Obec", record.raw_fields["eligibleApplicantsText"])
         self.assertEqual(record.raw_fields["grantAmountMinMinor"], 5_000_000)
         self.assertEqual(record.raw_fields["grantAmountMaxMinor"], 75_000_000)
-        self.assertEqual(record.raw_fields["ownContributionMinBps"], 3000)
+        self.assertIsNone(record.raw_fields["ownContributionMinBps"])
+        self.assertIn("30 %", record.raw_fields["ownContributionText"])
+        self.assertIn("50 %", record.raw_fields["ownContributionText"])
         self.assertTrue(record.raw_fields["submissionCloseAt"].startswith("2026-02-02T11:00:00"))
         self.assertTrue(record.raw_fields["applicationUrl"])
         self.assertTrue(record.snapshot_ids)
+
+    async def test_legacy_numeric_detail_id_is_discoverable(self):
+        html = """<html><body><div><h3>Historický program</h3>
+        <a href="/grants/660030553">Přejít na detail</a></div></body></html>"""
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = PardubickyAdapter()
+            client = GuardedHttpClient(
+                allowed_hosts=set(adapter.descriptor.allowed_hosts),
+                resolver=public_resolver,
+                sleeper=no_sleep,
+                transport=httpx.MockTransport(
+                    lambda request: httpx.Response(
+                        200,
+                        text=html,
+                        headers={"content-type": "text/html"},
+                        request=request,
+                    )
+                ),
+            )
+            ctx = AdapterContext(
+                run_id="legacy-id-test",
+                http=client,
+                logger=None,
+                budget=None,
+                snapshots=LocalRawSnapshotStore(tmp),
+                now=datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc),
+            )
+            try:
+                page = await adapter.discover(ctx, None)
+            finally:
+                await client.aclose()
+        self.assertEqual(page.items[0].external_id, "PAK-660030553")
 
     async def test_artifact_is_raw_backed(self):
         with tempfile.TemporaryDirectory() as tmp:
