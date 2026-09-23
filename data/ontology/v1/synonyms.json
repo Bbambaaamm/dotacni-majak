@@ -231,6 +231,69 @@
       "type": "EXACT",
       "weight": 1,
       "language": "cs"
+    },
+    {
+      "term": "TENNIS_COURT",
+      "text": "tenisových kurtů",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "ENERGY_SAVINGS",
+      "text": "energetická úspora",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SCHOOL",
+      "text": "školy",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "EQUIPMENT_PURCHASE",
+      "text": "vybavení",
+      "type": "RELATED",
+      "weight": 0.75,
+      "language": "cs"
+    },
+    {
+      "term": "EQUIPMENT_PURCHASE",
+      "text": "pořízení",
+      "type": "RELATED",
+      "weight": 0.55,
+      "language": "cs"
+    },
+    {
+      "term": "PLAYGROUND",
+      "text": "dětského hřiště",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "CULTURAL_MONUMENT",
+      "text": "kulturní památky",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "SOCIAL_SERVICE",
+      "text": "sociální služby",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
+    },
+    {
+      "term": "AGRICULTURAL_TECHNOLOGY",
+      "text": "zemědělské technologie",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
     }
   ]
 }

@@ -1,0 +1,380 @@
+{
+  "version": "1.0.0",
+  "description": "Curated Czech search-quality dataset for Dotační maják. Judgments are product regression labels, not grant eligibility decisions.",
+  "queries": [
+    {
+      "id": "tennis-court-reconstruction",
+      "query": "rekonstrukce tenisových kurtů",
+      "expected_terms": [
+        "RECONSTRUCTION",
+        "TENNIS_COURT",
+        "OUTDOOR_SPORT_FACILITY",
+        "SPORT_FACILITY",
+        "SPORT_INFRASTRUCTURE",
+        "TECHNICAL_IMPROVEMENT"
+      ],
+      "candidates": [
+        {
+          "id": "generic-sport-infrastructure",
+          "label": "relevant",
+          "ontology_terms": [
+            "SPORT_INFRASTRUCTURE",
+            "SPORT_FACILITY",
+            "TECHNICAL_IMPROVEMENT",
+            "MODERNIZATION"
+          ]
+        },
+        {
+          "id": "sports-equipment",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "SPORT",
+            "EQUIPMENT_PURCHASE"
+          ]
+        },
+        {
+          "id": "business-digitalisation",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "DIGITALIZATION",
+            "BUSINESS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home-insulation",
+      "query": "zateplení domu",
+      "expected_terms": [
+        "BUILDING_INSULATION",
+        "ENERGY_SAVINGS",
+        "ENERGY"
+      ],
+      "candidates": [
+        {
+          "id": "building-energy-savings",
+          "label": "relevant",
+          "ontology_terms": [
+            "BUILDING_INSULATION",
+            "ENERGY_SAVINGS"
+          ]
+        },
+        {
+          "id": "general-renovation",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "RENOVATION",
+            "BUILDINGS"
+          ]
+        },
+        {
+          "id": "agriculture-tech",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "AGRICULTURAL_TECHNOLOGY"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "municipal-photovoltaics",
+      "query": "fotovoltaika obecní budovy",
+      "expected_terms": [
+        "PHOTOVOLTAICS",
+        "ENERGY"
+      ],
+      "candidates": [
+        {
+          "id": "pv-public-buildings",
+          "label": "relevant",
+          "ontology_terms": [
+            "PHOTOVOLTAICS",
+            "ENERGY",
+            "PUBLIC_BUILDING"
+          ]
+        },
+        {
+          "id": "energy-savings",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "ENERGY_SAVINGS",
+            "ENERGY"
+          ]
+        },
+        {
+          "id": "social-services",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "SOCIAL_SERVICE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "playground",
+      "query": "obnova dětského hřiště",
+      "expected_terms": [
+        "PLAYGROUND",
+        "RENOVATION"
+      ],
+      "candidates": [
+        {
+          "id": "public-playground",
+          "label": "relevant",
+          "ontology_terms": [
+            "PLAYGROUND",
+            "PUBLIC_SPACE",
+            "RENOVATION"
+          ]
+        },
+        {
+          "id": "public-space",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "PUBLIC_SPACE"
+          ]
+        },
+        {
+          "id": "research",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "RESEARCH"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sewerage",
+      "query": "kanalizace obce",
+      "expected_terms": [
+        "SEWERAGE",
+        "WASTEWATER",
+        "WATER"
+      ],
+      "candidates": [
+        {
+          "id": "municipal-sewerage",
+          "label": "relevant",
+          "ontology_terms": [
+            "SEWERAGE",
+            "WASTEWATER",
+            "WATER"
+          ]
+        },
+        {
+          "id": "water-management",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "WATER"
+          ]
+        },
+        {
+          "id": "culture",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "CULTURE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "heritage",
+      "query": "obnova kulturní památky",
+      "expected_terms": [
+        "CULTURAL_MONUMENT",
+        "HERITAGE",
+        "RENOVATION"
+      ],
+      "candidates": [
+        {
+          "id": "heritage-restoration",
+          "label": "relevant",
+          "ontology_terms": [
+            "CULTURAL_MONUMENT",
+            "HERITAGE",
+            "RENOVATION"
+          ]
+        },
+        {
+          "id": "culture-programme",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "CULTURE"
+          ]
+        },
+        {
+          "id": "digital-sme",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "BUSINESS_DIGITALIZATION"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "small-company-digitalisation",
+      "query": "digitalizace malé firmy",
+      "expected_terms": [
+        "DIGITALIZATION"
+      ],
+      "candidates": [
+        {
+          "id": "business-digitalisation",
+          "label": "relevant",
+          "ontology_terms": [
+            "DIGITALIZATION",
+            "BUSINESS_DIGITALIZATION",
+            "BUSINESS"
+          ]
+        },
+        {
+          "id": "innovation",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "INNOVATION",
+            "RESEARCH"
+          ]
+        },
+        {
+          "id": "sport",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "SPORT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sports-club-equipment",
+      "query": "vybavení sportovního klubu",
+      "expected_terms": [
+        "EQUIPMENT_PURCHASE"
+      ],
+      "candidates": [
+        {
+          "id": "sports-equipment",
+          "label": "relevant",
+          "ontology_terms": [
+            "EQUIPMENT_PURCHASE",
+            "SPORT"
+          ]
+        },
+        {
+          "id": "sport-infrastructure",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "SPORT_INFRASTRUCTURE"
+          ]
+        },
+        {
+          "id": "sewerage",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "SEWERAGE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "school-energy-savings",
+      "query": "energetická úspora školy",
+      "expected_terms": [
+        "ENERGY_SAVINGS",
+        "ENERGY",
+        "SCHOOL"
+      ],
+      "candidates": [
+        {
+          "id": "school-energy",
+          "label": "relevant",
+          "ontology_terms": [
+            "SCHOOL",
+            "SCHOOL_BUILDING",
+            "ENERGY_SAVINGS",
+            "ENERGY"
+          ]
+        },
+        {
+          "id": "public-building-energy",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "PUBLIC_BUILDING",
+            "ENERGY_SAVINGS"
+          ]
+        },
+        {
+          "id": "agriculture",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "AGRICULTURE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social-service",
+      "query": "rozvoj sociální služby",
+      "expected_terms": [
+        "SOCIAL_SERVICE"
+      ],
+      "candidates": [
+        {
+          "id": "social-service",
+          "label": "relevant",
+          "ontology_terms": [
+            "SOCIAL_SERVICE"
+          ]
+        },
+        {
+          "id": "community",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "COMMUNITY"
+          ]
+        },
+        {
+          "id": "photovoltaics",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "PHOTOVOLTAICS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agricultural-technology",
+      "query": "pořízení zemědělské technologie",
+      "expected_terms": [
+        "AGRICULTURAL_TECHNOLOGY",
+        "AGRICULTURE",
+        "EQUIPMENT_PURCHASE"
+      ],
+      "candidates": [
+        {
+          "id": "agri-tech",
+          "label": "relevant",
+          "ontology_terms": [
+            "AGRICULTURAL_TECHNOLOGY",
+            "AGRICULTURE",
+            "EQUIPMENT_PURCHASE"
+          ]
+        },
+        {
+          "id": "business-investment",
+          "label": "partially_relevant",
+          "ontology_terms": [
+            "BUSINESS",
+            "INVESTMENT"
+          ]
+        },
+        {
+          "id": "heritage",
+          "label": "irrelevant",
+          "ontology_terms": [
+            "HERITAGE"
+          ]
+        }
+      ]
+    }
+  ]
+}
