@@ -4,17 +4,13 @@ import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
+import { readIntentFromSearch } from "../lib/intent";
 import {
   searchErrorMessage,
   searchGrants,
   type GrantSearchResponse,
 } from "../lib/searchApi";
 import "./results.css";
-
-function normalizedIntent(): string {
-  const params = new URLSearchParams(window.location.search);
-  return (params.get("intent") ?? "").trim().replace(/\s+/g, " ");
-}
 
 function statusLabel(status: string): string {
   switch (status) {
@@ -42,7 +38,7 @@ function dateLabel(value: string | null): string {
 
 export function SearchPage() {
   const params = new URLSearchParams(window.location.search);
-  const intent = normalizedIntent();
+  const intent = readIntentFromSearch(window.location.search);
   const demoState = parseDemoResultState(params.get("demoState"));
   const [data, setData] = useState<GrantSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
