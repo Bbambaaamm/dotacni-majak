@@ -1,0 +1,23 @@
+name: STC lightweight public search research
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research_stc_http_search.py"
+      - ".github/workflows/research-stc-http-search.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe Středočeský public search with plain HTTPS
+        run: python3 scripts/research_stc_http_search.py
