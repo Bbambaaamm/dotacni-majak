@@ -9,8 +9,8 @@ function env(dbResult: unknown = { ok: 1 }): Env {
     DB: {
       prepare() {
         return {
-          async first() {
-            return dbResult as { ok: number } | null;
+          async first<T = unknown>() {
+            return dbResult as T | null;
           },
         };
       },
