@@ -15,6 +15,7 @@ describe("search API client", () => {
           intent: "koupaliště",
           results: [],
           expandedTerms: ["Koupaliště", "Sportovní infrastruktura"],
+          indexState: "READY",
         }),
         {
           status: 200,
