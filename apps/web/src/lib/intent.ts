@@ -5,8 +5,16 @@ export const intentExamples = [
   "digitalizace malé firmy",
 ] as const;
 
+export function normalizeIntent(intent: string): string {
+  return intent.trim().replace(/\s+/g, " ");
+}
+
+export function readIntentFromSearch(search: string): string {
+  return normalizeIntent(new URLSearchParams(search).get("intent") ?? "");
+}
+
 export function buildIntentSearchUrl(intent: string): string {
-  const normalized = intent.trim().replace(/\s+/g, " ");
+  const normalized = normalizeIntent(intent);
   if (!normalized) {
     return "/hledat";
   }
