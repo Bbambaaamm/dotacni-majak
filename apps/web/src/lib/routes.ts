@@ -7,6 +7,7 @@ export type RouteId =
   | "how-it-works"
   | "coverage"
   | "suggest-source"
+  | "export-summary"
   | "not-found";
 
 export interface AppRoute {
@@ -21,6 +22,7 @@ export const routes: readonly AppRoute[] = [
   { id: "projects", path: "/projekty", label: "Moje projekty" },
   { id: "grant-detail", path: "/dotace/regiony-2026", label: "Detail dotace" },
   { id: "compare", path: "/porovnat", label: "Porovnat výzvy" },
+  { id: "export-summary", path: "/export/regiony-2026", label: "Export přehledu" },
 ] as const;
 
 export const utilityRoutes: readonly AppRoute[] = [
