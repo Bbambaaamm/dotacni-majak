@@ -138,3 +138,12 @@
 - RAW-first, disappearance != cancellation.
 - Pokud stránka publikuje více kol podání, connector je nespojuje do falešného kontinuálního intervalu.
 - Region: CZ080.
+
+
+## Olomoucký kraj — krajské dotační programy 2026
+- Aktuální programy: https://www.olkraj.cz/dotace-granty-prispevky-krajske-dotacni-programy-2026/aktualni-dotacni-programy
+- Ukončené programy: https://www.olkraj.cz/dotace-granty-prispevky-krajske-dotacni-programy-2026/ukoncene-dotacni-programy
+- Veřejný detail publikuje název, anotaci, termín příjmu, oprávněné žadatele, pravidla a RAP odkaz.
+- RAP se pouze odkazuje; Maják jej nescrapuje.
+- Aktuální/ukončený index je explicitní status signál; disappearance != cancellation.
+- Region: CZ071.
