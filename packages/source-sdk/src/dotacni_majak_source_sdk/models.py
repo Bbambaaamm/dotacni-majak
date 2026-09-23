@@ -33,6 +33,7 @@ class SourceDescriptor(BaseModel):
     base_url: HttpUrl
     retrieval_modes: list[RetrievalMode]
     allowed_hosts: list[str]
+    allowed_post_paths: list[str] = Field(default_factory=list)
     normal_refresh_minutes: int = Field(default=360, ge=1)
     max_concurrency: int = Field(default=2, ge=1)
     requests_per_second: float = Field(default=1.0, gt=0)
