@@ -11,6 +11,10 @@ describe("route foundation", () => {
     expect(resolveRoute("/hledat").id).toBe("search");
   });
 
+  it("resolves grant detail route", () => {
+    expect(resolveRoute("/dotace/regiony-2026").id).toBe("grant-detail");
+  });
+
   it("does not silently redirect unknown route to home", () => {
     expect(resolveRoute("/neexistuje").id).toBe("not-found");
   });
