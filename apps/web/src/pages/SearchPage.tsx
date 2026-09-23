@@ -1,3 +1,4 @@
+import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
@@ -97,6 +98,11 @@ export function SearchPage() {
             <button className="button button--secondary" type="button">Sledovat</button>
             <a className="button button--tertiary button-link" href="/porovnat">Porovnat</a>
           </div>
+
+          <RelevanceFeedback
+            grantCallVersionId="fixture:nsa-regiony-2026:v1"
+            matcherVersion="hybrid-v1"
+          />
         </article>
       </section>
     </div>
