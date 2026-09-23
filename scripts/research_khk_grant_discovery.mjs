@@ -53,6 +53,8 @@ const page = await context.newPage();
 
 const contracts = new Map();
 const responseTasks = [];
+let grantCollectionRequest = null;
+let grantCollectionSample = null;
 
 page.on("response", (response) => {
   const task = (async () => {
@@ -77,6 +79,40 @@ page.on("response", (response) => {
       contentType,
       responseShape,
     });
+
+    if (
+      item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
+      item.pathname === "/api/Data/GetProjectSubprojectCollection"
+    ) {
+      try {
+        const rawBody = request.postData();
+        grantCollectionRequest = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        grantCollectionRequest = "<unparseable-json>";
+      }
+
+      try {
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        grantCollectionSample = rows.slice(0, 3).map((row) => ({
+          id_Def_Project: row?.id_Def_Project ?? null,
+          memo: row?.memo ?? null,
+          name: row?.name ?? null,
+          subprojects: Array.isArray(row?.subprojects)
+            ? row.subprojects.slice(0, 5).map((sub) => ({
+                id_Def_Subproject: sub?.id_Def_Subproject ?? null,
+                memo: sub?.memo ?? null,
+                name: sub?.name ?? null,
+                dateBeg: sub?.dateBeg ?? null,
+                dateEnd: sub?.dateEnd ?? null,
+                state: sub?.state ?? null,
+              }))
+            : [],
+        }));
+      } catch {
+        grantCollectionSample = "<json-unreadable>";
+      }
+    }
   })();
   responseTasks.push(task);
 });
@@ -144,13 +180,15 @@ console.log(
       programLinks: links,
       detailUrl,
       detailBodyPreview,
+      grantCollectionRequest,
+      grantCollectionSample,
       xhrContracts: [...contracts.values()].sort((a, b) =>
         `${a.method} ${a.origin}${a.pathname}`.localeCompare(
           `${b.method} ${b.origin}${b.pathname}`,
         ),
       ),
       note:
-        "No cookies/auth headers/request bodies/response bodies are logged; output contains public URLs, rendered public text and JSON shapes only.",
+        "No cookies/auth headers are logged. For the single unauthenticated public GetProjectSubprojectCollection endpoint, only its public filter body and selected public programme metadata are logged to establish the connector contract.",
       error,
     },
     null,
