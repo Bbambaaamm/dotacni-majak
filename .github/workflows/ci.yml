@@ -46,6 +46,9 @@ jobs:
       - name: Install NSA connector test dependencies
         run: python3 -m pip install -e connectors/nsa
 
+      - name: Install OPŽP connector test dependencies
+        run: python3 -m pip install -e connectors/opzp
+
       - name: Install Applicant profile package
         run: python3 -m pip install -e packages/applicant
 
@@ -83,4 +86,4 @@ jobs:
         run: python3 -m unittest discover -s tests/python -p 'test_*.py'
 
       - name: Compile Python sources
-        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/search/src packages/watches/src
+        run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/search/src packages/watches/src
