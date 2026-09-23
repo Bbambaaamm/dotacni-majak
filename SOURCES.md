@@ -177,3 +177,4 @@
 - **Conditional finance:** různé sazby spoluúčasti pro různé typy žadatelů se neslučují do jedné univerzální hodnoty.
 - **Region:** CZ053.
 - **Live smoke:** `scripts/smoke_pardubicky_connector.py`.
+- **Aktuální provozní caveat (2026-09-23):** GitHub-hosted Ubuntu runner hlásí při TLS handshaku `CERTIFICATE_VERIFY_FAILED` pro veřejný portál. TLS ověřování se **nevypíná**. PR fixture CI zůstává gating; PR live smoke toleruje pouze explicitní `UNAVAILABLE`, zatímco scheduled/manual smoke zůstává strict a tím udržuje problém viditelný v Source Health.
