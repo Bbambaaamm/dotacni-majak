@@ -329,7 +329,9 @@ export function HomePage() {
           <span>Modelový údaj</span>
           <strong>Maximální podpora: 80 %</strong>
           <small>Podmínky výzvy · str. 14 · ověřeno z oficiálního zdroje</small>
-          <span className="text-link">Otevřít původní dokument</span>
+          <span className="evidence-card__note">
+            V reálném detailu otevřete původní dokument.
+          </span>
         </div>
       </section>
 
