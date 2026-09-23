@@ -137,6 +137,12 @@ class JdpAdapterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record.raw_fields["grantAmountMaxMinor"], 500_000_000)
         self.assertEqual(record.raw_fields["allocationMinor"], 10_000_000_000)
         self.assertEqual(record.raw_fields["supportRateMaxSource"], 80)
+        # 2026-09-30 is CEST (UTC+2); naive JDP civil time must not be
+        # interpreted as UTC.
+        self.assertEqual(
+            record.raw_fields["submissionCloseAt"],
+            "2026-09-30T21:59:59+00:00",
+        )
         self.assertTrue(record.snapshot_ids)
         self.assertEqual(
             str(record.detail_url),
