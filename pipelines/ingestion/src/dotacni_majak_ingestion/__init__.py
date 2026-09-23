@@ -1,5 +1,14 @@
 """Dotační maják ingestion pipeline primitives."""
 
+from .document_security import (
+    DocumentKind,
+    DocumentSecurityError,
+    DocumentSecurityPolicy,
+    InspectedDocument,
+    OcrDecision,
+    inspect_document,
+    ocr_decision,
+)
 from .data_quality import (
     QualityGateConfig,
     QualityGateDecision,
@@ -41,6 +50,8 @@ from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
 from .state import IngestionState, PresenceState
 
 __all__ = [
+    "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
+    "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
     "RawSnapshot", "RawSnapshotStore", "LocalRawSnapshotStore",
     "IngestionItemRecord", "IngestionRepository", "InMemoryIngestionRepository",
