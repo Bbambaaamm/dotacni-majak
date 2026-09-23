@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/grant-call.schema.json",
+  "title": "GrantCall",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "programmeId", "canonicalSlug", "currentStatus", "currentTitle", "firstSeenAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "programmeId": {"type": "string", "minLength": 1},
+    "canonicalCode": {"type": ["string", "null"]},
+    "canonicalSlug": {"type": "string", "minLength": 1},
+    "currentVersionId": {"type": ["string", "null"]},
+    "currentStatus": {"enum": ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"]},
+    "currentTitle": {"type": "string", "minLength": 1},
+    "firstSeenAt": {"type": "string", "format": "date-time"},
+    "firstPublishedAt": {"type": ["string", "null"], "format": "date-time"},
+    "createdAt": {"type": ["string", "null"], "format": "date-time"},
+    "updatedAt": {"type": ["string", "null"], "format": "date-time"}
+  }
+}
