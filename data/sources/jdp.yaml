@@ -1,0 +1,17 @@
+code: JDP
+name: Jednotný dotační portál
+authority: OFFICIAL
+base_url: https://jdp2.mf.gov.cz/
+retrieval_modes:
+  - HTML
+allowed_hosts:
+  - jdp2.mf.gov.cz
+normal_refresh_minutes: 360
+max_concurrency: 1
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: research-v1
+research:
+  verified_on: 2026-09-23
+  status: LIVE_RETRIEVAL_VERIFICATION_REQUIRED
+  note: Current JDP2 public discovery mechanism must be contract-tested before connector implementation.

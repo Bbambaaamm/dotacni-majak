@@ -1,0 +1,21 @@
+code: DOTACE_EU
+name: DotaceEU
+authority: OFFICIAL
+base_url: https://www.dotaceeu.cz/
+retrieval_modes:
+  - HTML
+  - XLSX
+  - PDF
+allowed_hosts:
+  - www.dotaceeu.cz
+  - dotaceeu.cz
+normal_refresh_minutes: 240
+max_concurrency: 2
+requests_per_second: 1.0
+disappearance_confirmation_runs: 3
+adapter_version: research-v1
+research:
+  verified_on: 2026-09-23
+  status: READY_FOR_HTML_RESEARCH_CONNECTOR
+  calls_url: https://www.dotaceeu.cz/cs/jak-ziskat-dotaci/vyzvy
+  schedules_url: https://www.dotaceeu.cz/cs/jak-ziskat-dotaci/vyzvy/harmonogramy-vyzev
