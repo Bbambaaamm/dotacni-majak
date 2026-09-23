@@ -38,3 +38,10 @@ RAW response se ukládá jako immutable snapshot a record používá jeho snapsh
 Částky se normalizují do integer minor units.
 `miraPodporaZadostMax` se zatím zachovává jako source value; její jednotka/scale
 se neinterpretuje v connectoru bez samostatné finance normalization evidence.
+
+
+## TLS / live smoke — 2026-09-23
+
+GitHub-hosted Python runner při live smoke odmítá TLS řetězec `jdp2.mf.gov.cz` chybou `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`.
+
+Dotační maják **nevypíná ověřování certifikátu** a nepřidává neověřený bypass. Fixture/contract testy jsou zelené; live source health proto zůstává v daném prostředí `UNAVAILABLE`, dokud poskytovatel neopraví řetězec nebo nevznikne samostatně reviewované bezpečné řešení důvěry.
