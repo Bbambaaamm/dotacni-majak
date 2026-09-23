@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 from urllib.parse import urljoin, urlsplit
@@ -70,10 +71,11 @@ def _parse_datetime(value: Any) -> datetime | None:
         except ValueError:
             continue
         if parsed.tzinfo is None:
-            # JDP public API represents Czech local dates. Preserve the source
-            # value in raw_fields; datetime hints remain deliberately naive-UTC
-            # only for ordering until timezone normalization lands centrally.
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            # JDP public dashboard uses Czech local civil time. Interpret
+            # timezone-less values explicitly in Europe/Prague, then convert
+            # to UTC. The unmodified source value is also retained in
+            # raw_fields for provenance/audit.
+            parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Prague"))
         return parsed.astimezone(timezone.utc)
     return None
 
