@@ -1,0 +1,17 @@
+code: STC
+name: Středočeský kraj — Příručka středočeských fondů
+authority: OFFICIAL
+base_url: https://stredoceskykraj.cz/web/urad/dotace
+retrieval_modes: [HTML, PDF]
+allowed_hosts:
+  - stredoceskykraj.cz
+  - www.stredoceskykraj.cz
+normal_refresh_minutes: 360
+max_concurrency: 2
+requests_per_second: 0.5
+disappearance_confirmation_runs: 3
+adapter_version: 0.1.0
+coverage:
+  region_code: CZ020
+  level: LIMITED
+  note: Covers programmes explicitly listed in the current official Středočeské fondy guide; protected EDP is not bypassed.
