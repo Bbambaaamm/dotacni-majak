@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/document-version.schema.json",
+  "title": "DocumentVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "sourceDocumentId", "sha256", "retrievedAt", "mimeType", "r2ObjectKey", "extractionStatus"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "sourceDocumentId": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "retrievedAt": {"type": "string", "format": "date-time"},
+    "mimeType": {"type": "string", "minLength": 1},
+    "fileSize": {"type": ["integer", "null"], "minimum": 0},
+    "r2ObjectKey": {"type": "string", "minLength": 1},
+    "parserVersion": {"type": ["string", "null"]},
+    "extractionStatus": {"enum": ["PENDING", "EXTRACTED", "FAILED", "QUARANTINED"]},
+    "pageCount": {"type": ["integer", "null"], "minimum": 0},
+    "languageCode": {"type": ["string", "null"]}
+  }
+}
