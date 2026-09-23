@@ -1,19 +1,22 @@
-name: NSA connector live contract probe
+name: NSA connector live smoke
 
 on:
   pull_request:
     paths:
       - "connectors/nsa/**"
-      - "scripts/probe_nsa_html.py"
+      - "scripts/smoke_nsa_connector.py"
       - ".github/workflows/nsa-live-probe.yml"
       - "packages/source-sdk/**"
+      - "pipelines/ingestion/**"
   workflow_dispatch:
+  schedule:
+    - cron: "43 5 * * *"
 
 permissions:
   contents: read
 
 jobs:
-  probe:
+  smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -21,16 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Diagnose NSA network path
-        continue-on-error: true
-        run: |
-          echo "IPv4:"
-          curl -4 -I --connect-timeout 10 --max-time 15 https://nsa.gov.cz/dotace-investicni/ || true
-          echo "IPv6:"
-          curl -6 -I --connect-timeout 10 --max-time 15 https://nsa.gov.cz/dotace-investicni/ || true
       - name: Install dependencies
         run: |
           python3 -m pip install -e packages/source-sdk
           python3 -m pip install -e connectors/nsa
-      - name: Probe current NSA HTML contract
-        run: python3 scripts/probe_nsa_html.py
+      - name: Smoke-test official NSA connector
+        run: python3 scripts/smoke_nsa_connector.py
