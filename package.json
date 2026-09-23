@@ -15,7 +15,11 @@
     "api:typecheck": "npm --workspace @dotacni-majak/api run typecheck",
     "api:test": "npm --workspace @dotacni-majak/api run test",
     "api:build": "npm --workspace @dotacni-majak/api run build",
-    "cloudflare:validate": "node scripts/validate_cloudflare_config.mjs"
+    "cloudflare:validate": "node scripts/validate_cloudflare_config.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "npm --workspace @dotacni-majak/web run dev",
+    "dev:api": "npm --workspace @dotacni-majak/api run dev",
+    "dev:db:migrate": "npm --workspace @dotacni-majak/api exec wrangler d1 migrations apply dotacni-majak-local --local --persist-to ../../.wrangler/local"
   },
   "workspaces": [
     "apps/web",
