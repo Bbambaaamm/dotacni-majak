@@ -408,7 +408,8 @@ class GuardedHttpClient:
                 last_error = exc
                 if attempt >= self.retries:
                     raise GuardedHttpError(
-                        f"transport failure for {url!r}"
+                        "transport failure "
+                        f"({type(exc).__name__}: {exc}) for {url!r}"
                     ) from exc
                 await self._sleep(self._backoff_seconds(attempt))
                 continue
