@@ -173,9 +173,11 @@ def _is_call_link(title: str, url: str, now: datetime) -> bool:
 
 
 def _external_id(title: str, url: str) -> str:
-    nno = re.search(r"nno[^0-9]*(20\d{2})", _normalize(title))
-    if nno:
-        return f"MZE-NNO-{nno.group(1)}"
+    folded = _normalize(title)
+    if "nno" in folded or "nestatnich neziskovych organizaci" in folded:
+        year = re.search(r"\b(20\d{2})\b", folded)
+        if year:
+            return f"MZE-NNO-{year.group(1)}"
     call = re.search(r"\b(\d{1,2})\.?\s*[-.]?\s*výzva\b", title, re.I)
     if call:
         year = re.search(r"\b(20\d{2})\b", title)
