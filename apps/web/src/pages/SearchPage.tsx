@@ -1,3 +1,4 @@
+import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
 import "./results.css";
 
@@ -76,6 +77,11 @@ export function SearchPage() {
             <button className="button button--secondary" type="button">Sledovat</button>
             <button className="button button--tertiary" type="button">Porovnat</button>
           </div>
+
+          <RelevanceFeedback
+            grantCallVersionId="fixture:nsa-regiony-2026:v1"
+            matcherVersion="hybrid-v1"
+          />
         </article>
       </section>
     </div>
