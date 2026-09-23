@@ -26,7 +26,9 @@ Owner capability je zobrazena pouze v této odpovědi. Server persistuje pouze
 domain-separated SHA-256 hash.
 
 Projekt + owner capability + audit vznikají přes D1 `batch()`, aby šlo o jednu
-transakční sekvenci.
+transakční sekvenci. Cloudflare dokumentuje batched statements jako SQL
+transaction s rollbackem celé sekvence při chybě:
+https://developers.cloudflare.com/d1/worker-api/d1-database/#batch
 
 ## Create read-only share
 
