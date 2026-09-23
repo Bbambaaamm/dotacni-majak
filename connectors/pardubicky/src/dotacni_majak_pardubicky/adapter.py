@@ -32,7 +32,10 @@ INDEX_URL = "https://dotace.pardubickykraj.cz/grants"
 _ALLOWED_HOSTS = {"dotace.pardubickykraj.cz"}
 _LOCAL_TZ = ZoneInfo("Europe/Prague")
 _DETAIL_RE = re.compile(
-    r"^/grants/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$",
+    r"^/grants/("
+    r"(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
+    r"|(?:[0-9]{6,})"
+    r")/?$",
     re.I,
 )
 
@@ -103,10 +106,18 @@ def _money_minor(value: str | None) -> int | None:
 def _percent_bps(value: str | None) -> int | None:
     if not value:
         return None
-    match = re.search(r"(\d+(?:[,.]\d+)?)\s*%", value)
-    if not match:
+    folded = _normalize(value)
+    if "neni pozad" in folded or "neni stanov" in folded:
+        return 0
+
+    matches = re.findall(r"(\d+(?:[,.]\d+)?)\s*%", value)
+    distinct = {match.replace(",", ".") for match in matches}
+    if len(distinct) != 1:
+        # Conditional rates such as "30 % (50 % u obcí)" must be modelled
+        # later as separate funding scenarios, never as one universal value.
         return None
-    number = float(match.group(1).replace(",", "."))
+
+    number = float(next(iter(distinct)))
     return int(round(number * 100))
 
 
