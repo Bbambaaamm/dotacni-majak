@@ -1,3 +1,10 @@
+from .golden import (
+    GoldenCandidate,
+    GoldenQuery,
+    RelevanceJudgment,
+    load_golden_dataset,
+)
+from .ontology import OntologyIndex, OntologyMatch, normalize_text
 from .lexical import (
     LexicalSearchHit,
     SqliteLexicalSearch,
@@ -29,6 +36,13 @@ from .semantic import (
 )
 
 __all__ = [
+    "OntologyIndex",
+    "OntologyMatch",
+    "normalize_text",
+    "GoldenCandidate",
+    "GoldenQuery",
+    "RelevanceJudgment",
+    "load_golden_dataset",
     "LexicalSearchHit",
     "SqliteLexicalSearch",
     "build_fts_query",
