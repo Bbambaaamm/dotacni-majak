@@ -4,23 +4,118 @@
   "title": "FundingScenario",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "id", "grantCallVersionId", "name", "currencyCode"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "grantCallVersionId",
+    "name",
+    "currencyCode"
+  ],
   "properties": {
-    "schemaVersion": {"const": "1.0.0"},
-    "id": {"type": "string", "minLength": 1},
-    "grantCallVersionId": {"type": "string", "minLength": 1},
-    "name": {"type": "string", "minLength": 1},
-    "conditionGroupId": {"type": ["string", "null"]},
-    "currencyCode": {"type": "string", "pattern": "^[A-Z]{3}$"},
-    "supportRateMin": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
-    "supportRateMax": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
-    "grantAmountMin": {"type": ["number", "null"], "minimum": 0},
-    "grantAmountMax": {"type": ["number", "null"], "minimum": 0},
-    "projectCostMin": {"type": ["number", "null"], "minimum": 0},
-    "projectCostMax": {"type": ["number", "null"], "minimum": 0},
-    "paymentMode": {"type": ["string", "null"]},
-    "vatRule": {"type": ["string", "null"]},
-    "advancePaymentAllowed": {"type": ["boolean", "null"]},
-    "evidenceId": {"type": ["string", "null"]}
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "grantCallVersionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conditionGroupId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "currencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "supportRateMin": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "supportRateMax": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "grantAmountMin": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "grantAmountMax": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "projectCostMin": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "projectCostMax": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "paymentMode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "vatRule": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "advancePaymentAllowed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "evidenceId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "instrumentType": {
+      "type": "string",
+      "enum": [
+        "GRANT",
+        "LOAN",
+        "GUARANTEE",
+        "EQUITY",
+        "MIXED",
+        "OTHER"
+      ],
+      "default": "GRANT"
+    }
   }
 }
