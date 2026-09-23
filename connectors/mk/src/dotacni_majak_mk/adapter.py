@@ -82,10 +82,16 @@ def _date(value: str | None, *, end_of_day: bool = False) -> datetime | None:
 
 
 def _deadline(body: str) -> datetime | None:
+    # Prefer narrow, label-like formulations. Avoid a broad greedy pattern:
+    # MK detail pages often contain several publication/programme dates before
+    # the actual application deadline.
     patterns = (
-        r"termín(?:em)?\s+(?:podání|uzávěrky|uzaverky)[^:]*:?\s*(?:do\s+)?"
+        r"termín(?:em)?\s+podání(?:\s+žádost(?:i|í))?\s*(?:je|:)?\s*"
+        r"(?:stanoven\s+)?(?:do\s+)?"
         r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
-        r"(?:příjem|prijem)\s+žádostí[^.]{0,100}?do\s+"
+        r"(?:příjem|prijem)\s+žádostí(?:[^.]{0,80})?\s+do\s+"
+        r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
+        r"(?:uzávěrka|uzaverka|termín uzávěrky|termin uzaverky)\s*:?\s*"
         r"(\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zÁ-ž]+)\s*20\d{2})",
     )
     for pattern in patterns:
