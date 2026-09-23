@@ -52,6 +52,21 @@ async def main() -> None:
                 print("diagnostic-signals")
                 for signal in signals:
                     print(signal[:500])
+
+                for name in ("DotacniTitulyOtevrene", "DotacniTitulyPripravovane"):
+                    probe_url = (
+                        "https://dotace.plzensky-kraj.cz/verejnost/dotacnitituly"
+                        f"?_name={name}"
+                    )
+                    probe = await client.get(probe_url)
+                    print(
+                        "grid-probe",
+                        name,
+                        probe.status_code,
+                        probe.headers.get("content-type"),
+                        probe.text[:2000].replace("\n", " "),
+                    )
+
                 raise SystemExit("Plzeň live smoke discovered zero open/planned calls")
             first = page.items[0]
             result = await adapter.fetch_record(ctx, first)
