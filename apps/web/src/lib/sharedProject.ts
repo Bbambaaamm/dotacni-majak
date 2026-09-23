@@ -87,7 +87,7 @@ export function formatMinorMoney(
       style: "currency",
       currency: currencyCode,
     });
-    const digits = formatter.resolvedOptions().maximumFractionDigits;
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
     return formatter.format(minor / 10 ** digits);
   } catch {
     return null;
