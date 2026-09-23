@@ -2,6 +2,7 @@ import { AppShell } from "./components/AppShell";
 import { StatusBadge } from "./components/StatusBadge";
 import { ComparePage } from "./pages/ComparePage";
 import { CoveragePage } from "./pages/CoveragePage";
+import { ExportSummaryPage } from "./pages/ExportSummaryPage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
@@ -41,6 +42,9 @@ export function App() {
       break;
     case "grant-detail":
       content = <GrantDetailPage />;
+      break;
+    case "export-summary":
+      content = <ExportSummaryPage />;
       break;
     case "compare":
       content = <ComparePage />;
