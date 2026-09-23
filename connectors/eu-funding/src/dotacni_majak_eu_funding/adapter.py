@@ -323,7 +323,22 @@ class EuFundingTendersAdapter(SourceAdapter):
             if validators.last_modified:
                 headers["if-modified-since"] = validators.last_modified
 
-        response = await ctx.http.get(url, headers=headers)
+        response = await ctx.http.post_multipart(
+            url,
+            json_parts={
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"terms": {"type": ["1", "8"]}},
+                            {"term": {"identifier": identifier}},
+                        ]
+                    }
+                },
+                "languages": ["en"],
+            },
+            text_parts={"displayLanguage": "en"},
+            headers=headers,
+        )
         if response.status_code == 304:
             return RecordFetchResult(
                 state=FetchState.NOT_MODIFIED,
