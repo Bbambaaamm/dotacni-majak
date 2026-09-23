@@ -1,0 +1,24 @@
+name: OP TAK live probe
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "57 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e connectors/optak
+      - name: Run live probe
+        run: python3 scripts/smoke_optak_connector.py
