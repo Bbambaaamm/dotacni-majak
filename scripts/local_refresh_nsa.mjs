@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { platform } from "node:process";
@@ -91,6 +91,16 @@ run(
     "../../.local/nsa-import.sql",
   ],
   { shell: platform === "win32" },
+);
+
+await writeFile(
+  join(root, ".local", "nsa-refresh.json"),
+  JSON.stringify(
+    { source: "NSA", refreshedAt: new Date().toISOString() },
+    null,
+    2,
+  ) + "\n",
+  "utf8",
 );
 
 console.log("Lokální NSA data jsou připravená.");
