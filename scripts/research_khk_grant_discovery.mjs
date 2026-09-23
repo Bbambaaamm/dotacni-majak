@@ -55,6 +55,10 @@ const contracts = new Map();
 const responseTasks = [];
 let grantCollectionRequest = null;
 let grantCollectionSample = null;
+const selectedPublicBodies = {};
+let selectedDetailSample = null;
+let selectedDocumentSample = null;
+let detailDownloadLinks = [];
 
 page.on("response", (response) => {
   const task = (async () => {
@@ -79,6 +83,22 @@ page.on("response", (response) => {
       contentType,
       responseShape,
     });
+
+    if (
+      item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
+      [
+        "/api/Data/GetProjectSubprojectCollection",
+        "/api/Data/GetSubproject",
+        "/api/Data/GetSubprojectDocumentCollection",
+      ].includes(item.pathname)
+    ) {
+      try {
+        const rawBody = request.postData();
+        selectedPublicBodies[item.pathname] = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        selectedPublicBodies[item.pathname] = "<unparseable-json>";
+      }
+    }
 
     if (
       item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
@@ -111,6 +131,58 @@ page.on("response", (response) => {
         }));
       } catch {
         grantCollectionSample = "<json-unreadable>";
+      }
+    }
+
+    if (
+      item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
+      item.pathname === "/api/Data/GetSubproject"
+    ) {
+      try {
+        const payload = await response.json();
+        const row = payload?.data ?? null;
+        selectedDetailSample = row
+          ? {
+              id_Def_Subproject: row.id_Def_Subproject ?? null,
+              memo: row.memo ?? null,
+              name: row.name ?? null,
+              dateBeg: row.dateBeg ?? null,
+              dateEnd: row.dateEnd ?? null,
+              desc: row.desc ?? null,
+              purposeList: row.purposeList ?? null,
+              applicantsRange: row.applicantsRange ?? null,
+              percentMaximum: row.percentMaximum ?? null,
+              percentMaximumWeb: row.percentMaximumWeb ?? null,
+              priceMinimum: row.priceMinimum ?? null,
+              priceMinimumWeb: row.priceMinimumWeb ?? null,
+              priceMaximum: row.priceMaximum ?? null,
+              priceMaximumWeb: row.priceMaximumWeb ?? null,
+              totalPrice: row.totalPrice ?? null,
+              totalPriceWeb: row.totalPriceWeb ?? null,
+              programLinks: row.programLinks ?? null,
+            }
+          : null;
+      } catch {
+        selectedDetailSample = "<json-unreadable>";
+      }
+    }
+
+    if (
+      item.origin === "https://dotisreactfunctions.azurewebsites.net" &&
+      item.pathname === "/api/Data/GetSubprojectDocumentCollection"
+    ) {
+      try {
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        selectedDocumentSample = rows.slice(0, 8).map((row) => ({
+          id_Document: row?.id_Document ?? null,
+          title: row?.title ?? null,
+          note: row?.note ?? null,
+          ext: row?.ext ?? null,
+          size: row?.size ?? null,
+        }));
+      } catch {
+        selectedDocumentSample = "<json-unreadable>";
       }
     }
   })();
@@ -173,6 +245,21 @@ try {
     detailBodyPreview = (await page.locator("body").innerText())
       .replace(/\s+/g, " ")
       .slice(0, 6500);
+    detailDownloadLinks = await page.locator("a[href]").evaluateAll((nodes) =>
+      nodes
+        .map((node) => ({
+          text: (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 250),
+          href: node.href,
+        }))
+        .filter((item) =>
+          /document|download|\.pdf($|\?)|\.docx?($|\?)|\.xlsx?($|\?)/i.test(item.href)
+        )
+        .filter(
+          (item, index, all) =>
+            all.findIndex((other) => other.href === item.href) === index,
+        )
+        .slice(0, 40),
+    );
   }
 
   await Promise.allSettled(responseTasks);
@@ -192,13 +279,17 @@ console.log(
       detailBodyPreview,
       grantCollectionRequest,
       grantCollectionSample,
+      selectedPublicBodies,
+      selectedDetailSample,
+      selectedDocumentSample,
+      detailDownloadLinks,
       xhrContracts: [...contracts.values()].sort((a, b) =>
         `${a.method} ${a.origin}${a.pathname}`.localeCompare(
           `${b.method} ${b.origin}${b.pathname}`,
         ),
       ),
       note:
-        "No cookies/auth headers are logged. For the single unauthenticated public GetProjectSubprojectCollection endpoint, only its public filter body and selected public programme metadata are logged to establish the connector contract.",
+        "No cookies/auth headers are logged. Bodies are captured only for three observed unauthenticated read-only public endpoints needed to establish the connector contract; responses are reduced to selected public grant/document metadata.",
       error,
     },
     null,
