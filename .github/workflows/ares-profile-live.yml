@@ -1,0 +1,25 @@
+name: ARES applicant resolver live smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install profile resolver
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e packages/applicant
+      - name: Smoke-test official ARES contract
+        run: python3 scripts/smoke_ares_profile.py
