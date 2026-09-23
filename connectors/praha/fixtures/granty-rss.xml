@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Magistrát hl. m. Prahy - Granty</title>
+    <link>https://eud.praha.eu/</link>
+    <description>Granty</description>
+    <item>
+      <title>Program podpory sportu v hlavním městě Praze pro rok 2027</title>
+      <link>http://eud.praha.eu/pub/deska/detail-sport</link>
+      <guid>praha-sport-2027</guid>
+      <pubDate>Tue, 22 Sep 2026 08:00:00 +0200</pubDate>
+      <description><![CDATA[Jednací číslo MHMP 929435/2026 · Odbor školství, mládeže a sportu · Granty]]></description>
+    </item>
+    <item>
+      <title>Program na podporu projektů ke zlepšení stavu ŽP HMP pro rok 2027</title>
+      <link>https://eud.praha.eu/pub/deska/detail-zp</link>
+      <guid>praha-zp-2027</guid>
+      <pubDate>Thu, 03 Sep 2026 08:00:00 +0200</pubDate>
+      <description><![CDATA[Jednací číslo MHMP 867920/2026 · Odbor ochrany prostředí · Granty]]></description>
+    </item>
+    <item>
+      <title>Odpověď na doplňující žádost k projektu Mountfield a.s.</title>
+      <link>https://eud.praha.eu/pub/deska/detail-info</link>
+      <guid>praha-info-1</guid>
+      <pubDate>Mon, 21 Sep 2026 08:00:00 +0200</pubDate>
+      <description><![CDATA[Jednací číslo MHMP 895573/2026 · Granty]]></description>
+    </item>
+  </channel>
+</rss>
