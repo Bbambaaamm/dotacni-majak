@@ -228,7 +228,7 @@ def _grant_sql(grant: SearchableGrant, run_id: str) -> list[str]:
       0,
       {sql_text(grant.content_hash)}
     )
-    ON CONFLICT(source_id,external_id) DO UPDATE SET
+    ON CONFLICT(id) DO UPDATE SET
       canonical_url=excluded.canonical_url,
       grant_call_id=excluded.grant_call_id,
       last_seen_at=excluded.last_seen_at,
