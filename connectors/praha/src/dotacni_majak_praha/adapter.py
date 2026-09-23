@@ -7,7 +7,7 @@ from datetime import datetime, time, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import PurePosixPath
 from typing import Any
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
@@ -121,6 +121,14 @@ def _is_probable_call(title: str) -> bool:
     return any(token in folded for token in positive)
 
 
+def _upgrade_allowed_http_to_https(url: str) -> str:
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme.lower() == "http" and host in _ALLOWED_HOSTS:
+        return urlunsplit(("https", parsed.netloc, parsed.path, parsed.query, parsed.fragment))
+    return url
+
+
 def _published(value: str) -> datetime | None:
     if not value:
         return None
@@ -211,7 +219,7 @@ def _artifacts(soup: BeautifulSoup, base_url: str) -> list[RemoteArtifactRef]:
     result: list[RemoteArtifactRef] = []
     seen: set[str] = set()
     for anchor in soup.find_all("a", href=True):
-        url = urljoin(base_url, anchor["href"])
+        url = _upgrade_allowed_http_to_https(urljoin(base_url, anchor["href"]))
         host = (urlsplit(url).hostname or "").lower()
         if host not in _ALLOWED_HOSTS or url in seen:
             continue
@@ -289,7 +297,7 @@ class PrahaAdapter(SourceAdapter):
         seen: set[str] = set()
         for entry in root.findall(".//item"):
             title = _text(entry, "title")
-            link = _text(entry, "link")
+            link = _upgrade_allowed_http_to_https(_text(entry, "link"))
             description = _html_text(_text(entry, "description"))
             guid = _text(entry, "guid")
             pub_date = _published(_text(entry, "pubDate"))
