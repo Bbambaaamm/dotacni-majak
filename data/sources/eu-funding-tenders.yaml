@@ -8,6 +8,9 @@ retrieval_modes:
 allowed_hosts:
   - api.tech.ec.europa.eu
   - ec.europa.eu
+allowed_post_paths:
+  - /search-api/prod/rest/search
+  - /search-api/prod/rest/facet
 normal_refresh_minutes: 240
 max_concurrency: 2
 requests_per_second: 1.0
@@ -15,6 +18,6 @@ disappearance_confirmation_runs: 3
 adapter_version: research-v1
 research:
   verified_on: 2026-09-23
-  status: READY_AFTER_SAFE_POST
+  status: READY_FOR_CONNECTOR
   official_api_docs: https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/support/apis
   search_endpoint: https://api.tech.ec.europa.eu/search-api/prod/rest/search
