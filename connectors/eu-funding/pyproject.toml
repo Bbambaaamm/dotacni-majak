@@ -1,0 +1,12 @@
+[project]
+name = "dotacni-majak-eu-funding"
+version = "0.1.0"
+description = "EU Funding & Tenders source adapter for Dotační maják"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
