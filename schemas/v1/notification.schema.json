@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/notification.schema.json",
+  "title": "Notification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "userId",
+    "notificationType",
+    "channel",
+    "severity",
+    "title",
+    "body",
+    "dedupeKey",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "userId": {"type": "string", "minLength": 1},
+    "watchId": {"type": ["string", "null"]},
+    "grantCallVersionId": {"type": ["string", "null"]},
+    "changeEventId": {"type": ["string", "null"]},
+    "notificationType": {
+      "enum": [
+        "NEW_MATCHING_GRANT",
+        "MATCH_NEEDS_INFORMATION",
+        "GRANT_CHANGED",
+        "DEADLINE_REMINDER"
+      ]
+    },
+    "channel": {"enum": ["IN_APP","WEB_PUSH"]},
+    "severity": {"enum": ["INFO","IMPORTANT","CRITICAL"]},
+    "title": {"type": "string", "minLength": 1},
+    "body": {"type": "string", "minLength": 1},
+    "dedupeKey": {"type": "string", "minLength": 1},
+    "status": {
+      "enum": ["PENDING","SENT","READ","FAILED","SUPPRESSED"]
+    },
+    "createdAt": {"type": "string", "format": "date-time"},
+    "sentAt": {"type": ["string","null"], "format": "date-time"},
+    "readAt": {"type": ["string","null"], "format": "date-time"},
+    "lastError": {"type": ["string","null"]}
+  }
+}
