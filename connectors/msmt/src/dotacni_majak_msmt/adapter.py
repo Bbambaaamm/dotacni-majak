@@ -352,11 +352,22 @@ def _msmt_artifacts(soup: BeautifulSoup, base_url: str) -> list[RemoteArtifactRe
         seen.add(url)
         title = _clean(anchor.get_text(" ", strip=True)) or PurePosixPath(urlsplit(url).path).name
         lowered = title.casefold()
-        if "výzv" in lowered and "příloh" not in lowered:
+        normalized = _ascii_slug(title)
+        if ("výzv" in lowered or "vyzv" in normalized) and "priloh" not in normalized:
             role = "CALL_DOCUMENT"
-        elif "žádost" in lowered or "formulář" in lowered:
+        elif (
+            "žádost" in lowered
+            or "zadost" in normalized
+            or "formulář" in lowered
+            or "formular" in normalized
+        ):
             role = "APPLICATION_FORM"
-        elif "metodik" in lowered or "pravid" in lowered or "příruč" in lowered:
+        elif (
+            "metodik" in lowered
+            or "pravid" in lowered
+            or "příruč" in lowered
+            or "priruc" in normalized
+        ):
             role = "GUIDELINES"
         else:
             role = "ANNEX"
