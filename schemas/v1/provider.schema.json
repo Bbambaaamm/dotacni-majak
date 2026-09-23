@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/provider.schema.json",
+  "title": "Provider",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "providerType"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "shortName": {"type": ["string", "null"]},
+    "providerType": {"enum": ["EU", "NATIONAL", "REGIONAL", "MUNICIPAL", "OTHER_PUBLIC"]},
+    "ico": {"type": ["string", "null"]},
+    "countryCode": {"type": ["string", "null"], "pattern": "^[A-Z]{2}$"},
+    "officialUrl": {"type": ["string", "null"], "format": "uri"}
+  }
+}
