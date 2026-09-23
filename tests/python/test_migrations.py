@@ -37,7 +37,7 @@ class MigrationTest(unittest.TestCase):
             "projects", "change_events", "data_quality_issues",
             "quarantine_items", "outbox_events", "source_health",
             "scheduler_watchdog_events", "historical_awards",
-            "historical_award_ontology_terms",
+            "historical_award_ontology_terms", "relevance_feedback",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -60,6 +60,7 @@ class MigrationTest(unittest.TestCase):
             "idx_watchdog_source_created",
             "idx_historical_awards_programme_year",
             "idx_historical_award_terms_term",
+            "idx_relevance_feedback_matcher_judgment",
         }:
             self.assertIn(name, indexes)
 
