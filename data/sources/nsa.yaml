@@ -5,16 +5,23 @@ base_url: https://nsa.gov.cz/
 retrieval_modes:
   - HTML
   - PDF
+  - DOCX
+  - XLSX
 allowed_hosts:
   - nsa.gov.cz
+  - www.nsa.gov.cz
 normal_refresh_minutes: 360
 max_concurrency: 2
-requests_per_second: 1.0
+requests_per_second: 0.5
 disappearance_confirmation_runs: 3
-adapter_version: research-v1
+adapter_version: 0.1.0
 research:
   verified_on: 2026-09-23
-  status: READY_FOR_HTML_CONNECTOR
+  status: IMPLEMENTED_LIVE_CONTRACT_VERIFIED
   investment_url: https://nsa.gov.cz/dotace-investicni/
   noninvestment_url: https://nsa.gov.cz/dotace-neinvesticni/
+  parasport_url: https://nsa.gov.cz/dotace-neinvesticni-parasport/
   golden_fixture_url: https://nsa.gov.cz/dotace/vyzva-16-2026-regiony-26-investice-pod-10-mil-kc/
+  notes:
+    - One GitHub-hosted run observed connect timeout; subsequent IPv4/live probe succeeded.
+    - Canonical cancellation/closure must never be inferred from disappearance alone.
