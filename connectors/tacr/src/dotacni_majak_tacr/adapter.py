@@ -103,10 +103,10 @@ def _submission_window(soup: BeautifulSoup) -> tuple[datetime | None, datetime |
     )
 
     close_date_match = re.search(
-        r"soutezni lhuta[^.]{0,240}?konci dnem\s+"
+        r"soutezni lhuta.{0,420}?konci dnem\s+"
         r"(\d{1,2}\.\s*\d{1,2}\.\s*20\d{2})",
         normalized,
-        re.I,
+        re.I | re.S,
     )
     closes = None
     if close_date_match:
@@ -186,7 +186,7 @@ def _money(value: str | None) -> tuple[int | None, str | None]:
     if not value:
         return None, None
     match = re.search(
-        r"([0-9][0-9\s.,]*)\s*(Kč|CZK|€|EUR)",
+        r"([0-9][0-9\s.,]*)\s*(mil\.?|mld\.?)?\s*(Kč|CZK|€|EUR)",
         value,
         re.I,
     )
@@ -201,7 +201,12 @@ def _money(value: str | None) -> tuple[int | None, str | None]:
         amount = float(raw)
     except ValueError:
         return None, None
-    currency = "CZK" if match.group(2).casefold() in {"kč", "czk"} else "EUR"
+    scale = (match.group(2) or "").casefold()
+    if scale.startswith("mil"):
+        amount *= 1_000_000
+    elif scale.startswith("mld"):
+        amount *= 1_000_000_000
+    currency = "CZK" if match.group(3).casefold() in {"kč", "czk"} else "EUR"
     return int(round(amount * 100)), currency
 
 
