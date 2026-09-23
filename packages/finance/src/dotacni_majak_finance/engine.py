@@ -8,7 +8,17 @@ class FinanceStatus(str, Enum):
     COMPLETE = "COMPLETE"
     NEEDS_INFORMATION = "NEEDS_INFORMATION"
     SCENARIO_NOT_APPLICABLE = "SCENARIO_NOT_APPLICABLE"
+    INSTRUMENT_NOT_SUPPORTED = "INSTRUMENT_NOT_SUPPORTED"
     ERROR = "ERROR"
+
+
+class FundingInstrumentType(str, Enum):
+    GRANT = "GRANT"
+    LOAN = "LOAN"
+    GUARANTEE = "GUARANTEE"
+    EQUITY = "EQUITY"
+    MIXED = "MIXED"
+    OTHER = "OTHER"
 
 
 class ScenarioApplicability(str, Enum):
@@ -28,6 +38,7 @@ class PaymentMode(str, Enum):
 class FundingScenario:
     id: str
     currency_code: str
+    instrument_type: FundingInstrumentType = FundingInstrumentType.GRANT
     applicability: ScenarioApplicability = ScenarioApplicability.PASS
     support_rate_min_bps: int | None = None
     support_rate_max_bps: int | None = None
@@ -101,6 +112,7 @@ class FinanceEvaluation:
     status: FinanceStatus
     scenario_id: str | None
     currency_code: str
+    instrument_type: FundingInstrumentType
     max_grant_minor: int | None
     own_eligible_contribution_minor: int | None
     ineligible_costs_minor: int | None
@@ -166,6 +178,16 @@ class FinanceEngine:
         scenario: FundingScenario,
     ) -> FinanceEvaluation:
         reasons: list[str] = []
+
+        if scenario.instrument_type is not FundingInstrumentType.GRANT:
+            return self._result(
+                FinanceStatus.INSTRUMENT_NOT_SUPPORTED,
+                scenario,
+                project,
+                reasons=(
+                    f"INSTRUMENT_{scenario.instrument_type.value}_REQUIRES_SPECIALIZED_ENGINE",
+                ),
+            )
 
         if project.currency_code != scenario.currency_code:
             return self._result(
@@ -293,6 +315,7 @@ class FinanceEngine:
             status=FinanceStatus.COMPLETE,
             scenario_id=scenario.id,
             currency_code=project.currency_code,
+            instrument_type=scenario.instrument_type,
             max_grant_minor=grant,
             own_eligible_contribution_minor=own_eligible,
             ineligible_costs_minor=project.ineligible_costs_minor,
@@ -315,6 +338,7 @@ class FinanceEngine:
             status=status,
             scenario_id=scenario.id,
             currency_code=project.currency_code,
+            instrument_type=scenario.instrument_type,
             max_grant_minor=None,
             own_eligible_contribution_minor=None,
             ineligible_costs_minor=project.ineligible_costs_minor,
