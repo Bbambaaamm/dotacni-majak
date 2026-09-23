@@ -74,7 +74,7 @@ export function SearchPage() {
           <div className="grant-card__actions">
             <a className="button button--primary button-link" href="/dotace/regiony-2026">Zobrazit detail</a>
             <button className="button button--secondary" type="button">Sledovat</button>
-            <button className="button button--tertiary" type="button">Porovnat</button>
+            <a className="button button--tertiary button-link" href="/porovnat">Porovnat</a>
           </div>
         </article>
       </section>

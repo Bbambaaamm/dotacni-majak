@@ -3,6 +3,7 @@ export type RouteId =
   | "search"
   | "projects"
   | "grant-detail"
+  | "compare"
   | "how-it-works"
   | "coverage"
   | "suggest-source"
@@ -19,6 +20,7 @@ export const routes: readonly AppRoute[] = [
   { id: "search", path: "/hledat", label: "Najít dotaci" },
   { id: "projects", path: "/projekty", label: "Moje projekty" },
   { id: "grant-detail", path: "/dotace/regiony-2026", label: "Detail dotace" },
+  { id: "compare", path: "/porovnat", label: "Porovnat výzvy" },
 ] as const;
 
 export const utilityRoutes: readonly AppRoute[] = [
