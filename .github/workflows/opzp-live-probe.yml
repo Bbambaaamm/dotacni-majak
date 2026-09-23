@@ -1,0 +1,27 @@
+name: OPŽP connector live smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "31 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install source SDK and OPŽP connector
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e connectors/opzp
+
+      - name: Run live OPŽP smoke
+        run: python3 scripts/smoke_opzp_connector.py
