@@ -1,0 +1,19 @@
+code: SFZP_MODF
+name: SFŽP – Modernizační fond
+authority: OFFICIAL
+base_url: https://www.sfzp.cz/
+retrieval_modes:
+  - HTML
+  - PDF
+allowed_hosts:
+  - www.sfzp.cz
+  - sfzp.cz
+normal_refresh_minutes: 360
+max_concurrency: 2
+requests_per_second: 1.0
+disappearance_confirmation_runs: 3
+adapter_version: research-v1
+research:
+  verified_on: 2026-09-23
+  status: SPLIT_FROM_OPZP_RECOMMENDED
+  note: Separate adapter from OPŽP because web structure and programme model differ.
