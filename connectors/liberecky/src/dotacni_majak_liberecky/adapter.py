@@ -32,6 +32,31 @@ ROOT_URL = "https://dotace.kraj-lbc.cz/"
 _ALLOWED_HOSTS = {"dotace.kraj-lbc.cz"}
 _LOCAL_TZ = ZoneInfo("Europe/Prague")
 
+# Ověřené veřejné oblasti dotačního portálu. Statický seznam je záměrný:
+# nevytváříme závislost na marketingové navigaci root stránky a stále
+# používáme pouze oficiální veřejné server-rendered zdroje.
+CATEGORY_URLS = (
+    ("https://dotace.kraj-lbc.cz/pozarni-ochrana-a-prevence-kriminality-dotacni-fond", "Požární ochrana a prevence kriminality"),
+    ("https://dotace.kraj-lbc.cz/pozarni-ochrana-a-prevence-kriminality-ostatni", "Požární ochrana a prevence kriminality — ostatní"),
+    ("https://dotace.kraj-lbc.cz/krizovy-fond", "Krizový fond"),
+    ("https://dotace.kraj-lbc.cz/regionalni-rozvoj", "Regionální rozvoj"),
+    ("https://dotace.kraj-lbc.cz/skolstvi-a-mladez", "Školství a mládež"),
+    ("https://dotace.kraj-lbc.cz/pohybova-gramotnost", "Sport a pohybová gramotnost"),
+    ("https://dotace.kraj-lbc.cz/socialni-sluzby", "Sociální služby"),
+    ("https://dotace.kraj-lbc.cz/socialni-veci", "Sociální věci"),
+    ("https://dotace.kraj-lbc.cz/socialne-pravni-ochrana-deti", "Sociálně-právní ochrana dětí"),
+    ("https://dotace.kraj-lbc.cz/doprava", "Doprava"),
+    ("https://dotace.kraj-lbc.cz/kultura", "Kultura"),
+    ("https://dotace.kraj-lbc.cz/pamatkova-pece", "Památková péče"),
+    ("https://dotace.kraj-lbc.cz/cestovni-ruch", "Cestovní ruch"),
+    ("https://dotace.kraj-lbc.cz/hospodareni-v-lesich", "Hospodaření v lesích"),
+    ("https://dotace.kraj-lbc.cz/ochrana-vod-a-rozvoj-vodohospodarske-infrastruktury", "Ochrana vod a vodohospodářská infrastruktura"),
+    ("https://dotace.kraj-lbc.cz/zivotni-prostredi-a-zemedelstvi", "Životní prostředí a zemědělství"),
+    ("https://dotace.kraj-lbc.cz/zdravotnictvi", "Zdravotnictví"),
+    ("https://dotace.kraj-lbc.cz/obchudek-2021", "Obchůdek"),
+    ("https://dotace.kraj-lbc.cz/kotlikove-dotace", "Kotlíkové dotace"),
+)
+
 _EXCLUDED_ROOT_PATHS = {
     "",
     "/",
@@ -124,28 +149,48 @@ def _category_links(soup: BeautifulSoup) -> list[tuple[str, str]]:
     return result
 
 
-def _detail_links(soup: BeautifulSoup, category_url: str) -> list[tuple[str, str]]:
+def _detail_links(
+    soup: BeautifulSoup,
+    raw_html: str,
+    category_url: str,
+) -> list[tuple[str, str]]:
+    """Najde detailní programové routy i když portál nepoužije klasický anchor.
+
+    Živý portál ukládá routy podle verze šablony různě. Primárně čteme
+    <a href>, fallback konzervativně hledá pouze same-category URL končící
+    veřejným stabilním `-d<ID>.htm`.
+    """
+
     category_path = urlsplit(category_url).path.rstrip("/")
-    result: list[tuple[str, str]] = []
-    seen: set[str] = set()
+    result: dict[str, str] = {}
+
     for anchor in soup.find_all("a", href=True):
         url = urljoin(category_url, anchor["href"])
         parsed = urlsplit(url)
+        path = parsed.path.rstrip("/")
+        if (
+            (parsed.hostname or "").lower() in _ALLOWED_HOSTS
+            and path.startswith(category_path + "/")
+            and re.search(r"-d\d+\.htm$", path, re.I)
+        ):
+            label = _clean(anchor.get_text(" ", strip=True))
+            result[url] = label or path.rsplit("/", 1)[-1]
+
+    # Fallback pro data-url / JS state / jiný HTML atribut. Nehledáme obecné
+    # URL; route musí být pod právě ověřenou kategorií a obsahovat public d-ID.
+    escaped_category = re.escape(category_path + "/")
+    route_re = re.compile(
+        rf"""["'](?P<route>{escaped_category}[^"'<>\s]*?-d\d+\.htm(?:\?[^"'<>\s]*)?)["']""",
+        re.I,
+    )
+    for match in route_re.finditer(raw_html):
+        url = urljoin(category_url, match.group("route"))
+        parsed = urlsplit(url)
         if (parsed.hostname or "").lower() not in _ALLOWED_HOSTS:
             continue
-        path = parsed.path.rstrip("/")
-        if not path.startswith(category_path + "/"):
-            continue
-        if not re.search(r"-d\d+\.htm$", path, re.I):
-            continue
-        if url in seen:
-            continue
-        label = _clean(anchor.get_text(" ", strip=True))
-        if not label:
-            continue
-        seen.add(url)
-        result.append((url, label))
-    return result
+        result.setdefault(url, parsed.path.rsplit("/", 1)[-1])
+
+    return sorted(result.items())
 
 
 def _external_id(url: str) -> str:
@@ -287,10 +332,8 @@ class LibereckyAdapter(SourceAdapter):
             mime_type=root_response.headers.get("content-type", "text/html").split(";", 1)[0],
             headers=root_response.headers,
         )
-        root_soup = BeautifulSoup(root_response.text, "html.parser")
-
         items: dict[str, DiscoveryItem] = {}
-        for category_url, category_name in _category_links(root_soup):
+        for category_url, category_name in CATEGORY_URLS:
             response = await ctx.http.get(category_url)
             if response.status_code >= 400:
                 continue
@@ -302,7 +345,7 @@ class LibereckyAdapter(SourceAdapter):
                 headers=response.headers,
             )
             soup = BeautifulSoup(response.text, "html.parser")
-            for detail_url, title in _detail_links(soup, category_url):
+            for detail_url, title in _detail_links(soup, response.text, category_url):
                 ext = _external_id(detail_url)
                 items[ext] = DiscoveryItem(
                     external_id=ext,
