@@ -1,0 +1,25 @@
+name: NSA connector live smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e connectors/nsa
+      - name: Smoke-test official NSA connector
+        run: python3 scripts/smoke_nsa_connector.py
