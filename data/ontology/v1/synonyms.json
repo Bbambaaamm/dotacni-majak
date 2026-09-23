@@ -336,6 +336,13 @@
       "type": "RELATED",
       "weight": 0.75,
       "language": "cs"
+    },
+    {
+      "term": "SPORT_FACILITY",
+      "text": "sportovních zařízení",
+      "type": "INFLECTION",
+      "weight": 1,
+      "language": "cs"
     }
   ]
 }
