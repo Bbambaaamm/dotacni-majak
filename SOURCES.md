@@ -102,3 +102,16 @@
 - **Status safety:** stav pouze z explicitního Harmonogramu; disappearance není CLOSED/CANCELLED.
 - **Region:** CZ031.
 - **Live smoke:** `scripts/smoke_jihocesky_connector.py`.
+
+
+## Ústecký kraj — programové dotace
+
+- **Oficiální vstup:** https://www.kr-ustecky.cz/dotace
+- **Discovery:** veřejné server-rendered seznamy „Programové dotace Ústeckého kraje“ pro jednotlivé oblasti + přímé programové odkazy oblasti informatiky/IZS.
+- **Detail:** kód výzvy, oblast, alokace, explicitní sběr žádostí, stav, typ žadatele a materiály.
+- **Connector:** `connectors/ustecky`.
+- **RAW-first:** ano.
+- **Status safety:** explicitní provider status a termíny mají přednost; disappearance není CLOSED/CANCELLED.
+- **Aplikační portál:** pouze odkaz; přihlášený Portál dotací a služeb se nescrapuje.
+- **Region:** CZ042.
+- **Live smoke:** `scripts/smoke_ustecky_connector.py`.
