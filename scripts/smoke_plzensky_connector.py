@@ -30,53 +30,18 @@ async def main() -> None:
             page = await adapter.discover(ctx, None)
             print("health", health.status.value, health.detail)
             print("discovered", page.total_hint)
+            if health.status.value != "HEALTHY":
+                raise SystemExit(f"Plzeň source is not healthy: {health.detail}")
             if not page.items:
-                import re
-                response = await client.get("https://dotace.plzensky-kraj.cz/verejnost")
-                html = response.text
-                signals = []
-                for pattern in (
-                    r'https?://[^"\'<> ]+',
-                    r'[^"\']*dotacnititul[^"\']*',
-                    r'<form[^>]+>',
-                    r'<script[^>]+src=["\'][^"\']+',
-                ):
-                    for match in re.findall(pattern, html, re.I):
-                        value = " ".join(match.split())
-                        if value not in signals:
-                            signals.append(value)
-                        if len(signals) >= 40:
-                            break
-                    if len(signals) >= 40:
-                        break
-                print("diagnostic-signals")
-                for signal in signals:
-                    print(signal[:500])
-
-                for name, sortname in (
-                    ("DotacniTitulyOtevrene", "zadostido"),
-                    ("DotacniTitulyPripravovane", "zadostiod"),
-                ):
-                    probe_url = (
-                        "https://dotace.plzensky-kraj.cz/verejnost"
-                        f"?_name={name}&page=1&rows=100"
-                        f"&sidx={sortname}&sord=asc&_search=false"
-                    )
-                    probe = await client.get(probe_url)
-                    print(
-                        "grid-probe",
-                        name,
-                        probe.status_code,
-                        probe.headers.get("content-type"),
-                        probe.text[:4000].replace("\n", " "),
-                    )
-
                 raise SystemExit("Plzeň live smoke discovered zero open/planned calls")
+
             first = page.items[0]
             result = await adapter.fetch_record(ctx, first)
             record = result.record
             if record is None or not record.snapshot_ids:
                 raise SystemExit("Plzeň detail did not produce RAW-backed record")
+            if not record.raw_fields.get("submissionOpenAt") or not record.raw_fields.get("submissionCloseAt"):
+                raise SystemExit("Plzeň detail/discovery did not provide application window")
             print(
                 "sample",
                 record.external_id,
