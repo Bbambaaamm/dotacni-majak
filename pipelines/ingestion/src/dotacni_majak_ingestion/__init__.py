@@ -32,6 +32,7 @@ from .data_quality import (
 from .orchestrator import (
     InMemoryIngestionRepository,
     IngestionItemRecord,
+    IngestionLockLostError,
     IngestionOrchestrator,
     IngestionRepository,
     IngestionRunStatus,
@@ -70,6 +71,7 @@ from .health import (
     SourceHealthStatus,
 )
 from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
+from .sqlite_repository import SqliteIngestionRepository
 from .state import IngestionState, PresenceState
 
 __all__ = [
@@ -81,7 +83,8 @@ __all__ = [
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
     "RawSnapshot", "RawSnapshotStore", "LocalRawSnapshotStore",
-    "IngestionItemRecord", "IngestionRepository", "InMemoryIngestionRepository",
+    "IngestionItemRecord", "IngestionLockLostError", "IngestionRepository",
+    "InMemoryIngestionRepository", "SqliteIngestionRepository",
     "IngestionOrchestrator", "IngestionRunStatus", "IngestionRunSummary",
     "RecordPipeline", "PassthroughRecordPipeline", "RawSnapshotRequiredError",
     "QualityGateConfig", "QualityGateDecision", "QualityGateStatus",
