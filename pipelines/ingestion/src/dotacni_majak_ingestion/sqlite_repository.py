@@ -137,11 +137,35 @@ class SqliteIngestionRepository(IngestionRepository):
                 now,
             ),
         )
+        # COMPLETED is idempotent only inside one ingestion run. A later
+        # run must re-check the same source identity because the upstream
+        # record may have changed and require a new immutable version.
         self.connection.execute(
             """UPDATE ingestion_items
-               SET last_run_id = ?, updated_at = ?
+               SET state = CASE
+                     WHEN last_run_id IS NOT ? THEN 'DISCOVERED'
+                     ELSE state
+                   END,
+                   attempts = CASE
+                     WHEN last_run_id IS NOT ? THEN 0
+                     ELSE attempts
+                   END,
+                   last_error = CASE
+                     WHEN last_run_id IS NOT ? THEN NULL
+                     ELSE last_error
+                   END,
+                   last_run_id = ?,
+                   updated_at = ?
                WHERE source_code = ? AND external_id = ?""",
-            (self.run_id, now, source_code, external_id),
+            (
+                self.run_id,
+                self.run_id,
+                self.run_id,
+                self.run_id,
+                now,
+                source_code,
+                external_id,
+            ),
         )
         self.connection.commit()
         row = self.connection.execute(
