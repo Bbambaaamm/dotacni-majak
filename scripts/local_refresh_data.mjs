@@ -90,23 +90,49 @@ requireSuccess(venvPython, [
   "connectors/nsa",
   "-e",
   "connectors/dotaceeu",
+  "-e",
+  "connectors/eu-funding",
 ]);
+
+const euFundingLimitRaw = (process.env.DEV_EU_FUNDING_LIMIT ?? "75").trim();
+let euFundingArgs = [];
+let euFundingCoverage = { mode: "full" };
+
+if (euFundingLimitRaw.toLowerCase() !== "all") {
+  const parsed = Number.parseInt(euFundingLimitRaw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new Error(
+      "DEV_EU_FUNDING_LIMIT musí být kladné celé číslo nebo 'all'.",
+    );
+  }
+  euFundingArgs = ["--limit", String(parsed)];
+  euFundingCoverage = { mode: "partial", limit: parsed };
+}
 
 const sources = [
   {
     code: "NSA",
     command: ["scripts/local_ingest_nsa.py"],
     sql: "nsa-import.sql",
+    coverage: { mode: "full" },
   },
   {
     code: "DOTACEEU",
     command: ["scripts/local_ingest_dotaceeu.py"],
     sql: "dotaceeu-import.sql",
+    coverage: { mode: "full" },
+  },
+  {
+    code: "EU_FT",
+    command: ["scripts/local_ingest_eu_funding.py", ...euFundingArgs],
+    sql: "eu-funding-import.sql",
+    coverage: euFundingCoverage,
   },
 ];
 
 const succeeded = [];
 const failed = [];
+const coverage = {};
 
 for (const source of sources) {
   console.log(`\n=== ${source.code}: live refresh ===`);
@@ -125,12 +151,14 @@ for (const source of sources) {
   }
 
   succeeded.push(source.code);
+  coverage[source.code] = source.coverage ?? { mode: "full" };
 }
 
 const marker = {
   refreshedAt: new Date().toISOString(),
   succeeded,
   failed,
+  coverage,
 };
 await writeFile(
   join(root, ".local", "data-refresh.json"),
@@ -139,6 +167,12 @@ await writeFile(
 );
 
 console.log(`\nÚspěšné zdroje: ${succeeded.join(", ") || "žádné"}`);
+if (coverage.EU_FT?.mode === "partial") {
+  console.log(
+    `EU_FT: lokální dev coverage je záměrně partial (${coverage.EU_FT.limit} záznamů max). ` +
+      "Pro plný katalog nastavte DEV_EU_FUNDING_LIMIT=all.",
+  );
+}
 if (failed.length) {
   console.warn("Selhané zdroje:", failed);
 }
