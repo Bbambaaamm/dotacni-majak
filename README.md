@@ -98,9 +98,14 @@ npm run dev:data:refresh
 
 Refresh se spouští pouze tehdy, pokud poslední běh s alespoň jedním úspěšným zdrojem chybí nebo je starší než 6 hodin. Aktuálně zpracuje odděleně:
 - Národní sportovní agenturu,
-- DotaceEU.cz.
+- DotaceEU.cz,
+- EU Funding & Tenders Portal.
 
-Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého a neblokuje úspěšný refresh ostatních zdrojů.
+Lokální vývoj používá u EU Funding & Tenders ve výchozím stavu bezpečný cap 75 normalizovaných příležitostí, aby `npm run dev` neprováděl stovky až tisíce detailních API requestů. Marker `.local/data-refresh.json` tuto skutečnost ukládá jako `coverage.EU_FT.mode = "partial"`, takže omezený dev dataset nelze zaměnit za plné produkční pokrytí.
+
+Pro plný EU katalog při ručním refreshi nastavte před příkazem `DEV_EU_FUNDING_LIMIT=all`. Pro jiný vývojový cap použijte kladné celé číslo, například `DEV_EU_FUNDING_LIMIT=150`.
+
+Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého a neblokuje úspěšný refresh ostatních zdrojů. Refresh marker navíc ukládá per-source coverage metadata, aby lokální sample nebyl prezentován jako kompletní katalog.
 
 Pouze NSA lze ručně obnovit:
 
