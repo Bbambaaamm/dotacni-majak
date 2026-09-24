@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizePath, resolveRoute } from "./routes";
+import { grantCallIdFromWebPath, normalizePath, resolveRoute } from "./routes";
 
 describe("route foundation", () => {
   it("normalizes duplicate and trailing slashes", () => {
@@ -11,8 +11,11 @@ describe("route foundation", () => {
     expect(resolveRoute("/hledat").id).toBe("search");
   });
 
-  it("resolves grant detail route", () => {
-    expect(resolveRoute("/dotace/regiony-2026").id).toBe("grant-detail");
+  it("resolves dynamic grant detail route and decodes canonical id", () => {
+    const path = "/dotace/grant%3Ansa%3A16-2026";
+    expect(resolveRoute(path).id).toBe("grant-detail");
+    expect(grantCallIdFromWebPath(path)).toBe("grant:nsa:16-2026");
+    expect(grantCallIdFromWebPath("/dotace/%E0%A4%A")).toBeNull();
   });
 
   it("resolves public changelog route", () => {
