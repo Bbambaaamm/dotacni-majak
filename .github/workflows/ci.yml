@@ -25,6 +25,9 @@ jobs:
       - name: Install web dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Check local development scripts
+        run: node --check scripts/dev.mjs && node --check scripts/local_refresh_data.mjs
+
       - name: Typecheck web
         run: npm run web:typecheck
 
