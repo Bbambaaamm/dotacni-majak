@@ -11,6 +11,14 @@ import {
   rotateOwnerCapability,
 } from "./projectAccess";
 import { resolvePublicProjectShare } from "./share";
+import {
+  deleteProjectWatch,
+  enableProjectWatch,
+  getProjectWatch,
+  parseWatchEnabled,
+  projectWatchPath,
+  setProjectWatchEnabled,
+} from "./watchAccess";
 import { SearchInputError, searchGrants } from "./search";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
@@ -110,6 +118,43 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       );
     }
 
+    const watchProjectId = projectWatchPath(url.pathname);
+    if (watchProjectId) {
+      const owner = bearerToken(request);
+      if (!owner) {
+        return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const watch = await getProjectWatch(watchProjectId, owner, env);
+        return json({ watch }, { status: 200 });
+      }
+
+      if (request.method === "POST") {
+        const watch = await enableProjectWatch(watchProjectId, owner, env);
+        return json({ watch }, { status: 200 });
+      }
+
+      if (request.method === "PATCH") {
+        const enabled = await parseWatchEnabled(request);
+        const watch = await setProjectWatchEnabled(
+          watchProjectId,
+          owner,
+          enabled,
+          env,
+        );
+        return json({ watch }, { status: 200 });
+      }
+
+      if (request.method === "DELETE") {
+        await deleteProjectWatch(watchProjectId, owner, env);
+        return new Response(null, {
+          status: 204,
+          headers: { "cache-control": "no-store" },
+        });
+      }
+    }
+
     const sharePath = projectSharePath(url.pathname);
     if (sharePath && request.method === "POST" && !sharePath.shareId) {
       const owner = bearerToken(request);
@@ -165,12 +210,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
     }
 
-    if (["GET", "HEAD", "POST", "DELETE"].includes(request.method)) {
+    if (["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(request.method)) {
       return json({ error: "NOT_FOUND" }, { status: 404 });
     }
     return json(
       { error: "METHOD_NOT_ALLOWED" },
-      { status: 405, headers: { allow: "GET, HEAD, POST, DELETE" } },
+      { status: 405, headers: { allow: "GET, HEAD, POST, PATCH, DELETE" } },
     );
   } catch (error) {
     if (error instanceof ApiInputError) {
