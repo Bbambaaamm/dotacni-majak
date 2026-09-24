@@ -28,6 +28,17 @@ from .orchestrator import (
     RawSnapshotRequiredError,
     RecordPipeline,
 )
+from .collection import GrantCollectionResult, collect_searchable_grants
+from .normalization import (
+    DotaceEuGrantNormalizer,
+    EuFundingGrantNormalizer,
+    GrantNormalizer,
+    NsaGrantNormalizer,
+    canonical_status,
+    normalizer_for,
+    record_content_hash,
+    stable_programme_identity,
+)
 from .outbox import (
     InMemoryOutboxRepository,
     OutboxEvent,
@@ -61,6 +72,10 @@ __all__ = [
     "QualityViolation", "SourceRunObservation", "SourceRunQualityGate",
     "HealthReason", "ScheduleHealthInput", "SourceHealthEvaluator",
     "SourceHealthSnapshot", "SourceHealthStatus",
+    "GrantCollectionResult", "collect_searchable_grants",
+    "GrantNormalizer", "NsaGrantNormalizer", "DotaceEuGrantNormalizer",
+    "EuFundingGrantNormalizer", "canonical_status", "normalizer_for",
+    "record_content_hash", "stable_programme_identity",
     "OutboxEvent", "OutboxEventType", "OutboxStatus",
     "InMemoryOutboxRepository",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
