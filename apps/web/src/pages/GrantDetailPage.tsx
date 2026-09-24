@@ -70,7 +70,7 @@ function formatMinor(value: number | null, currency: string): string {
       currency,
       maximumFractionDigits: 2,
     });
-    const digits = formatter.resolvedOptions().maximumFractionDigits;
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
     return formatter.format(value / (10 ** digits));
   } catch {
     return `${value} ${currency}`;
