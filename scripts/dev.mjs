@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 
@@ -18,19 +18,32 @@ function run(command, args, { required = true } = {}) {
 
 run("npm", ["run", "dev:db:migrate"]);
 
-const refreshMarker = join(root, ".local", "nsa-refresh.json");
+const refreshMarker = join(root, ".local", "data-refresh.json");
 const sixHoursMs = 6 * 60 * 60 * 1000;
-const needsRefresh =
-  !existsSync(refreshMarker) ||
-  Date.now() - statSync(refreshMarker).mtimeMs > sixHoursMs;
+
+function hasRecentSuccessfulRefresh() {
+  if (!existsSync(refreshMarker)) return false;
+  if (Date.now() - statSync(refreshMarker).mtimeMs > sixHoursMs) return false;
+
+  try {
+    const marker = JSON.parse(readFileSync(refreshMarker, "utf8"));
+    return Array.isArray(marker.succeeded) && marker.succeeded.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+const needsRefresh = !hasRecentSuccessfulRefresh();
 
 if (needsRefresh && process.env.DEV_SKIP_AUTO_REFRESH !== "1") {
-  console.log("Lokální dotační data nejsou čerstvá. Spouštím bezpečný NSA refresh…");
-  const refreshed = run("npm", ["run", "dev:data:refresh:nsa"], { required: false });
+  console.log(
+    "Lokální dotační data nejsou čerstvá. Spouštím bezpečný multi-source refresh…",
+  );
+  const refreshed = run("npm", ["run", "dev:data:refresh"], { required: false });
   if (!refreshed) {
     console.warn(
-      "NSA refresh se nepodařil. Vývojové servery se přesto spustí; " +
-        "web transparentně ukáže poslední dostupná nebo prázdná data.",
+      "Žádný zdroj se teď nepodařilo bezpečně obnovit. Vývojové servery se " +
+        "přesto spustí; web transparentně ukáže poslední dostupná nebo prázdná data.",
     );
   }
 }
