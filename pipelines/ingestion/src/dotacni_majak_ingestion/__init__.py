@@ -1,5 +1,17 @@
 """Dotační maják ingestion pipeline primitives."""
 
+from .artifacts import (
+    ArtifactCacheEntry,
+    ArtifactCacheRepository,
+    ArtifactDownloadError,
+    ArtifactDownloadPolicy,
+    ArtifactDownloader,
+    ArtifactInvariantError,
+    ArtifactMimeRejected,
+    ArtifactObservedState,
+    DownloadedArtifact,
+    InMemoryArtifactCacheRepository,
+)
 from .document_security import (
     DocumentKind,
     DocumentSecurityError,
@@ -61,6 +73,10 @@ from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
 from .state import IngestionState, PresenceState
 
 __all__ = [
+    "ArtifactCacheEntry", "ArtifactCacheRepository", "ArtifactDownloadError",
+    "ArtifactDownloadPolicy", "ArtifactDownloader", "ArtifactInvariantError",
+    "ArtifactMimeRejected", "ArtifactObservedState", "DownloadedArtifact",
+    "InMemoryArtifactCacheRepository",
     "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
