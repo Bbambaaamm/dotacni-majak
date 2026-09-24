@@ -90,13 +90,27 @@ Tento příkaz:
 
 ### Lokální dotační data
 
-První end-to-end lokální zdroj je **Národní sportovní agentura**. Refresh lze spustit explicitně:
+Automatický start `npm run dev` obnovuje pouze **Národní sportovní agenturu**, aby běžný frontend restart nemusel procházet široký agregátor.
+
+Pro širší lokální dataset spusťte:
 
 ```bash
 npm run dev:data:refresh
 ```
 
-Příkaz si vytvoří lokální Python `.venv`, nainstaluje pouze potřebné open-source dependency pro Source SDK + NSA connector, stáhne veřejné listing/detail stránky přes GuardedHttpClient a idempotentně je publikuje do lokální D1.
+Tento příkaz zpracuje odděleně:
+- Národní sportovní agenturu,
+- DotaceEU.cz.
+
+Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého.
+
+Pouze NSA lze ručně obnovit:
+
+```bash
+npm run dev:data:refresh:nsa
+```
+
+Refresh si vytvoří lokální Python `.venv`, nainstaluje pouze potřebné open-source dependency pro Source SDK a příslušné connectory, stáhne veřejná oficiální data přes GuardedHttpClient a idempotentně je publikuje do lokální D1.
 
 Pokud je oficiální zdroj dočasně nedostupný, `npm run dev` se přesto spustí a web ukáže poslední dostupná nebo prázdná data. Výpadek zdroje nevytváří falešné výzvy.
 

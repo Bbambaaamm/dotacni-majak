@@ -26,7 +26,7 @@ const needsRefresh =
 
 if (needsRefresh && process.env.DEV_SKIP_AUTO_REFRESH !== "1") {
   console.log("Lokální dotační data nejsou čerstvá. Spouštím bezpečný NSA refresh…");
-  const refreshed = run("npm", ["run", "dev:data:refresh"], { required: false });
+  const refreshed = run("npm", ["run", "dev:data:refresh:nsa"], { required: false });
   if (!refreshed) {
     console.warn(
       "NSA refresh se nepodařil. Vývojové servery se přesto spustí; " +
