@@ -153,7 +153,12 @@ export function SearchPage() {
       !error &&
       data?.indexState === "READY" &&
       data.results.length === 0 ? (
-        <ResultStatePanel state={resultStateContent("NO_RESULTS")} />
+        <ResultStatePanel
+          state={{
+            ...resultStateContent("NO_RESULTS"),
+            primaryHref: `/projekty?intent=${encodeURIComponent(intent)}&watch=1`,
+          }}
+        />
       ) : null}
 
       {!loading && !error && data?.indexState === "READY" && data.results.length > 0 ? (
@@ -168,7 +173,7 @@ export function SearchPage() {
             </div>
             <a
               className="button button--secondary button-link"
-              href={`/projekty?intent=${encodeURIComponent(intent)}`}
+              href={`/projekty?intent=${encodeURIComponent(intent)}&watch=1`}
             >
               Pohlídat tento záměr
             </a>
