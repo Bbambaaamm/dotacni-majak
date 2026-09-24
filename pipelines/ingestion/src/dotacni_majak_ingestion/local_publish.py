@@ -72,6 +72,8 @@ class SearchableGrant:
     supported_activities: str = ""
     eligible_costs: str = ""
     keywords: str = ""
+    retrieval_mode: str = "HTML"
+    currency_code: str = "CZK"
 
     def validate(self) -> None:
         if self.status not in {
@@ -96,6 +98,12 @@ class SearchableGrant:
             )
         if not re.fullmatch(r"[a-f0-9]{64}", self.content_hash):
             raise ValueError("content_hash must be lowercase SHA-256 hex")
+        if self.retrieval_mode not in {
+            "API", "JSON", "XML", "RSS", "CSV", "XLSX", "HTML", "PDF", "DOCX"
+        }:
+            raise ValueError(f"unsupported retrieval_mode {self.retrieval_mode!r}")
+        if not re.fullmatch(r"[A-Z]{3}", self.currency_code):
+            raise ValueError("currency_code must be an ISO-4217-like 3-letter code")
 
 
 def _grant_sql(grant: SearchableGrant, run_id: str) -> list[str]:
@@ -138,7 +146,7 @@ def _grant_sql(grant: SearchableGrant, run_id: str) -> list[str]:
       {sql_text(grant.source_base_url)},
       {sql_text(grant.adapter_key)},
       'OFFICIAL',
-      'HTML',
+      {sql_text(grant.retrieval_mode)},
       360,
       1,
       10
@@ -197,8 +205,8 @@ def _grant_sql(grant: SearchableGrant, run_id: str) -> list[str]:
       {sql_text(grant.submission_close_at)},
       NULL,
       {sql_text(grant.source_url)},
-      'CZK',
-      'local-publisher-v1',
+      {sql_text(grant.currency_code)},
+      'local-publisher-v2',
       {sql_text(grant.content_hash)},
       {sql_text(grant.verification_status)},
       {sql_text(grant.captured_at)}
