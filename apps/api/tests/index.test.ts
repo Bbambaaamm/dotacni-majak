@@ -137,6 +137,85 @@ describe("api worker", () => {
     expect(body.expandedTerms).toContain("Sportovní infrastruktura");
   });
 
+  it("returns current dynamic grant detail from D1", async () => {
+    const response = await handleRequest(
+      new Request("https://example.test/grants/grant%3Ansa%3A16-2026"),
+      env(null, (query, values, mode) => {
+        if (mode === "first" && query.includes("FROM grant_calls g")) {
+          expect(values).toEqual(["grant:nsa:16-2026"]);
+          return {
+            grant_call_id: "grant:nsa:16-2026",
+            canonical_code: "16/2026",
+            canonical_slug: "nsa-16-2026",
+            version_id: "version:nsa:16-2026:v1",
+            version_number: 1,
+            captured_at: "2026-09-24T00:00:00Z",
+            title: "Regiony 2026",
+            summary: "Sportovní infrastruktura",
+            status: "OPEN",
+            verification_status: "PARTIALLY_VERIFIED",
+            published_at: null,
+            submission_open_at: null,
+            submission_close_at: "2026-10-31T23:59:59Z",
+            application_url: null,
+            official_detail_url: "https://nsa.gov.cz/dotace/regiony-2026/",
+            currency_code: "CZK",
+            programme_id: "programme:nsa:investment",
+            programme_name: "NSA — Investiční výzvy",
+            funding_origin: "CZ_NATIONAL",
+            programme_official_url: "https://nsa.gov.cz/",
+            provider_id: "provider:nsa",
+            provider_name: "Národní sportovní agentura",
+            provider_type: "NATIONAL",
+            provider_official_url: "https://nsa.gov.cz/",
+          };
+        }
+        if (mode === "all" && query.includes("FROM source_records sr")) {
+          return [{
+            source_code: "NSA",
+            source_name: "Národní sportovní agentura",
+            canonical_url: "https://nsa.gov.cz/dotace/regiony-2026/",
+            last_seen_at: "2026-09-24T00:00:00Z",
+            presence_state: "SEEN",
+          }];
+        }
+        if (mode === "all" && query.includes("FROM grant_call_versions")) {
+          return [{
+            id: "version:nsa:16-2026:v1",
+            version_number: 1,
+            captured_at: "2026-09-24T00:00:00Z",
+            status: "OPEN",
+            verification_status: "PARTIALLY_VERIFIED",
+            submission_close_at: "2026-10-31T23:59:59Z",
+          }];
+        }
+        if (mode === "all") return [];
+        return null;
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("max-age=60");
+    const body = await response.json() as {
+      grantCallId: string;
+      title: string;
+      provider: { name: string };
+      availability: { funding: string };
+    };
+    expect(body.grantCallId).toBe("grant:nsa:16-2026");
+    expect(body.title).toBe("Regiony 2026");
+    expect(body.provider.name).toBe("Národní sportovní agentura");
+    expect(body.availability.funding).toBe("UNKNOWN");
+  });
+
+  it("returns 404 for unknown dynamic grant detail", async () => {
+    const response = await handleRequest(
+      new Request("https://example.test/grants/missing"),
+      env(null, (_query, _values, mode) => mode === "first" ? null : []),
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "GRANT_NOT_FOUND" });
+  });
+
   it("creates project and owner capability through a three-statement atomic batch", async () => {
     const queries: string[] = [];
     const response = await handleRequest(

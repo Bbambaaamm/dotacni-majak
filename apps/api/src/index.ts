@@ -11,6 +11,7 @@ import {
   rotateOwnerCapability,
 } from "./projectAccess";
 import { resolvePublicProjectShare } from "./share";
+import { getGrantDetail, grantCallIdFromPath } from "./grantDetail";
 import { SearchInputError, searchGrants } from "./search";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
@@ -81,6 +82,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           { status: 503 },
         );
       }
+    }
+
+    const grantCallId = grantCallIdFromPath(url.pathname);
+    if ((request.method === "GET" || request.method === "HEAD") && grantCallId !== null) {
+      const detail = await getGrantDetail(env.DB, grantCallId);
+      if (!detail) {
+        return json({ error: "GRANT_NOT_FOUND" }, { status: 404 });
+      }
+      return json(detail, {
+        status: 200,
+        headers: { "cache-control": "public, max-age=60, stale-while-revalidate=300" },
+      });
     }
 
     const shareToken = sharedProjectToken(url.pathname);
