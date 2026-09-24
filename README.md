@@ -79,7 +79,7 @@ npm run dev
 
 Tento příkaz:
 1. aplikuje D1 migrace do lokální persistentní databáze,
-2. pokud lokální NSA data chybí nebo jsou starší než 6 hodin, pokusí se je obnovit z oficiálního webu přes bezpečný Source Adapter,
+2. pokud lokální dotační data chybí nebo poslední úspěšný refresh je starší než 6 hodin, pokusí se odděleně obnovit všechny nakonfigurované MVP zdroje přes bezpečné Source Adaptery,
 3. uloží RAW snapshots do lokálního ignorovaného adresáře `.local/raw`,
 4. naplní canonical D1 a FTS search index,
 5. spustí API Worker na `http://127.0.0.1:8787`,
@@ -90,19 +90,17 @@ Tento příkaz:
 
 ### Lokální dotační data
 
-Automatický start `npm run dev` obnovuje pouze **Národní sportovní agenturu**, aby běžný frontend restart nemusel procházet široký agregátor.
-
-Pro širší lokální dataset spusťte:
+Automatický start `npm run dev` používá stejný bezpečný multi-source refresh jako:
 
 ```bash
 npm run dev:data:refresh
 ```
 
-Tento příkaz zpracuje odděleně:
+Refresh se spouští pouze tehdy, pokud poslední běh s alespoň jedním úspěšným zdrojem chybí nebo je starší než 6 hodin. Aktuálně zpracuje odděleně:
 - Národní sportovní agenturu,
 - DotaceEU.cz.
 
-Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého.
+Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého a neblokuje úspěšný refresh ostatních zdrojů.
 
 Pouze NSA lze ručně obnovit:
 
