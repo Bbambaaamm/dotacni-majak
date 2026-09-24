@@ -68,6 +68,7 @@ class MigrationTest(unittest.TestCase):
             "idx_share_audit_project_created",
             "idx_project_owner_capability_hash",
             "idx_project_owner_audit_project_created",
+            "idx_watches_one_project_watch",
         }:
             self.assertIn(name, indexes)
 
@@ -121,6 +122,22 @@ class MigrationTest(unittest.TestCase):
             connection.execute(
                 "INSERT INTO project_share_links(id,project_id,owner_user_id,token_hash,created_at) "
                 "VALUES ('s2','p1','u1','hash','2026-09-23T00:00:00Z')"
+            )
+
+    def test_only_one_project_watch_per_project(self):
+        connection = self.migrate()
+        connection.execute(
+            "INSERT INTO projects(id,owner_user_id,natural_language_intent,currency_code,created_at,updated_at) "
+            "VALUES ('pw1','u1','test','CZK','2026-09-24T00:00:00Z','2026-09-24T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO watches(id,watch_type,project_id,minimum_match_band,enabled,created_at,updated_at) "
+            "VALUES ('w1','PROJECT','pw1','POSSIBLE',1,'2026-09-24T00:00:00Z','2026-09-24T00:00:00Z')"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO watches(id,watch_type,project_id,minimum_match_band,enabled,created_at,updated_at) "
+                "VALUES ('w2','PROJECT','pw1','POSSIBLE',1,'2026-09-24T00:00:00Z','2026-09-24T00:00:00Z')"
             )
 
     def test_invalid_support_rate_is_rejected(self):
