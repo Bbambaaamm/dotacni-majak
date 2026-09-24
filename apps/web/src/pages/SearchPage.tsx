@@ -237,20 +237,22 @@ export function SearchPage() {
                 </div>
 
                 <div className="grant-card__actions">
+                  <a
+                    className="button button--primary button-link"
+                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}`}
+                  >
+                    Zobrazit detail
+                  </a>
                   {grant.officialDetailUrl ? (
                     <a
-                      className="button button--primary button-link"
+                      className="button button--secondary button-link"
                       href={grant.officialDetailUrl}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Otevřít oficiální zdroj
+                      Oficiální zdroj ↗
                     </a>
-                  ) : (
-                    <span className="fine-print">
-                      Oficiální detail zatím není v indexu dostupný.
-                    </span>
-                  )}
+                  ) : null}
                 </div>
 
                 <RelevanceFeedback
