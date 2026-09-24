@@ -247,6 +247,65 @@ describe("api worker", () => {
     expect(queries[2]).toContain("project_owner_audit_events");
   });
 
+  it("creates an owner-protected project watch through the API", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "W".repeat(43);
+    const watchId = "wch_" + "b".repeat(32);
+
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/watch`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${owner}` },
+      }),
+      env(null, (query, _values, mode) => {
+        if (
+          mode === "first"
+          && query.includes("FROM project_owner_capabilities")
+        ) {
+          return { ok: 1 };
+        }
+        if (mode === "first" && query.includes("FROM watches")) {
+          return {
+            id: watchId,
+            project_id: projectId,
+            enabled: 1,
+            minimum_match_band: "POSSIBLE",
+            created_at: "2026-09-24T00:00:00Z",
+            updated_at: "2026-09-24T00:00:00Z",
+          };
+        }
+        if (mode === "run") {
+          return { success: true, meta: { changes: 1 } };
+        }
+        return null;
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      watch: { id: string; projectId: string; enabled: boolean };
+    };
+    expect(body.watch).toMatchObject({
+      id: watchId,
+      projectId,
+      enabled: true,
+    });
+  });
+
+  it("does not disclose project watch without owner capability", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/watch`),
+      env(null, () => {
+        throw new Error("DB must not be touched without bearer capability");
+      }),
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: "OWNER_CAPABILITY_INVALID",
+    });
+  });
+
   it("creates a read-only share only with matching owner capability", async () => {
     const projectId = "prj_" + "a".repeat(32);
     const owner = "B".repeat(43);
