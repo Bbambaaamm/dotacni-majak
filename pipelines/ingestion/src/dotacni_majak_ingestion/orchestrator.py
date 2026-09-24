@@ -281,16 +281,19 @@ class IngestionOrchestrator:
             )
             return summary
 
-        checkpoint_before = self.repository.get_checkpoint(source_code)
-        self.repository.start_run(
-            source_code,
-            started_at=ctx.now,
-            checkpoint_before=checkpoint_before,
-        )
-
         summary: IngestionRunSummary | None = None
         last_error: str | None = None
+        run_started = False
+        checkpoint_before: SourceCheckpoint | None = None
         try:
+            checkpoint_before = self.repository.get_checkpoint(source_code)
+            self.repository.start_run(
+                source_code,
+                started_at=ctx.now,
+                checkpoint_before=checkpoint_before,
+            )
+            run_started = True
+
             health = await adapter.healthcheck(ctx)
             if health.status == HealthStatus.UNAVAILABLE:
                 summary = IngestionRunSummary(
@@ -314,7 +317,7 @@ class IngestionOrchestrator:
             raise
         finally:
             try:
-                if summary is not None:
+                if run_started and summary is not None:
                     self.repository.finish_run(
                         summary,
                         finished_at=self._now(),
