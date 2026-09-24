@@ -66,15 +66,13 @@ class SqliteIngestionRepositoryTest(unittest.TestCase):
         repo1.transition(item, IngestionState.FETCHING)
         repo1.fail(item, ValueError("temporary"))
 
+        # A process restart that resumes the SAME run must preserve the
+        # retryable failure. A NEW run has a separate test below and resets
+        # the source identity to DISCOVERED so upstream changes are rechecked.
         repo2 = SqliteIngestionRepository(
             connection,
-            run_id="run-2",
+            run_id="run-1",
             clock=lambda: T0 + timedelta(minutes=1),
-        )
-        repo2.start_run(
-            "NSA",
-            started_at=T0 + timedelta(minutes=1),
-            checkpoint_before=None,
         )
         restored = repo2.get_or_create_item("NSA", "16/2026")
 
