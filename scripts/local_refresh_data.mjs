@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { platform } from "node:process";
 
+import { euFundingRefreshConfig } from "./local_refresh_config.mjs";
+
 const root = resolve(import.meta.dirname, "..");
 const venv = join(root, ".venv");
 const venvPython =
@@ -94,20 +96,10 @@ requireSuccess(venvPython, [
   "connectors/eu-funding",
 ]);
 
-const euFundingLimitRaw = (process.env.DEV_EU_FUNDING_LIMIT ?? "75").trim();
-let euFundingArgs = [];
-let euFundingCoverage = { mode: "full" };
-
-if (euFundingLimitRaw.toLowerCase() !== "all") {
-  const parsed = Number.parseInt(euFundingLimitRaw, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    throw new Error(
-      "DEV_EU_FUNDING_LIMIT musí být kladné celé číslo nebo 'all'.",
-    );
-  }
-  euFundingArgs = ["--limit", String(parsed)];
-  euFundingCoverage = { mode: "partial", limit: parsed };
-}
+const {
+  args: euFundingArgs,
+  coverage: euFundingCoverage,
+} = euFundingRefreshConfig();
 
 const sources = [
   {
