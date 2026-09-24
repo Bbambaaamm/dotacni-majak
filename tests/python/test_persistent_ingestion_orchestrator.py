@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
 
 from dotacni_majak_ingestion.orchestrator import (
+    IngestionLockLostError,
     IngestionOrchestrator,
     IngestionRunStatus,
     PassthroughRecordPipeline,
@@ -127,6 +128,44 @@ class PersistentOrchestratorTest(unittest.IsolatedAsyncioTestCase):
                 "SELECT source_code FROM ingestion_locks WHERE source_code='TEST'"
             ).fetchone()
         )
+
+    async def test_lost_lease_stops_before_checkpoint_commit(self):
+        connection = migrated_connection()
+
+        class LosingRepository(SqliteIngestionRepository):
+            def renew_lock(self, source_code, owner, *, now, lease_seconds):
+                del source_code, owner, now, lease_seconds
+                return False
+
+        repo = LosingRepository(
+            connection,
+            run_id="run-lost",
+            clock=lambda: T0,
+        )
+        orchestrator = IngestionOrchestrator(
+            repository=repo,
+            pipeline=PassthroughRecordPipeline(),
+            lease_seconds=60,
+            clock=lambda: T0 + timedelta(seconds=5),
+        )
+        ctx = AdapterContext(
+            run_id="run-lost",
+            http=None,
+            logger=None,
+            budget=None,
+            snapshots=None,
+            now=T0,
+        )
+
+        with self.assertRaises(IngestionLockLostError):
+            await orchestrator.run(OnePageAdapter(), ctx)
+
+        self.assertIsNone(repo.get_checkpoint("TEST"))
+        audit = connection.execute(
+            "SELECT status, last_error FROM ingestion_runs WHERE id='run-lost'"
+        ).fetchone()
+        self.assertEqual(audit[0], "FAILED")
+        self.assertIn("IngestionLockLostError", audit[1])
 
     async def test_existing_live_lock_returns_locked_without_discovery(self):
         connection = migrated_connection()
