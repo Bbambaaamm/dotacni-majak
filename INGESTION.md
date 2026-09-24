@@ -96,3 +96,27 @@ Canonical status CLOSED/CANCELLED vzniká pouze z autoritativního důkazu.
 Výrazný propad počtu záznamů, vysoká chybovost nebo změna struktury zdroje → DEGRADED a blokace destruktivních změn.
 
 Poslední ověřená data zůstávají publikovaná a Source Health musí umět uživateli ukázat stáří posledního úspěšného běhu.
+
+
+## Persistent run state and source leases
+
+Produkční ingestion nespoléhá na process memory. Migration `0020_ingestion_runtime.sql`
+přidává:
+- `source_checkpoints` — restartovatelný discovery cursor/state,
+- `ingestion_runs` — audit každého pokusu a jeho výsledku,
+- `ingestion_items` — idempotence/retry stav v rámci konkrétního runu,
+- `ingestion_locks` — lease proti paralelnímu zpracování stejného zdroje.
+
+### Lease invariant
+Před health/discovery musí běh získat source lease. Po úspěšném zpracování stránky
+se lease obnovuje **před** posunem checkpointu. Pokud lease nelze obnovit,
+běh se zastaví a checkpoint se neposune.
+
+### Run-scoped idempotence
+Stav `COMPLETED` znamená „tato source identity je hotová v tomto runu“, ne
+„už ji nikdy nekontroluj“. V novém runu se položka vrací na `DISCOVERED`,
+aby mohla zachytit změněný upstream obsah a vytvořit novou immutable verzi.
+
+`SqliteIngestionRepository` je referenční implementace nad D1-kompatibilním
+SQLite SQL. Heavy ingestion běží mimo Worker; jiný D1 transport musí zachovat
+stejný repository contract a transakční invarianty.
