@@ -82,6 +82,33 @@ class SqliteIngestionRepositoryTest(unittest.TestCase):
         self.assertEqual(restored.attempts, 1)
         self.assertIn("ValueError: temporary", restored.last_error or "")
 
+    def test_completed_item_is_rechecked_in_a_new_run(self):
+        connection = migrated_connection()
+        repo1 = SqliteIngestionRepository(
+            connection,
+            run_id="run-1",
+            clock=lambda: T0,
+        )
+        repo1.start_run("NSA", started_at=T0, checkpoint_before=None)
+        item = repo1.get_or_create_item("NSA", "16/2026")
+        repo1.transition(item, IngestionState.COMPLETED)
+
+        repo2 = SqliteIngestionRepository(
+            connection,
+            run_id="run-2",
+            clock=lambda: T0 + timedelta(hours=1),
+        )
+        repo2.start_run(
+            "NSA",
+            started_at=T0 + timedelta(hours=1),
+            checkpoint_before=None,
+        )
+        next_run_item = repo2.get_or_create_item("NSA", "16/2026")
+
+        self.assertEqual(next_run_item.state, IngestionState.DISCOVERED)
+        self.assertEqual(next_run_item.attempts, 0)
+        self.assertIsNone(next_run_item.last_error)
+
     def test_live_lease_blocks_other_owner_and_expired_lease_can_be_taken(self):
         connection = migrated_connection()
         repo1 = SqliteIngestionRepository(
