@@ -49,6 +49,17 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const url = new URL(request.url);
 
   try {
+    if (
+      ["/health", "/ready", "/search"].includes(url.pathname)
+      && request.method !== "GET"
+      && request.method !== "HEAD"
+    ) {
+      return json(
+        { error: "METHOD_NOT_ALLOWED" },
+        { status: 405, headers: { allow: "GET, HEAD" } },
+      );
+    }
+
     if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/health") {
       return json({
         status: "ok",
