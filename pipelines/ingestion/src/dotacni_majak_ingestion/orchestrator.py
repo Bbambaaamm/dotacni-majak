@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Protocol
 
@@ -21,6 +23,8 @@ class IngestionRunStatus(str, Enum):
     COMPLETED = "COMPLETED"
     SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
     PARTIAL_FAILED = "PARTIAL_FAILED"
+    LOCKED = "LOCKED"
+    FAILED = "FAILED"
 
 
 @dataclass(slots=True)
@@ -80,13 +84,55 @@ class IngestionRepository(ABC):
     ) -> None:
         raise NotImplementedError
 
+    # Persistence/lifecycle hooks intentionally have safe no-op defaults so the
+    # reference in-memory repository remains useful in focused unit tests.
+    def acquire_lock(
+        self,
+        source_code: str,
+        owner: str,
+        *,
+        now: datetime,
+        lease_seconds: int,
+    ) -> bool:
+        del source_code, owner, now, lease_seconds
+        return True
+
+    def renew_lock(
+        self,
+        source_code: str,
+        owner: str,
+        *,
+        now: datetime,
+        lease_seconds: int,
+    ) -> bool:
+        del source_code, owner, now, lease_seconds
+        return True
+
+    def release_lock(self, source_code: str, owner: str) -> None:
+        del source_code, owner
+
+    def start_run(
+        self,
+        source_code: str,
+        *,
+        started_at: datetime,
+        checkpoint_before: SourceCheckpoint | None,
+    ) -> None:
+        del source_code, started_at, checkpoint_before
+
+    def finish_run(
+        self,
+        summary: IngestionRunSummary,
+        *,
+        finished_at: datetime,
+        checkpoint_after: SourceCheckpoint | None,
+        last_error: str | None = None,
+    ) -> None:
+        del summary, finished_at, checkpoint_after, last_error
+
 
 class InMemoryIngestionRepository(IngestionRepository):
-    """Reference repository for tests/local development.
-
-    D1 implementation must preserve the same checkpoint semantics:
-    a page checkpoint is committed only after every item in that page completed.
-    """
+    """Reference repository for tests/local development."""
 
     def __init__(self) -> None:
         self.checkpoints: dict[str, SourceCheckpoint] = {}
@@ -149,8 +195,6 @@ class RecordPipeline(Protocol):
 
 
 class PassthroughRecordPipeline:
-    """Minimal implementation used until specialized pipeline stages land."""
-
     async def parse(self, record: NativeRecord) -> Any:
         return record
 
@@ -177,15 +221,31 @@ class RawSnapshotRequiredError(RuntimeError):
     pass
 
 
+class IngestionLockLostError(RuntimeError):
+    pass
+
+
 class IngestionOrchestrator:
     def __init__(
         self,
         *,
         repository: IngestionRepository,
         pipeline: RecordPipeline,
+        lease_seconds: int = 15 * 60,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
+        if lease_seconds < 1:
+            raise ValueError("lease_seconds must be >= 1")
         self.repository = repository
         self.pipeline = pipeline
+        self.lease_seconds = lease_seconds
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+
+    def _now(self) -> datetime:
+        value = self._clock()
+        if value.tzinfo is None:
+            raise ValueError("orchestrator clock must return timezone-aware datetime")
+        return value.astimezone(timezone.utc)
 
     async def run(
         self,
@@ -193,14 +253,84 @@ class IngestionOrchestrator:
         ctx: AdapterContext,
     ) -> IngestionRunSummary:
         source_code = adapter.descriptor.code
-        health = await adapter.healthcheck(ctx)
-        if health.status == HealthStatus.UNAVAILABLE:
-            return IngestionRunSummary(
-                source_code=source_code,
-                status=IngestionRunStatus.SOURCE_UNAVAILABLE,
-            )
+        owner = ctx.run_id
+        lock_now = self._now()
 
-        checkpoint = self.repository.get_checkpoint(source_code)
+        if not self.repository.acquire_lock(
+            source_code,
+            owner,
+            now=lock_now,
+            lease_seconds=self.lease_seconds,
+        ):
+            summary = IngestionRunSummary(
+                source_code=source_code,
+                status=IngestionRunStatus.LOCKED,
+            )
+            # A lock miss is still observable as a run attempt.
+            checkpoint = self.repository.get_checkpoint(source_code)
+            self.repository.start_run(
+                source_code,
+                started_at=ctx.now,
+                checkpoint_before=checkpoint,
+            )
+            self.repository.finish_run(
+                summary,
+                finished_at=self._now(),
+                checkpoint_after=checkpoint,
+                last_error="source ingestion lock is already held",
+            )
+            return summary
+
+        checkpoint_before = self.repository.get_checkpoint(source_code)
+        self.repository.start_run(
+            source_code,
+            started_at=ctx.now,
+            checkpoint_before=checkpoint_before,
+        )
+
+        summary: IngestionRunSummary | None = None
+        last_error: str | None = None
+        try:
+            health = await adapter.healthcheck(ctx)
+            if health.status == HealthStatus.UNAVAILABLE:
+                summary = IngestionRunSummary(
+                    source_code=source_code,
+                    status=IngestionRunStatus.SOURCE_UNAVAILABLE,
+                )
+                return summary
+
+            summary = await self._run_pages(
+                adapter,
+                ctx,
+                checkpoint_before,
+            )
+            return summary
+        except Exception as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+            summary = IngestionRunSummary(
+                source_code=source_code,
+                status=IngestionRunStatus.FAILED,
+            )
+            raise
+        finally:
+            try:
+                if summary is not None:
+                    self.repository.finish_run(
+                        summary,
+                        finished_at=self._now(),
+                        checkpoint_after=self.repository.get_checkpoint(source_code),
+                        last_error=last_error,
+                    )
+            finally:
+                self.repository.release_lock(source_code, owner)
+
+    async def _run_pages(
+        self,
+        adapter: SourceAdapter,
+        ctx: AdapterContext,
+        checkpoint: SourceCheckpoint | None,
+    ) -> IngestionRunSummary:
+        source_code = adapter.descriptor.code
         processed = skipped = gone = failed = pages = 0
 
         while True:
@@ -238,9 +368,6 @@ class IngestionOrchestrator:
                 else:
                     processed += 1
 
-            # Critical invariant: never advance discovery checkpoint when any
-            # item from this page failed. A retry will revisit the same page;
-            # already COMPLETED items are skipped idempotently.
             if page_failed:
                 return IngestionRunSummary(
                     source_code=source_code,
@@ -250,6 +377,19 @@ class IngestionOrchestrator:
                     gone=gone,
                     failed=failed,
                     pages=pages,
+                )
+
+            # Renew the source lease before committing progress. Losing the
+            # lease means another worker may have taken ownership, so we must
+            # stop before advancing the checkpoint.
+            if not self.repository.renew_lock(
+                source_code,
+                ctx.run_id,
+                now=self._now(),
+                lease_seconds=self.lease_seconds,
+            ):
+                raise IngestionLockLostError(
+                    f"lost ingestion lease for source {source_code}"
                 )
 
             if page.next_checkpoint is not None:
