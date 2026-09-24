@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { platform } from "node:process";
 
+import { euFundingRefreshConfig } from "./local_refresh_config.mjs";
+
 const root = resolve(import.meta.dirname, "..");
 const venv = join(root, ".venv");
 const venvPython =
@@ -90,23 +92,39 @@ requireSuccess(venvPython, [
   "connectors/nsa",
   "-e",
   "connectors/dotaceeu",
+  "-e",
+  "connectors/eu-funding",
 ]);
+
+const {
+  args: euFundingArgs,
+  coverage: euFundingCoverage,
+} = euFundingRefreshConfig();
 
 const sources = [
   {
     code: "NSA",
     command: ["scripts/local_ingest_nsa.py"],
     sql: "nsa-import.sql",
+    coverage: { mode: "full" },
   },
   {
     code: "DOTACEEU",
     command: ["scripts/local_ingest_dotaceeu.py"],
     sql: "dotaceeu-import.sql",
+    coverage: { mode: "full" },
+  },
+  {
+    code: "EU_FT",
+    command: ["scripts/local_ingest_eu_funding.py", ...euFundingArgs],
+    sql: "eu-funding-import.sql",
+    coverage: euFundingCoverage,
   },
 ];
 
 const succeeded = [];
 const failed = [];
+const coverage = {};
 
 for (const source of sources) {
   console.log(`\n=== ${source.code}: live refresh ===`);
@@ -125,12 +143,14 @@ for (const source of sources) {
   }
 
   succeeded.push(source.code);
+  coverage[source.code] = source.coverage ?? { mode: "full" };
 }
 
 const marker = {
   refreshedAt: new Date().toISOString(),
   succeeded,
   failed,
+  coverage,
 };
 await writeFile(
   join(root, ".local", "data-refresh.json"),
@@ -139,6 +159,12 @@ await writeFile(
 );
 
 console.log(`\nÚspěšné zdroje: ${succeeded.join(", ") || "žádné"}`);
+if (coverage.EU_FT?.mode === "partial") {
+  console.log(
+    `EU_FT: lokální dev coverage je záměrně partial (${coverage.EU_FT.limit} záznamů max). ` +
+      "Pro plný katalog nastavte DEV_EU_FUNDING_LIMIT=all.",
+  );
+}
 if (failed.length) {
   console.warn("Selhané zdroje:", failed);
 }
