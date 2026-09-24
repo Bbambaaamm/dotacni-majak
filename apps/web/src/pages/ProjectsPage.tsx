@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
@@ -10,6 +10,13 @@ import {
   type OwnedProject,
   type ShareLink,
 } from "../lib/projectSharing";
+import { projectPrefillFromSearch } from "../lib/projectPrefill";
+import {
+  enableProjectWatch,
+  getProjectWatch,
+  setProjectWatchEnabled,
+  type ProjectWatchRecord,
+} from "../lib/projectWatch";
 import "./sharing.css";
 
 interface ManagedProject extends OwnedProject {
@@ -40,7 +47,13 @@ function loadSessionProject(): ManagedProject | null {
 }
 
 export function ProjectsPage() {
+  const prefill = useMemo(
+    () => projectPrefillFromSearch(window.location.search),
+    [],
+  );
   const [project, setProject] = useState<ManagedProject | null>(() => loadSessionProject());
+  const [watch, setWatch] = useState<ProjectWatchRecord | null>(null);
+  const [watchLoaded, setWatchLoaded] = useState(false);
   const [share, setShare] = useState<ShareLink | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,6 +62,32 @@ export function ProjectsPage() {
     () => (share ? absoluteShareUrl(share.sharePath) : null),
     [share],
   );
+
+  useEffect(() => {
+    if (!project) {
+      setWatch(null);
+      setWatchLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setWatchLoaded(false);
+    getProjectWatch(project.projectId, project.ownerCapability)
+      .then((value) => {
+        if (!cancelled) {
+          setWatch(value);
+          setWatchLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWatch(null);
+          setWatchLoaded(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,9 +111,28 @@ export function ProjectsPage() {
       setProject(next);
       setShare(null);
       sessionStorage.setItem("dotacni-majak:active-project", JSON.stringify(next));
-      setMessage(
-        "Projekt je vytvořen. Správcovský klíč je tajný a po zavření relace ho Maják neumí obnovit.",
-      );
+
+      if (prefill.autoWatch) {
+        try {
+          const createdWatch = await enableProjectWatch(
+            next.projectId,
+            next.ownerCapability,
+          );
+          setWatch(createdWatch);
+          setWatchLoaded(true);
+          setMessage(
+            "Projekt je vytvořen a Maják ho hlídá. Správcovský klíč je tajný a po zavření relace ho Maják neumí obnovit.",
+          );
+        } catch {
+          setMessage(
+            "Projekt je vytvořen, ale hlídání se teď nepodařilo zapnout. Můžete ho zapnout níže.",
+          );
+        }
+      } else {
+        setMessage(
+          "Projekt je vytvořen. Správcovský klíč je tajný a po zavření relace ho Maják neumí obnovit.",
+        );
+      }
     } catch {
       setMessage("Projekt se teď nepodařilo vytvořit. Zkuste to znovu později.");
     } finally {
@@ -154,6 +212,7 @@ export function ProjectsPage() {
               maxLength={4000}
               rows={5}
               placeholder="Popište vlastními slovy svůj záměr…"
+              defaultValue={prefill.intent}
             />
           </label>
           <Button type="submit" disabled={busy}>
@@ -192,6 +251,80 @@ export function ProjectsPage() {
         >
           Zkopírovat správcovský klíč
         </Button>
+      </section>
+
+      <section className="share-card" aria-labelledby="watch-title">
+        <div className="share-page__head">
+          <div>
+            <h2 id="watch-title">Hlídání projektu</h2>
+            <p>
+              Maják bude tento záměr znovu porovnávat s novými a změněnými výzvami.
+            </p>
+          </div>
+          {!watchLoaded ? (
+            <StatusBadge kind="unknown" label="Načítáme stav hlídání" />
+          ) : watch?.enabled ? (
+            <StatusBadge kind="success" label="Maják tento projekt hlídá" />
+          ) : watch ? (
+            <StatusBadge kind="warning" label="Hlídání je pozastavené" />
+          ) : (
+            <StatusBadge kind="unknown" label="Hlídání není zapnuté" />
+          )}
+        </div>
+
+        <div className="action-row">
+          {!watch ? (
+            <Button
+              onClick={async () => {
+                setBusy(true);
+                setMessage(null);
+                try {
+                  const created = await enableProjectWatch(
+                    project.projectId,
+                    project.ownerCapability,
+                  );
+                  setWatch(created);
+                  setMessage("Maják tento projekt nyní hlídá.");
+                } catch {
+                  setMessage("Hlídání se teď nepodařilo zapnout.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy || !watchLoaded}
+            >
+              Pohlídat tento projekt
+            </Button>
+          ) : (
+            <Button
+              variant={watch.enabled ? "tertiary" : "secondary"}
+              onClick={async () => {
+                setBusy(true);
+                setMessage(null);
+                try {
+                  const updated = await setProjectWatchEnabled(
+                    project.projectId,
+                    project.ownerCapability,
+                    !watch.enabled,
+                  );
+                  setWatch(updated);
+                  setMessage(
+                    updated.enabled
+                      ? "Hlídání projektu je znovu aktivní."
+                      : "Hlídání projektu je pozastavené.",
+                  );
+                } catch {
+                  setMessage("Stav hlídání se teď nepodařilo změnit.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy || !watchLoaded}
+            >
+              {watch.enabled ? "Pozastavit hlídání" : "Znovu zapnout hlídání"}
+            </Button>
+          )}
+        </div>
       </section>
 
       <section className="share-card" aria-labelledby="share-title">
