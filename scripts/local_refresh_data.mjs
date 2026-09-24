@@ -146,6 +146,5 @@ if (failed.length) {
 if (succeeded.length === 0) {
   process.exit(1);
 }
-if (failed.length) {
-  process.exitCode = 2;
-}
+// A partial source outage must not make a successful last-known-good refresh
+// look like a total failure. Details remain in data-refresh.json and stdout.
