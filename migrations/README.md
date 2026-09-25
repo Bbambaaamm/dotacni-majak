@@ -19,3 +19,21 @@ Tím se vyhneme chybám binárního floating pointu v kritických finančních v
 
 ## Testování
 `tests/python/test_migrations.py` aplikuje všechny migrations do in-memory SQLite s aktivními foreign keys a kontroluje kritické tabulky/indexy/constraints.
+
+
+## Geography and applicant normalization
+
+Migration `0023_geography_applicant_rules.sql` adds:
+- hierarchical geographies with NUTS/LAU/ORP/MAS identifiers,
+- INCLUDE/EXCLUDE grant applicability rules,
+- normalized applicant type hierarchy,
+- optional normalized applicant type/geography references on profiles,
+- explicit value type + provenance/verification fields on dynamic applicant attributes.
+
+The legacy `applicant_profiles.applicant_type` enum remains in canonical v1 for
+runtime compatibility. `applicant_type_id` is additive and nullable until seed
+data/mapping (#227) is available.
+
+Dynamic attribute migration preserves existing rows. Invalid legacy JSON is
+quoted rather than discarded; such values remain reviewable instead of causing
+silent data loss.
