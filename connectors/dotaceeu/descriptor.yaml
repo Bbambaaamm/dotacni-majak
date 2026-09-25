@@ -1,0 +1,17 @@
+schemaVersion: 1
+adapter_key: dotaceeu
+import_path: dotacni_majak_dotaceeu.adapter:DotaceEuAdapter
+source:
+  code: DOTACEEU
+  name: DotaceEU.cz
+  authority: OFFICIAL
+  country_code: CZ
+  base_url: https://www.dotaceeu.cz/
+  retrieval_modes: [HTML, XLSX]
+  allowed_hosts: [dotaceeu.cz, www.dotaceeu.cz]
+  allowed_post_paths: []
+  normal_refresh_minutes: 240
+  max_concurrency: 2
+  requests_per_second: 0.5
+  disappearance_confirmation_runs: 3
+  adapter_version: 0.1.0
