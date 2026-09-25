@@ -61,6 +61,9 @@ jobs:
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
 
+      - name: Install ingestion pipeline and document parsers
+        run: python3 -m pip install -e 'pipelines/ingestion[documents]'
+
       - name: Install NSA connector test dependencies
         run: python3 -m pip install -e connectors/nsa
 
