@@ -1,0 +1,17 @@
+schemaVersion: 1
+adapter_key: nsa
+import_path: dotacni_majak_nsa.adapter:NsaAdapter
+source:
+  code: NSA
+  name: Národní sportovní agentura
+  authority: OFFICIAL
+  country_code: CZ
+  base_url: https://nsa.gov.cz/
+  retrieval_modes: [HTML, PDF, DOCX, XLSX]
+  allowed_hosts: [nsa.gov.cz, www.nsa.gov.cz]
+  allowed_post_paths: []
+  normal_refresh_minutes: 360
+  max_concurrency: 2
+  requests_per_second: 0.5
+  disappearance_confirmation_runs: 3
+  adapter_version: 0.1.0
