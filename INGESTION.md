@@ -158,3 +158,22 @@ podle `event.id`, `dedupe_key` nebo idempotency key cílové služby.
 Repository poskytuje základní queue metrics:
 PENDING, PROCESSING, FAILED, DELIVERED, DEAD_LETTER a aktuálně READY.
 
+
+## Presence reconciliation
+
+Po úspěšném discovery běhu se source identities porovnají s per-source seznamem
+`seen_external_ids`.
+
+Přechody:
+- `SEEN → MISSING_CANDIDATE`
+- `MISSING_CANDIDATE → CONFIRMED_MISSING` až po konfigurovatelném počtu úspěšných běhů
+- znovu nalezený záznam se vždy vrací na `SEEN` a missing counter se resetuje.
+
+Pokud quality gate vrátí `destructive_changes_allowed=false`, presence reconciler
+**nesmí** posunout žádný missing counter ani stav. Tím se rozbitý parser nemůže
+proměnit v hromadné „zmizení“ výzev.
+
+`CONFIRMED_MISSING` je pouze stav source recordu. Presence reconciler nikdy
+nemění `grant_calls.current_status`; CLOSED/CANCELLED smí vzniknout jen z
+autoritativního důkazu ve verzi výzvy.
+
