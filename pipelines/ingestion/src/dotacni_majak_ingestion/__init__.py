@@ -21,6 +21,12 @@ from .pdf_parser import (
     PdfParserPolicy,
     parse_pdf_document,
 )
+from .docx_parser import (
+    DocxDependencyMissingError,
+    DocxDocumentError,
+    DocxParserPolicy,
+    parse_docx_document,
+)
 from .document_security import (
     DocumentKind,
     DocumentSecurityError,
@@ -107,6 +113,8 @@ __all__ = [
     "HtmlDocumentError", "HtmlParserPolicy", "parse_html_document",
     "PdfDependencyMissingError", "PdfDocumentError", "PdfEncryptedError",
     "PdfParserPolicy", "parse_pdf_document",
+    "DocxDependencyMissingError", "DocxDocumentError",
+    "DocxParserPolicy", "parse_docx_document",
     "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
