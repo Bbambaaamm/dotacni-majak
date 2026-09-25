@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import unittest
 from pathlib import Path
@@ -148,10 +149,17 @@ class GeographyApplicantMigrationTest(unittest.TestCase):
             "INSERT INTO applicant_attribute_values("
             "id,applicant_profile_id,attribute_definition_id,value_type,"
             "value_json,source_kind,observed_at,verification_status"
-            ") VALUES ("
-            "'derived','a','attr-applicant-size','ENUM','"SMALL"',"
-            "'DERIVED','2026-09-25T01:00:00Z','AUTO_EXTRACTED'"
-            ")"
+            ") VALUES (?,?,?,?,?,?,?,?)",
+            (
+                "derived",
+                "a",
+                "attr-applicant-size",
+                "ENUM",
+                json.dumps("SMALL"),
+                "DERIVED",
+                "2026-09-25T01:00:00Z",
+                "AUTO_EXTRACTED",
+            ),
         )
 
     def test_expected_indexes_exist(self):
