@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/grant-geography.schema.json",
+  "title": "GrantGeography",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "grantCallVersionId",
+    "geographyId",
+    "mode",
+    "appliesTo"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallVersionId": {"type": "string", "minLength": 1},
+    "geographyId": {"type": "string", "minLength": 1},
+    "mode": {"enum": ["INCLUDE", "EXCLUDE"]},
+    "appliesTo": {
+      "enum": ["PROJECT_LOCATION", "APPLICANT_SEAT", "BOTH"]
+    },
+    "includeDescendants": {"type": "boolean", "default": true},
+    "evidenceId": {"type": ["string", "null"], "minLength": 1}
+  }
+}
