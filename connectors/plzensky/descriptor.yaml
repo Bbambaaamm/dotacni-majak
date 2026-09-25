@@ -1,0 +1,17 @@
+schemaVersion: 1
+adapter_key: plzensky
+import_path: dotacni_majak_plzensky.adapter:PlzenskyAdapter
+source:
+  code: PLK
+  name: Plzeňský kraj — eDotace
+  authority: OFFICIAL
+  country_code: CZ
+  base_url: https://dotace.plzensky-kraj.cz/
+  retrieval_modes: [HTML, PDF, DOCX, XLSX]
+  allowed_hosts: [dotace.plzensky-kraj.cz]
+  allowed_post_paths: []
+  normal_refresh_minutes: 180
+  max_concurrency: 2
+  requests_per_second: 0.5
+  disappearance_confirmation_runs: 3
+  adapter_version: 0.1.0
