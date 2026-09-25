@@ -40,6 +40,7 @@ class MigrationTest(unittest.TestCase):
             "historical_award_ontology_terms", "relevance_feedback",
             "project_share_links", "share_audit_events",
             "project_owner_capabilities", "project_owner_audit_events",
+            "geographies", "grant_geographies", "applicant_types",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -69,6 +70,11 @@ class MigrationTest(unittest.TestCase):
             "idx_project_owner_capability_hash",
             "idx_project_owner_audit_project_created",
             "idx_watches_one_project_watch",
+            "idx_geographies_parent",
+            "idx_grant_geographies_version",
+            "idx_applicant_types_parent",
+            "idx_applicant_profiles_type_id",
+            "idx_applicant_attribute_definition",
         }:
             self.assertIn(name, indexes)
 
