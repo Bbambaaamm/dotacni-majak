@@ -63,6 +63,12 @@ from .quarantine import (
     QuarantineItem,
     QuarantineReason,
 )
+from .presence import (
+    PresenceRecord,
+    PresenceReconciler,
+    PresenceReconciliationResult,
+    SqlitePresenceRepository,
+)
 from .health import (
     HealthReason,
     ScheduleHealthInput,
@@ -98,4 +104,6 @@ __all__ = [
     "OutboxEvent", "OutboxEventType", "OutboxStatus",
     "InMemoryOutboxRepository",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
+    "PresenceRecord", "PresenceReconciler", "PresenceReconciliationResult",
+    "SqlitePresenceRepository",
 ]
