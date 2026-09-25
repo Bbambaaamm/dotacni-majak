@@ -5,28 +5,52 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schemaVersion", "id", "applicantType", "createdAt", "updatedAt"
+    "schemaVersion",
+    "id",
+    "applicantType",
+    "createdAt",
+    "updatedAt"
   ],
   "properties": {
     "schemaVersion": {"const": "1.0.0"},
     "id": {"type": "string", "minLength": 1},
     "applicantType": {
       "enum": [
-        "UNKNOWN", "NATURAL_PERSON", "SELF_EMPLOYED", "BUSINESS",
-        "MUNICIPALITY", "REGION", "ASSOCIATION", "SPORTS_CLUB",
-        "NONPROFIT", "SCHOOL", "CONTRIBUTORY_ORGANISATION",
-        "HOA", "COOPERATIVE", "AGRICULTURAL_ENTITY",
-        "RESEARCH_ORGANISATION", "OTHER"
+        "UNKNOWN",
+        "NATURAL_PERSON",
+        "SELF_EMPLOYED",
+        "BUSINESS",
+        "MUNICIPALITY",
+        "REGION",
+        "ASSOCIATION",
+        "SPORTS_CLUB",
+        "NONPROFIT",
+        "SCHOOL",
+        "CONTRIBUTORY_ORGANISATION",
+        "HOA",
+        "COOPERATIVE",
+        "AGRICULTURAL_ENTITY",
+        "RESEARCH_ORGANISATION",
+        "OTHER"
       ]
     },
-    "ico": {"type": ["string", "null"], "pattern": "^\\d{8}$"},
+    "applicantTypeId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Optional normalized hierarchy identity; applicantType remains for v1 compatibility."
+    },
+    "ico": {"type": ["string", "null"], "pattern": "^[0-9]{8}$"},
     "organisationName": {"type": ["string", "null"]},
     "legalFormCode": {"type": ["string", "null"]},
     "municipalityCode": {"type": ["string", "null"]},
     "municipalityName": {"type": ["string", "null"]},
     "regionCode": {"type": ["string", "null"]},
+    "seatGeographyId": {"type": ["string", "null"], "minLength": 1},
     "municipalityPopulation": {"type": ["integer", "null"], "minimum": 0},
-    "municipalityPopulationAsOf": {"type": ["string", "null"], "format": "date"},
+    "municipalityPopulationAsOf": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
     "vatStatus": {
       "type": ["string", "null"],
       "enum": ["UNKNOWN", "PAYER", "NON_PAYER", null]
@@ -35,7 +59,56 @@
       "type": ["string", "null"],
       "enum": ["UNKNOWN", "MICRO", "SMALL", "MEDIUM", "LARGE", null]
     },
+    "publicPrivateStatus": {
+      "type": ["string", "null"],
+      "enum": ["PUBLIC", "PRIVATE", "MIXED", "UNKNOWN", null]
+    },
+    "nonprofitStatus": {
+      "type": ["string", "null"],
+      "enum": ["NONPROFIT", "FOR_PROFIT", "UNKNOWN", null]
+    },
+    "czNaceCodes": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true,
+      "default": []
+    },
+    "fieldSources": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9]*$"},
+      "additionalProperties": {"$ref": "#/$defs/fieldSource"},
+      "default": {}
+    },
     "createdAt": {"type": "string", "format": "date-time"},
     "updatedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "fieldSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceKind",
+        "observedAt",
+        "verificationStatus"
+      ],
+      "properties": {
+        "sourceKind": {
+          "enum": ["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"]
+        },
+        "sourceReference": {"type": ["string", "null"]},
+        "observedAt": {"type": "string", "format": "date-time"},
+        "verifiedAt": {"type": ["string", "null"], "format": "date-time"},
+        "verificationStatus": {
+          "enum": [
+            "USER_DECLARED",
+            "AUTO_EXTRACTED",
+            "PARTIALLY_VERIFIED",
+            "VERIFIED",
+            "NEEDS_REVIEW"
+          ]
+        },
+        "evidenceId": {"type": ["string", "null"], "minLength": 1}
+      }
+    }
   }
 }
