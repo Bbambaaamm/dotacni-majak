@@ -70,6 +70,8 @@ from .quarantine import (
     QuarantineItem,
     QuarantineReason,
 )
+from .quarantine_reprocess import QuarantineReprocessor, ReprocessResult
+from .sqlite_quarantine import SqliteQuarantineRepository
 from .presence import (
     PresenceRecord,
     PresenceReconciler,
@@ -112,6 +114,7 @@ __all__ = [
     "InMemoryOutboxRepository", "SqliteOutboxRepository", "OutboxLeaseError",
     "OutboxHandler", "OutboxWorker", "OutboxWorkerResult", "RetryPolicy",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
+    "SqliteQuarantineRepository", "QuarantineReprocessor", "ReprocessResult",
     "PresenceRecord", "PresenceReconciler", "PresenceReconciliationResult",
     "SqlitePresenceRepository",
 ]

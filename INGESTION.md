@@ -177,3 +177,19 @@ proměnit v hromadné „zmizení“ výzev.
 nemění `grant_calls.current_status`; CLOSED/CANCELLED smí vzniknout jen z
 autoritativního důkazu ve verzi výzvy.
 
+
+### Persistent quarantine review/reprocess
+
+`SqliteQuarantineRepository` uchovává unresolved queue v D1-kompatibilním SQLite
+schématu včetně vazby na source identity a RAW `payload_ref`.
+
+Reprocess není implicitní retry canonical publish. Je to explicitní auditovaná akce:
+1. vytvoří `quarantine_reprocess_attempts` záznam,
+2. zpracuje stejný RAW payload novou/opravnou verzí parseru,
+3. při chybě ponechá quarantine item otevřený,
+4. teprve po úspěchu označí attempt SUCCEEDED a item jako resolved.
+
+Tím lze opravit parser a bezpečně znovu zpracovat problematická data bez nového
+stahování a bez ztráty audit trailu.
+
+
