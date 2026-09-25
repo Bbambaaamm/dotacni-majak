@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
 
 from dotacni_majak_ingestion.document_model import BlockKind
+from dotacni_majak_ingestion.document_security import DocumentSecurityError
 from dotacni_majak_ingestion.docx_parser import (
     DocxDocumentError,
     DocxParserPolicy,
@@ -88,7 +89,7 @@ class DocxParserTest(unittest.TestCase):
         self.assertFalse(parsed.metadata["external_links_followed"])
 
     def test_rejects_corrupt_docx(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(DocumentSecurityError):
             parse_docx_document(b"PK this is not a valid DOCX archive")
 
     def test_enforces_table_cell_limit(self):
