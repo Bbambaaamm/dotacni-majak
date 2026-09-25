@@ -40,6 +40,13 @@ class DocumentSecurityTest(unittest.TestCase):
                 declared_mime_type="application/pdf",
             )
 
+    def test_csv_is_recognized_as_plain_tabular_document(self):
+        inspected = inspect_document(
+            b"name;value\nTest;1\n",
+            declared_mime_type="text/csv",
+        )
+        self.assertEqual(inspected.kind, DocumentKind.CSV)
+
     def test_oversized_document_is_rejected_before_parsing(self):
         with self.assertRaises(DocumentSecurityError):
             inspect_document(
