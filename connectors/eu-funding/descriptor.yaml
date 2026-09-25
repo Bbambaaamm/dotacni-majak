@@ -1,0 +1,19 @@
+schemaVersion: 1
+adapter_key: eu-funding
+import_path: dotacni_majak_eu_funding.adapter:EuFundingTendersAdapter
+source:
+  code: EU_FT
+  name: EU Funding & Tenders Portal
+  authority: OFFICIAL
+  country_code: null
+  base_url: https://api.tech.ec.europa.eu/
+  retrieval_modes: [API, JSON]
+  allowed_hosts: [api.tech.ec.europa.eu, ec.europa.eu]
+  allowed_post_paths:
+    - /search-api/prod/rest/search
+    - /search-api/prod/rest/facet
+  normal_refresh_minutes: 240
+  max_concurrency: 2
+  requests_per_second: 1.0
+  disappearance_confirmation_runs: 3
+  adapter_version: 0.1.0
