@@ -44,13 +44,27 @@ class TabularParserPolicy:
                 raise ValueError(f"{name} must be >= 1")
 
 
-def _cell_text(value: Any, *, max_chars: int) -> str:
+def _cell_text(
+    value: Any,
+    *,
+    max_chars: int,
+    excel_is_date: bool = False,
+    excel_number_format: str | None = None,
+) -> str:
     if value is None:
         return ""
     if isinstance(value, bool):
         text = "TRUE" if value else "FALSE"
     elif isinstance(value, datetime):
-        text = value.isoformat()
+        # openpyxl represents Excel date-only cells as midnight datetime.
+        # Preserve date-only semantics when the cell is marked as a date and
+        # its number format contains no explicit hour/second token.
+        fmt = excel_number_format or ""
+        has_explicit_time = bool(re.search(r"[hHsS]", fmt))
+        if excel_is_date and value.time() == time(0, 0) and not has_explicit_time:
+            text = value.date().isoformat()
+        else:
+            text = value.isoformat()
     elif isinstance(value, date):
         text = value.isoformat()
     elif isinstance(value, time):
@@ -189,6 +203,8 @@ def parse_xlsx_document(
                         _cell_text(
                             cell.value,
                             max_chars=policy.max_cell_characters,
+                            excel_is_date=bool(cell.is_date),
+                            excel_number_format=str(cell.number_format or ""),
                         )
                     )
 
