@@ -12,7 +12,7 @@ from .artifacts import (
     DownloadedArtifact,
     InMemoryArtifactCacheRepository,
 )
-from .document_security import (
+from .document_model import BlockKind, ParsedBlock, ParsedDocument, SourceAnchor\nfrom .html_parser import HtmlDocumentError, HtmlParserPolicy, parse_html_document\nfrom .document_security import (
     DocumentKind,
     DocumentSecurityError,
     DocumentSecurityPolicy,
@@ -86,7 +86,7 @@ __all__ = [
     "ArtifactDownloadPolicy", "ArtifactDownloader", "ArtifactInvariantError",
     "ArtifactMimeRejected", "ArtifactObservedState", "DownloadedArtifact",
     "InMemoryArtifactCacheRepository",
-    "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
+    "BlockKind", "ParsedBlock", "ParsedDocument", "SourceAnchor",\n    "HtmlDocumentError", "HtmlParserPolicy", "parse_html_document",\n    "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
     "RawSnapshot", "RawSnapshotStore", "LocalRawSnapshotStore",
