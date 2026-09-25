@@ -204,8 +204,10 @@ def parse_xlsx_document(
                         _cell_text(
                             cell.value,
                             max_chars=policy.max_cell_characters,
-                            excel_is_date=bool(cell.is_date),
-                            excel_number_format=str(cell.number_format or ""),
+                            excel_is_date=bool(getattr(cell, "is_date", False)),
+                            excel_number_format=str(
+                                getattr(cell, "number_format", "") or ""
+                            ),
                         )
                     )
 
