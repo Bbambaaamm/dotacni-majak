@@ -36,6 +36,9 @@ class OutboxEvent:
     created_at: str
     delivered_at: str | None = None
     last_error: str | None = None
+    lease_owner: str | None = None
+    lease_expires_at: str | None = None
+    dead_lettered_at: str | None = None
 
 
 class InMemoryOutboxRepository:
