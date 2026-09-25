@@ -120,3 +120,41 @@ aby mohla zachytit změněný upstream obsah a vytvořit novou immutable verzi.
 `SqliteIngestionRepository` je referenční implementace nad D1-kompatibilním
 SQLite SQL. Heavy ingestion běží mimo Worker; jiný D1 transport musí zachovat
 stejný repository contract a transakční invarianty.
+
+
+## Persistent transactional outbox worker
+
+`SqliteOutboxRepository` je referenční D1-kompatibilní implementace
+produkčního outbox kontraktu.
+
+### Atomic enqueue
+Canonical write a outbox event musí být součást stejné DB transakce.
+`enqueue(..., commit=False)` umožňuje callerovi vložit event do již otevřené
+transakce a commitnout canonical změnu + event společně.
+
+### Claim lease
+Worker vybírá jen:
+- PENDING/FAILED event s `available_at <= now`,
+- nebo PROCESSING event, jehož lease expiroval.
+
+Claim nastaví `PROCESSING`, zvýší `attempts` a přidělí časově omezený lease
+konkrétnímu workeru. Jiný worker nesmí event dokončit bez aktivního lease.
+
+### Retry a dead-letter
+Selhání handleru:
+1. uvolní lease,
+2. uloží chybu,
+3. naplánuje další `available_at` podle backoff policy,
+4. po dosažení max attempts nastaví `dead_lettered_at`.
+
+Dead-letter event zůstává auditovatelný v databázi, ale není znovu claimován.
+
+### At-least-once semantics
+Handler může být po expiraci lease spuštěn znovu, proto musí být idempotentní
+podle `event.id`, `dedupe_key` nebo idempotency key cílové služby.
+`OutboxWorker` označí event DELIVERED až po úspěšném návratu handleru.
+
+### Observability
+Repository poskytuje základní queue metrics:
+PENDING, PROCESSING, FAILED, DELIVERED, DEAD_LETTER a aktuálně READY.
+
