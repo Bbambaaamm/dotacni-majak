@@ -70,6 +70,8 @@ from .quarantine import (
     QuarantineItem,
     QuarantineReason,
 )
+from .quarantine_reprocess import QuarantineReprocessor, ReprocessResult
+from .sqlite_quarantine import SqliteQuarantineRepository
 from .health import (
     HealthReason,
     ScheduleHealthInput,
@@ -106,4 +108,5 @@ __all__ = [
     "InMemoryOutboxRepository", "SqliteOutboxRepository", "OutboxLeaseError",
     "OutboxHandler", "OutboxWorker", "OutboxWorkerResult", "RetryPolicy",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
+    "SqliteQuarantineRepository", "QuarantineReprocessor", "ReprocessResult",
 ]
