@@ -88,3 +88,16 @@ Rules jsou strom `RuleSet → RuleGroup → RuleCondition`.
 - UNKNOWN policy: PROPAGATE / NOT_APPLICABLE; nikdy FAIL.
 - Jeden RuleSet může mít nejvýše jeden root group na DB úrovni; evaluator vyžaduje právě jeden.
 - RuleCondition může mít provenance přes `field_evidence`.
+
+
+## Runtime persistence ingestionu
+
+Runtime tabulky:
+- `source_checkpoints` — poslední bezpečně commitnutý discovery checkpoint,
+- `ingestion_runs` — stav, metriky a checkpoint before/after každého běhu,
+- `ingestion_items` — per-run retry/idempotence state source identity,
+- `ingestion_locks` — source-level lease s expirací.
+
+Tyto tabulky neobsahují canonical fakta o dotaci. Řídí pouze spolehlivost
+zpracování; canonical data zůstávají v GrantCall/GrantCallVersion/document/
+evidence doméně.
