@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/applicant-attribute-value.schema.json",
+  "title": "ApplicantAttributeValue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "applicantProfileId",
+    "attributeDefinitionId",
+    "valueType",
+    "value",
+    "sourceKind",
+    "observedAt",
+    "verificationStatus"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "applicantProfileId": {"type": "string", "minLength": 1},
+    "attributeDefinitionId": {"type": "string", "minLength": 1},
+    "valueType": {
+      "enum": [
+        "STRING",
+        "INTEGER",
+        "NUMBER",
+        "BOOLEAN",
+        "DATE",
+        "DATETIME",
+        "MONEY_MINOR",
+        "PERCENT_BPS",
+        "ENUM",
+        "GEO_ID",
+        "STRING_SET"
+      ]
+    },
+    "value": {},
+    "sourceKind": {
+      "enum": ["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"]
+    },
+    "sourceReference": {"type": ["string", "null"]},
+    "observedAt": {"type": "string", "format": "date-time"},
+    "verifiedAt": {"type": ["string", "null"], "format": "date-time"},
+    "verificationStatus": {
+      "enum": [
+        "USER_DECLARED",
+        "AUTO_EXTRACTED",
+        "PARTIALLY_VERIFIED",
+        "VERIFIED",
+        "NEEDS_REVIEW"
+      ]
+    },
+    "evidenceId": {"type": ["string", "null"], "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"valueType": {"const": "STRING"}}},
+      "then": {"properties": {"value": {"type": "string"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "INTEGER"}}},
+      "then": {"properties": {"value": {"type": "integer"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "NUMBER"}}},
+      "then": {"properties": {"value": {"type": "number"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "BOOLEAN"}}},
+      "then": {"properties": {"value": {"type": "boolean"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "DATE"}}},
+      "then": {"properties": {"value": {"type": "string", "format": "date"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "DATETIME"}}},
+      "then": {"properties": {"value": {"type": "string", "format": "date-time"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "MONEY_MINOR"}}},
+      "then": {"properties": {"value": {"type": "integer"}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "PERCENT_BPS"}}},
+      "then": {
+        "properties": {
+          "value": {"type": "integer", "minimum": 0, "maximum": 10000}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "ENUM"}}},
+      "then": {"properties": {"value": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "GEO_ID"}}},
+      "then": {"properties": {"value": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"valueType": {"const": "STRING_SET"}}},
+      "then": {
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  ]
+}

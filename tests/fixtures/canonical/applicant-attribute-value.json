@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "applicant-attr:test-club:lease-years",
+  "applicantProfileId": "applicant:test-club",
+  "attributeDefinitionId": "attr:applicant.lease_years",
+  "valueType": "INTEGER",
+  "value": 10,
+  "sourceKind": "USER",
+  "sourceReference": null,
+  "observedAt": "2026-09-25T12:00:00Z",
+  "verifiedAt": null,
+  "verificationStatus": "USER_DECLARED",
+  "evidenceId": null
+}

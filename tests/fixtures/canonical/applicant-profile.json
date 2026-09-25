@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "applicant:test-club",
+  "applicantType": "SPORTS_CLUB",
+  "applicantTypeId": "applicant-type:sports-club",
+  "ico": "12345678",
+  "organisationName": "Testovací tenisový klub",
+  "legalFormCode": "706",
+  "municipalityCode": "123456",
+  "municipalityName": "Testov",
+  "regionCode": "CZ032",
+  "seatGeographyId": "geo:cz:municipality:test",
+  "municipalityPopulation": 3200,
+  "municipalityPopulationAsOf": "2026-01-01",
+  "vatStatus": "NON_PAYER",
+  "organisationSize": "SMALL",
+  "publicPrivateStatus": "PRIVATE",
+  "nonprofitStatus": "NONPROFIT",
+  "czNaceCodes": ["93.12"],
+  "fieldSources": {
+    "ico": {
+      "sourceKind": "ARES",
+      "sourceReference": "12345678",
+      "observedAt": "2026-09-25T12:00:00Z",
+      "verifiedAt": "2026-09-25T12:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "evidenceId": null
+    },
+    "municipalityPopulation": {
+      "sourceKind": "CZSO",
+      "sourceReference": "municipality:test:2026",
+      "observedAt": "2026-09-25T12:00:00Z",
+      "verifiedAt": "2026-09-25T12:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "evidenceId": null
+    }
+  },
+  "createdAt": "2026-09-25T12:00:00Z",
+  "updatedAt": "2026-09-25T12:00:00Z"
+}

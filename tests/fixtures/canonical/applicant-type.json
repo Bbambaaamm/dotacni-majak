@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "applicant-type:sports-club",
+  "code": "SPORTS_CLUB",
+  "nameCs": "Sportovní klub / spolek",
+  "parentId": "applicant-type:nonprofit",
+  "active": true,
+  "sortOrder": 30
+}

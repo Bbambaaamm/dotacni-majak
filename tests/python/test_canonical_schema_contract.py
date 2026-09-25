@@ -23,6 +23,9 @@ class CanonicalSchemaContractTest(unittest.TestCase):
             "grant-requirement.schema.json",
             "geography.schema.json",
             "grant-geography.schema.json",
+            "applicant-type.schema.json",
+            "applicant-profile.schema.json",
+            "applicant-attribute-value.schema.json",
             "project.schema.json",
             "change-event.schema.json",
         }
