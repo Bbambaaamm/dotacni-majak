@@ -23,6 +23,10 @@
 - `document_sections`
 - `field_evidence`
 
+## Geography
+- `geographies` — hierarchie COUNTRY/NUTS/REGION/DISTRICT/ORP/MUNICIPALITY/MAS s validitou a kódy NUTS/LAU/ORP/MAS
+- `grant_geographies` — INCLUDE/EXCLUDE pravidlo nad konkrétní GrantCallVersion; zvlášť pro PROJECT_LOCATION / APPLICANT_SEAT / BOTH
+
 ## Funding
 - `grant_deadlines`
 - `grant_geographies`

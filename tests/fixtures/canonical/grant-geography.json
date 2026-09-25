@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "gg:test-call-v1:plzensky",
+  "grantCallVersionId": "grant-version:test:1",
+  "geographyId": "geo:cz:region:plzensky",
+  "mode": "INCLUDE",
+  "appliesTo": "PROJECT_LOCATION",
+  "includeDescendants": true,
+  "evidenceId": "evidence:test:geo"
+}

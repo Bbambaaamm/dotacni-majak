@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "geo:cz:region:plzensky",
+  "geographyType": "REGION",
+  "name": "Plzeňský kraj",
+  "parentId": "geo:cz",
+  "countryCode": "CZ",
+  "code": "PLK",
+  "nutsCode": "CZ032",
+  "lauCode": null,
+  "orpCode": null,
+  "masCode": null,
+  "validFrom": "2001-01-01",
+  "validTo": null
+}
