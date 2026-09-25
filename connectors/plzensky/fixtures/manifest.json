@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 1,
+  "connector": "plzensky",
+  "entries": [
+    {
+      "path": "index.html",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "PENDING"
+    },
+    {
+      "path": "detail.html",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost/dotacnititul/1589/",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "PENDING"
+    },
+    {
+      "path": "grid-open.json",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "STRUCTURE_ONLY",
+      "sha256": "PENDING"
+    },
+    {
+      "path": "grid-planned.json",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "STRUCTURE_ONLY",
+      "sha256": "PENDING"
+    }
+  ]
+}
