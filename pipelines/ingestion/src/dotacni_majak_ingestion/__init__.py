@@ -14,6 +14,13 @@ from .artifacts import (
 )
 from .document_model import BlockKind, ParsedBlock, ParsedDocument, SourceAnchor
 from .html_parser import HtmlDocumentError, HtmlParserPolicy, parse_html_document
+from .pdf_parser import (
+    PdfDependencyMissingError,
+    PdfDocumentError,
+    PdfEncryptedError,
+    PdfParserPolicy,
+    parse_pdf_document,
+)
 from .document_security import (
     DocumentKind,
     DocumentSecurityError,
@@ -98,6 +105,8 @@ __all__ = [
     "InMemoryArtifactCacheRepository",
     "BlockKind", "ParsedBlock", "ParsedDocument", "SourceAnchor",
     "HtmlDocumentError", "HtmlParserPolicy", "parse_html_document",
+    "PdfDependencyMissingError", "PdfDocumentError", "PdfEncryptedError",
+    "PdfParserPolicy", "parse_pdf_document",
     "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
