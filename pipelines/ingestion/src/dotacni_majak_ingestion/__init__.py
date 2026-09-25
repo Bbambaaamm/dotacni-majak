@@ -58,6 +58,13 @@ from .outbox import (
     OutboxEventType,
     OutboxStatus,
 )
+from .outbox_worker import (
+    OutboxHandler,
+    OutboxWorker,
+    OutboxWorkerResult,
+    RetryPolicy,
+)
+from .sqlite_outbox import OutboxLeaseError, SqliteOutboxRepository
 from .quarantine import (
     InMemoryQuarantineRepository,
     QuarantineItem,
@@ -96,6 +103,7 @@ __all__ = [
     "EuFundingGrantNormalizer", "canonical_status", "normalizer_for",
     "record_content_hash", "stable_programme_identity",
     "OutboxEvent", "OutboxEventType", "OutboxStatus",
-    "InMemoryOutboxRepository",
+    "InMemoryOutboxRepository", "SqliteOutboxRepository", "OutboxLeaseError",
+    "OutboxHandler", "OutboxWorker", "OutboxWorkerResult", "RetryPolicy",
     "QuarantineItem", "QuarantineReason", "InMemoryQuarantineRepository",
 ]
