@@ -15,6 +15,7 @@ class DocumentKind(str, Enum):
     PDF = "PDF"
     DOCX = "DOCX"
     XLSX = "XLSX"
+    CSV = "CSV"
     XML = "XML"
     TEXT = "TEXT"
 
@@ -53,6 +54,8 @@ _MIME_TO_KIND = {
     "application/pdf": DocumentKind.PDF,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": DocumentKind.DOCX,
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": DocumentKind.XLSX,
+    "text/csv": DocumentKind.CSV,
+    "application/csv": DocumentKind.CSV,
     "application/xml": DocumentKind.XML,
     "text/xml": DocumentKind.XML,
     "text/plain": DocumentKind.TEXT,
