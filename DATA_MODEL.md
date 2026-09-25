@@ -58,8 +58,9 @@ Interní condition result: PASS / FAIL / UNKNOWN / ERROR / NOT_APPLICABLE.
 Veřejný result: ELIGIBLE / LIKELY_ELIGIBLE / NEEDS_INFORMATION / INELIGIBLE / NEEDS_REVIEW.
 
 ## Users/projects
-- `applicant_profiles`
-- `applicant_attribute_values`
+- `applicant_types` — verzovatelná hierarchie typů žadatelů; v canonical v1 koexistuje s legacy `ApplicantProfile.applicantType` enumem kvůli kompatibilitě
+- `applicant_profiles` — často filtrované profilové údaje; `fieldSources` drží provenance/verification metadata po poli
+- `applicant_attribute_values` — řídké dynamické atributy navázané na AttributeDefinition, včetně valueType/sourceKind/verificationStatus
 - `projects`
 - `project_attribute_values`
 
