@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
