@@ -43,6 +43,19 @@ export function SearchPage() {
   const [data, setData] = useState<GrantSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(intent && !demoState));
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [providerFilter, setProviderFilter] = useState("ALL");
+
+  const loadedResults = data?.results ?? [];
+  const statusOptions = [...new Set(loadedResults.map((grant) => grant.status))].sort();
+  const providerOptions = [
+    ...new Set(loadedResults.map((grant) => grant.providerName)),
+  ].sort((a, b) => a.localeCompare(b, "cs-CZ"));
+  const filteredResults = loadedResults.filter(
+    (grant) =>
+      (statusFilter === "ALL" || grant.status === statusFilter) &&
+      (providerFilter === "ALL" || grant.providerName === providerFilter),
+  );
 
   useEffect(() => {
     if (!intent || demoState) return;
@@ -50,6 +63,8 @@ export function SearchPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setStatusFilter("ALL");
+    setProviderFilter("ALL");
 
     searchGrants(intent, controller.signal)
       .then((result) => {
@@ -167,8 +182,11 @@ export function SearchPage() {
             <div>
               <h2 id="results-title">Nalezené možnosti</h2>
               <p>
-                {data.results.length} výsledků. Způsobilost a financování se
-                vyhodnocují odděleně a nejsou zde doplňovány odhadem.
+                {filteredResults.length === data.results.length
+                  ? `${data.results.length} výsledků.`
+                  : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
+                Způsobilost a financování se vyhodnocují odděleně a nejsou zde
+                doplňovány odhadem.
               </p>
             </div>
             <a
@@ -179,8 +197,50 @@ export function SearchPage() {
             </a>
           </div>
 
+          <div className="result-filters" aria-label="Filtrovat načtené výsledky">
+            <label>
+              Stav výzvy
+              <select
+                aria-label="Stav výzvy"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="ALL">Všechny stavy ({data.results.length})</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabel(status)} ({data.results.filter((grant) => grant.status === status).length})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Poskytovatel
+              <select
+                aria-label="Poskytovatel"
+                value={providerFilter}
+                onChange={(event) => setProviderFilter(event.target.value)}
+              >
+                <option value="ALL">Všichni poskytovatelé ({data.results.length})</option>
+                {providerOptions.map((provider) => (
+                  <option key={provider} value={provider}>
+                    {provider} ({data.results.filter((grant) => grant.providerName === provider).length})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="fine-print">
+              Filtry se vztahují jen k aktuálně načtenému výsledkovému setu.
+            </p>
+          </div>
+
+          {filteredResults.length === 0 ? (
+            <p className="filter-empty" role="status">
+              Tomuto filtru neodpovídá žádný z načtených výsledků.
+            </p>
+          ) : null}
+
           <div className="results-list">
-            {data.results.map((grant) => (
+            {filteredResults.map((grant) => (
               <article className="grant-card" key={grant.grantCallVersionId}>
                 <div className="grant-card__top">
                   <div>
