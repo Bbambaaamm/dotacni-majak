@@ -132,6 +132,8 @@ from .health import (
     SourceHealthStatus,
 )
 from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
+from .search_projection import SearchProjectionResult, SqliteSearchProjection
+from .trusted_ingest import TrustedGrantIngestResult, TrustedGrantIngestor
 from .source_records import (
     SourceRecordChange,
     SourceRecordObservation,
@@ -170,6 +172,8 @@ __all__ = [
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
     "RawSnapshot", "RawSnapshotStore", "LocalRawSnapshotStore",
+    "SearchProjectionResult", "SqliteSearchProjection",
+    "TrustedGrantIngestResult", "TrustedGrantIngestor",
     "IngestionItemRecord", "IngestionLockLostError", "IngestionRepository",
     "InMemoryIngestionRepository", "SqliteIngestionRepository",
     "IngestionOrchestrator", "IngestionRunStatus", "IngestionRunSummary",
