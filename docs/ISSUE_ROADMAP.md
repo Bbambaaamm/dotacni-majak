@@ -108,3 +108,52 @@ GitHub connector použitý při inicializaci neumí vytvářet Milestones ani Pr
 - Secure ingestion: #8–#11
 - UX foundation: #32/#35
 - Brand/governance: #2/#3
+
+
+## Current execution policy — audit 2026-09-26
+
+Milestone prefixes `M0–M18` describe **product area / maturity**, not a license
+to execute work in numeric order. Agents MUST choose the next task by:
+
+1. unresolved **P0 dependency** on the user-visible critical path,
+2. data accuracy / provenance / safety,
+3. end-to-end functionality,
+4. only then breadth, polish and release hardening.
+
+Do not start a later-surface task merely because its issue is newer or more
+recently updated.
+
+### Canonical near-term P0 path
+
+The current backend trust gap is:
+
+`#533 → #535/#536/#537 → #534 → #572 → #508`
+
+- **#533** canonical staging before publish gate,
+- **#535** SourceRecord identity/change detection,
+- **#536** immutable DocumentVersion publication,
+- **#537** FieldEvidence persistence/integrity,
+- **#534** atomic canonical version + evidence + outbox publication,
+- **#572** real connector → canonical → search backend E2E,
+- **#508** browser E2E: intent → results → detail → provenance.
+
+Items that do not unblock this path should not pre-empt it unless they fix a
+security/data-loss regression or CI failure.
+
+### Duplicate policy
+
+One implementation goal must have one open canonical tracker. During the
+2026-09-26 audit, older duplicate copies `#523–#528, #530–#532` were closed
+in favor of `#533–#538, #540–#542` respectively. Before opening a new issue,
+search open issues by exact goal/title and link/close duplicates.
+
+### MVP proof rule
+
+A feature is not considered end-to-end complete merely because UI, API and
+connector components exist independently. For the core `Najde` flow, completion
+requires deterministic evidence that:
+
+`official source → RAW → normalized/staged → canonical + provenance → search → detail → official evidence`
+
+works without hardcoded demo data, and a browser-level regression covers the
+user journey.
