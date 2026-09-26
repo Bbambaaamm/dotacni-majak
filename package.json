@@ -21,7 +21,8 @@
     "dev:api": "npm --workspace @dotacni-majak/api run dev",
     "dev:db:migrate": "npm --workspace @dotacni-majak/api exec -- wrangler d1 migrations apply dotacni-majak-local --local --persist-to ../../.wrangler/local",
     "dev:data:refresh": "node scripts/local_refresh_data.mjs",
-    "dev:data:refresh:nsa": "node scripts/local_refresh_nsa.mjs"
+    "dev:data:refresh:nsa": "node scripts/local_refresh_nsa.mjs",
+    "web:e2e": "playwright test --config playwright.fullstack.config.ts tests/e2e/core-flow.spec.ts"
   },
   "workspaces": [
     "apps/web",
