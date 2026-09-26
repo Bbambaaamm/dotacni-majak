@@ -18,6 +18,12 @@ from .document_versions import (
     DocumentVersionObservation,
     SqliteDocumentVersionRepository,
 )
+from .field_evidence import (
+    FieldEvidenceIntegrityError,
+    FieldEvidenceRecord,
+    FieldEvidenceRepository,
+    VerificationStatus,
+)
 from .html_parser import HtmlDocumentError, HtmlParserPolicy, parse_html_document
 from .pdf_parser import (
     PdfDependencyMissingError,
@@ -143,6 +149,8 @@ __all__ = [
     "BlockKind", "ParsedBlock", "ParsedDocument", "SourceAnchor",
     "DocumentVersionChange", "DocumentVersionObservation",
     "SqliteDocumentVersionRepository",
+    "FieldEvidenceIntegrityError", "FieldEvidenceRecord",
+    "FieldEvidenceRepository", "VerificationStatus",
     "HtmlDocumentError", "HtmlParserPolicy", "parse_html_document",
     "PdfDependencyMissingError", "PdfDocumentError", "PdfEncryptedError",
     "PdfParserPolicy", "parse_pdf_document",
