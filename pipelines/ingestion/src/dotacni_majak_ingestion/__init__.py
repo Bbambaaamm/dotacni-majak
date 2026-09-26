@@ -116,6 +116,13 @@ from .health import (
 )
 from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
 from .sqlite_repository import SqliteIngestionRepository
+from .staging import (
+    SqliteCanonicalStagingRepository,
+    StagedCanonicalCandidate,
+    StagingProvenanceStatus,
+    StagingState,
+    StagingValidationStatus,
+)
 from .state import IngestionState, PresenceState
 
 __all__ = [
@@ -156,4 +163,6 @@ __all__ = [
     "SqliteQuarantineRepository", "QuarantineReprocessor", "ReprocessResult",
     "PresenceRecord", "PresenceReconciler", "PresenceReconciliationResult",
     "SqlitePresenceRepository",
+    "SqliteCanonicalStagingRepository", "StagedCanonicalCandidate",
+    "StagingProvenanceStatus", "StagingState", "StagingValidationStatus",
 ]
