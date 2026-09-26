@@ -26,7 +26,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Check local development scripts
-        run: node --check scripts/dev.mjs && node --check scripts/local_refresh_data.mjs && node --check scripts/local_refresh_config.mjs && node --check scripts/e2e_prepare.mjs
+        run: node --check scripts/dev.mjs && node --check scripts/local_refresh_data.mjs && node --check scripts/local_refresh_nsa.mjs && node --check scripts/local_refresh_config.mjs && node --check scripts/e2e_prepare.mjs
 
       - name: Test local refresh configuration
         run: node --test tests/node/local_refresh_config.test.mjs
