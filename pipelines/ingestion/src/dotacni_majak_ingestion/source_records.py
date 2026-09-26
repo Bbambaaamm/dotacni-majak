@@ -220,13 +220,16 @@ class SqliteSourceRecordRepository:
         if not grant_call_id.strip():
             raise ValueError("grant_call_id must not be empty")
         source_id = self._source_id(source_code)
-        result = self.connection.execute(
-            """UPDATE source_records
-               SET grant_call_id = ?
-               WHERE source_id = ? AND external_id = ?""",
-            (grant_call_id, source_id, external_id),
-        )
-        if result.rowcount != 1:
+        try:
+            result = self.connection.execute(
+                """UPDATE source_records
+                   SET grant_call_id = ?
+                   WHERE source_id = ? AND external_id = ?""",
+                (grant_call_id, source_id, external_id),
+            )
+            if result.rowcount != 1:
+                raise KeyError((source_code, external_id))
+            self.connection.commit()
+        except Exception:
             self.connection.rollback()
-            raise KeyError((source_code, external_id))
-        self.connection.commit()
+            raise
