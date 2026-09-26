@@ -47,6 +47,13 @@ class DocumentSecurityTest(unittest.TestCase):
         )
         self.assertEqual(inspected.kind, DocumentKind.CSV)
 
+    def test_json_is_recognized_as_structured_document(self):
+        inspected = inspect_document(
+            b'{"ok": true}',
+            declared_mime_type="application/json",
+        )
+        self.assertEqual(inspected.kind, DocumentKind.JSON)
+
     def test_oversized_document_is_rejected_before_parsing(self):
         with self.assertRaises(DocumentSecurityError):
             inspect_document(
