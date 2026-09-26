@@ -10,7 +10,7 @@
       "originType": "SANITIZED_DERIVATIVE",
       "piiStatus": "NONE_OBSERVED",
       "sanitization": "MINIMIZED",
-      "sha256": "PENDING"
+      "sha256": "95557fe30f9c0aaf0a23b958f184953b33656f8c9c9a6444a5afbff959336f75"
     },
     {
       "path": "call-109.html",
@@ -20,7 +20,7 @@
       "originType": "SANITIZED_DERIVATIVE",
       "piiStatus": "NONE_OBSERVED",
       "sanitization": "MINIMIZED",
-      "sha256": "PENDING"
+      "sha256": "2ac98d5a561f8a1c584a7eb6870ef430995a42f5e8c9d1437998f6abe115d40c"
     }
   ]
 }
