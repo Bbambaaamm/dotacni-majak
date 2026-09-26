@@ -16,6 +16,7 @@ class DocumentKind(str, Enum):
     DOCX = "DOCX"
     XLSX = "XLSX"
     CSV = "CSV"
+    JSON = "JSON"
     XML = "XML"
     TEXT = "TEXT"
 
@@ -56,6 +57,7 @@ _MIME_TO_KIND = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": DocumentKind.XLSX,
     "text/csv": DocumentKind.CSV,
     "application/csv": DocumentKind.CSV,
+    "application/json": DocumentKind.JSON,
     "application/xml": DocumentKind.XML,
     "text/xml": DocumentKind.XML,
     "text/plain": DocumentKind.TEXT,
