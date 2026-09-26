@@ -1,3 +1,10 @@
+"""Legacy SQL rendering helpers.
+
+`render_import_sql` is retained only for regression/migration tests. Active
+local refresh scripts must use TrustedGrantIngestor / SqliteCanonicalPublisher
+so canonical publication cannot bypass staging, provenance and outbox.
+"""
+
 from __future__ import annotations
 
 import hashlib
