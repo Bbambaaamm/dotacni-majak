@@ -1,0 +1,81 @@
+name: Live Source Smoke
+
+# This workflow is SEPARATED from PR CI.
+# It does NOT trigger on pull_request — live smoke tests run only on
+# scheduled cron + manual dispatch. See docs/LIVE_SMOKE.md.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Source SDK + ingestion
+        run: |
+          python3 -m pip install -e packages/source-sdk
+          python3 -m pip install -e 'pipelines/ingestion[documents]'
+
+      - name: Install all connectors
+        run: |
+          for d in connectors/*/; do
+            [ -f "${d}pyproject.toml" ] && python3 -m pip install -e "$d" || true
+          done
+
+      - name: Validate smoke manifest
+        run: |
+          python3 - <<'PY'
+          import importlib.util, sys
+          from pathlib import Path
+          ROOT = Path(".")
+          spec = importlib.util.spec_from_file_location("lbr", ROOT / "scripts" / "live_smoke_runners.py")
+          mod = importlib.util.module_from_spec(spec)
+          sys.modules["lbr"] = mod
+          spec.loader.exec_module(mod)
+          errors = mod.validate_targets(mod.SMOKE_TARGETS)
+          if errors:
+              for e in errors:
+                  print(f"MANIFEST ERROR: {e}", file=sys.stderr)
+              sys.exit(1)
+          print(f"Manifest OK: {len(mod.SMOKE_TARGETS)} targets")
+          PY
+
+      - name: Run read-only live smoke suite
+        id: smoke
+        continue-on-error: true
+        run: |
+          python3 scripts/live_smoke_runners.py --json > live-smoke-results.json 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-smoke-results
+          path: live-smoke-results.json
+
+      - name: Determine alerting outcome
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          with open("live-smoke-results.json") as f:
+              data = json.load(f)
+          s = data["summary"]
+          print(f"Total: {s['total']}, Healthy: {s['healthy']}, "
+                f"Degraded: {s['degraded']}, Unavailable: {s['unavailable']}, "
+                f"Unknown: {s['unknown']}")
+          if s["blocking_sources"]:
+              print(f"::warning:: Blocking sources: {', '.join(s['blocking_sources'])}")
+              sys.exit(1)
+          PY
