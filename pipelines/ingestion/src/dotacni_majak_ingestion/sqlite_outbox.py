@@ -207,6 +207,84 @@ class SqliteOutboxRepository:
             self.connection.rollback()
             raise
 
+    def claim_by_dedupe_key(
+        self,
+        dedupe_key: str,
+        *,
+        worker_id: str,
+        now: datetime | None = None,
+        lease_seconds: int = 60,
+    ) -> OutboxEvent | None:
+        """Claim one known event without consuming unrelated outbox work.
+
+        This is useful for synchronous local projections that must process the
+        search event created by a publication while leaving other event types
+        (for example change detection) pending for their own workers.
+        """
+        if not dedupe_key.strip():
+            raise ValueError("dedupe_key must not be empty")
+        if not worker_id.strip():
+            raise ValueError("worker_id must not be empty")
+        if lease_seconds < 1:
+            raise ValueError("lease_seconds must be >= 1")
+
+        current = _utc(now)
+        now_iso = current.isoformat()
+        lease_until = (current + timedelta(seconds=lease_seconds)).isoformat()
+
+        self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.connection.execute(
+                f"""SELECT {_SELECT_COLUMNS}
+                    FROM outbox_events
+                    WHERE dedupe_key = ?
+                      AND dead_lettered_at IS NULL
+                    LIMIT 1""",
+                (dedupe_key,),
+            ).fetchone()
+            if row is None:
+                self.connection.commit()
+                return None
+
+            event = _row_to_event(row)
+            if event.status == OutboxStatus.DELIVERED:
+                self.connection.commit()
+                return None
+            claimable = (
+                event.status in {OutboxStatus.PENDING, OutboxStatus.FAILED}
+                and event.available_at <= now_iso
+            ) or (
+                event.status == OutboxStatus.PROCESSING
+                and event.lease_expires_at is not None
+                and event.lease_expires_at <= now_iso
+            )
+            if not claimable:
+                self.connection.commit()
+                return None
+
+            result = self.connection.execute(
+                """UPDATE outbox_events
+                   SET status = 'PROCESSING',
+                       attempts = attempts + 1,
+                       lease_owner = ?,
+                       lease_expires_at = ?,
+                       last_error = NULL
+                   WHERE id = ?
+                     AND dead_lettered_at IS NULL""",
+                (worker_id, lease_until, event.id),
+            )
+            if result.rowcount != 1:
+                self.connection.rollback()
+                return None
+            self.connection.commit()
+            claimed = self.get(event.id)
+            if claimed is None:
+                raise RuntimeError("claimed outbox event disappeared")
+            return claimed
+        except Exception:
+            self.connection.rollback()
+            raise
+
     def mark_delivered(
         self,
         event_id: str,
