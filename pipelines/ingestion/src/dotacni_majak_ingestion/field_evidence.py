@@ -198,7 +198,12 @@ class FieldEvidenceRepository:
 
     # -- persistence ---------------------------------------------------------
 
-    def save(self, record: FieldEvidenceRecord) -> None:
+    def save(
+        self,
+        record: FieldEvidenceRecord,
+        *,
+        commit: bool = True,
+    ) -> None:
         """Persist *record* with idempotent retry semantics.
 
         Uses ``INSERT … ON CONFLICT(id) DO UPDATE`` so that retrying the
@@ -245,7 +250,8 @@ class FieldEvidenceRepository:
                 record.created_at,
             ),
         )
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
 
     # -- queries -------------------------------------------------------------
 
