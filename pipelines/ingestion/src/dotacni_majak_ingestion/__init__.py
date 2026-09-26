@@ -13,6 +13,11 @@ from .artifacts import (
     InMemoryArtifactCacheRepository,
 )
 from .document_model import BlockKind, ParsedBlock, ParsedDocument, SourceAnchor
+from .document_versions import (
+    DocumentVersionChange,
+    DocumentVersionObservation,
+    SqliteDocumentVersionRepository,
+)
 from .html_parser import HtmlDocumentError, HtmlParserPolicy, parse_html_document
 from .pdf_parser import (
     PdfDependencyMissingError,
@@ -136,6 +141,8 @@ __all__ = [
     "ArtifactMimeRejected", "ArtifactObservedState", "DownloadedArtifact",
     "InMemoryArtifactCacheRepository",
     "BlockKind", "ParsedBlock", "ParsedDocument", "SourceAnchor",
+    "DocumentVersionChange", "DocumentVersionObservation",
+    "SqliteDocumentVersionRepository",
     "HtmlDocumentError", "HtmlParserPolicy", "parse_html_document",
     "PdfDependencyMissingError", "PdfDocumentError", "PdfEncryptedError",
     "PdfParserPolicy", "parse_pdf_document",
