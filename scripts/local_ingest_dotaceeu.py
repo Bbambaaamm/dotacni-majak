@@ -12,12 +12,12 @@ sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
 
 from dotacni_majak_dotaceeu import DotaceEuAdapter
 from dotacni_majak_ingestion.collection import collect_searchable_grants
-from dotacni_majak_ingestion.local_publish import render_import_sql
 from dotacni_majak_ingestion.normalization import (
     DotaceEuGrantNormalizer,
     canonical_status as _canonical_status,
 )
 from dotacni_majak_source_sdk import DiscoveryItem
+from local_trusted_publish import publish_grants_to_local_d1
 
 
 _NORMALIZER = DotaceEuGrantNormalizer()
@@ -53,23 +53,18 @@ async def collect(*, limit: int | None, raw_dir: Path):
 
 
 async def async_main(args: argparse.Namespace) -> None:
-    output = Path(args.output).resolve()
     raw_dir = Path(args.raw_dir).resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-
     grants, failures = await collect(limit=args.limit, raw_dir=raw_dir)
-    sql = render_import_sql(
+    summary = publish_grants_to_local_d1(
         grants,
-        source_id="source:dotaceeu",
-        source_code="DOTACEEU",
-        source_name="DotaceEU.cz",
-        adapter_version=DotaceEuAdapter.descriptor.adapter_version,
-        captured_at=datetime.now(timezone.utc).isoformat(),
+        raw_dir=raw_dir,
+        persist_root=Path(args.db_root).resolve(),
+        now=datetime.now(timezone.utc),
     )
-    output.write_text(sql, encoding="utf-8")
 
-    print(f"SQL={output}")
-    print(f"GRANTS={len(grants)}")
+    print(f"DB={summary.database_path}")
+    print(f"GRANTS={summary.grants}")
+    print(f"SEARCH_EVENTS={summary.search_events_delivered}")
     print(f"FAILURES={len(failures)}")
     for failure in failures:
         print(f"WARNING={failure}", file=sys.stderr)
@@ -78,12 +73,13 @@ async def async_main(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Fetch current DotaceEU calls and produce idempotent local D1 import SQL."
+            "Fetch current DotaceEU calls and publish through the trusted local D1 pipeline."
         )
     )
     parser.add_argument(
-        "--output",
-        default=str(ROOT / ".local" / "dotaceeu-import.sql"),
+        "--db-root",
+        default=str(ROOT / ".wrangler" / "local"),
+        help="Wrangler --persist-to root containing the migrated local D1 database.",
     )
     parser.add_argument(
         "--raw-dir",
