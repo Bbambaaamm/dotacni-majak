@@ -7,7 +7,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "build": "wrangler deploy --dry-run --outdir=dist",
-    "dev": "wrangler dev --local --port 8787 --persist-to ../../.wrangler/local"
+    "dev": "wrangler dev --local --port 8787 --persist-to ../../.wrangler/local",
+    "dev:e2e": "wrangler dev --local --port 8787 --persist-to ../../.wrangler/e2e"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
