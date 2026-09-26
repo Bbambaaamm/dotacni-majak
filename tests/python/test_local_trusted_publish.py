@@ -1,5 +1,6 @@
 import hashlib
 import sqlite3
+from dataclasses import replace
 import sys
 import tempfile
 import unittest
@@ -188,12 +189,7 @@ class TrustedLocalPublishTest(unittest.TestCase):
     def test_missing_raw_snapshot_fails_before_canonical_publish(self):
         bad = self.grant()
         missing_hash = hashlib.sha256(b"missing").hexdigest()
-        bad = SearchableGrant(
-            **{
-                **bad.__dict__,
-                "content_hash": missing_hash,
-            }
-        )
+        bad = replace(bad, content_hash=missing_hash)
         with self.assertRaises(FileNotFoundError):
             publish_grants_to_local_d1(
                 [bad],
