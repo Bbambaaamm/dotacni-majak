@@ -114,6 +114,12 @@ from .health import (
     SourceHealthSnapshot,
     SourceHealthStatus,
 )
+from .field_evidence import (
+    FieldEvidenceIntegrityError,
+    FieldEvidenceRecord,
+    FieldEvidenceRepository,
+    VerificationStatus,
+)
 from .snapshot import LocalRawSnapshotStore, RawSnapshot, RawSnapshotStore
 from .sqlite_repository import SqliteIngestionRepository
 from .state import IngestionState, PresenceState
@@ -145,6 +151,8 @@ __all__ = [
     "QualityViolation", "SourceRunObservation", "SourceRunQualityGate",
     "HealthReason", "ScheduleHealthInput", "SourceHealthEvaluator",
     "SourceHealthSnapshot", "SourceHealthStatus",
+    "FieldEvidenceIntegrityError", "FieldEvidenceRecord",
+    "FieldEvidenceRepository", "VerificationStatus",
     "GrantCollectionResult", "collect_searchable_grants",
     "GrantNormalizer", "NsaGrantNormalizer", "DotaceEuGrantNormalizer",
     "EuFundingGrantNormalizer", "canonical_status", "normalizer_for",
