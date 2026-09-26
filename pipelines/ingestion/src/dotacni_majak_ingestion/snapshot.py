@@ -11,6 +11,7 @@ from typing import Mapping
 
 
 _SOURCE_CODE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +127,24 @@ class LocalRawSnapshotStore(RawSnapshotStore):
                 f"snapshot integrity check failed for {snapshot.object_key}"
             )
         return content
+
+    def load_by_sha256(self, *, source_code: str, sha256: str) -> RawSnapshot:
+        """Load and integrity-check one content-addressed local RAW snapshot."""
+        self._validate_source_code(source_code)
+        if not _SHA256_RE.fullmatch(sha256):
+            raise ValueError("sha256 must be lowercase 64-character hex")
+        object_key = self._object_key(source_code, sha256)
+        metadata_path = (self.root / object_key).with_suffix(".bin.json")
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"RAW snapshot metadata not found for {source_code}:{sha256}"
+            )
+        raw = json.loads(metadata_path.read_text(encoding="utf-8"))
+        snapshot = RawSnapshot(**raw)
+        if snapshot.source_code != source_code or snapshot.sha256 != sha256:
+            raise RuntimeError("RAW snapshot metadata identity mismatch")
+        self.get_bytes(snapshot)
+        return snapshot
 
     @staticmethod
     def _validate_source_code(source_code: str) -> None:
