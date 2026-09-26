@@ -82,6 +82,12 @@ from .orchestrator import (
     RecordPipeline,
 )
 from .collection import GrantCollectionResult, collect_searchable_grants
+from .canonical_publisher import (
+    CanonicalPublicationError,
+    GrantPublicationResult,
+    PublicationErrorCode,
+    SqliteCanonicalPublisher,
+)
 from .normalization import (
     DotaceEuGrantNormalizer,
     EuFundingGrantNormalizer,
@@ -173,6 +179,8 @@ __all__ = [
     "HealthReason", "ScheduleHealthInput", "SourceHealthEvaluator",
     "SourceHealthSnapshot", "SourceHealthStatus",
     "GrantCollectionResult", "collect_searchable_grants",
+    "CanonicalPublicationError", "GrantPublicationResult",
+    "PublicationErrorCode", "SqliteCanonicalPublisher",
     "GrantNormalizer", "NsaGrantNormalizer", "DotaceEuGrantNormalizer",
     "EuFundingGrantNormalizer", "canonical_status", "normalizer_for",
     "record_content_hash", "stable_programme_identity",
