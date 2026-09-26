@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 1,
+  "connector": "plzensky",
+  "entries": [
+    {
+      "path": "index.html",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "63415ae8f8b32ce55098159a6245c492197e67add15a53df060d29c09c11d93d"
+    },
+    {
+      "path": "detail.html",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost/dotacnititul/1589/",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "edc94fd638336de0bd00be0c0a5256b9b8750a72c1be7d41a136e6e34ddf7123"
+    },
+    {
+      "path": "grid-open.json",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "STRUCTURE_ONLY",
+      "sha256": "655e011f0efc62ecd1702b045ab69a7a014ad19d1121e01d6862c4469bcd9f98"
+    },
+    {
+      "path": "grid-planned.json",
+      "sourceUrl": "https://dotace.plzensky-kraj.cz/verejnost",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "STRUCTURE_ONLY",
+      "sha256": "268d6dcd1923cd935f8ba278fb77c92c92deb72ca233b7a13379fa5e7c1dc71e"
+    }
+  ]
+}

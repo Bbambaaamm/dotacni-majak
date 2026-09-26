@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "connector": "nsa",
+  "entries": [
+    {
+      "path": "investment-listing.html",
+      "sourceUrl": "https://nsa.gov.cz/dotace-investicni/",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "0b524fd55becf08ad0df9317666dc577634822d5efa7feaef775d1539210ed96"
+    },
+    {
+      "path": "call-16-2026.html",
+      "sourceUrl": "https://nsa.gov.cz/dotace/vyzva-16-2026-regiony-26-investice-pod-10-mil-kc/",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "text/html",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "fc8a0539558783807fbf546f45ab79281de890351a46dc3033f063ab83715b69"
+    }
+  ]
+}
