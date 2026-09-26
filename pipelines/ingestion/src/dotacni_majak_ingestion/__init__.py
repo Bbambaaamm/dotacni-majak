@@ -27,6 +27,13 @@ from .docx_parser import (
     DocxParserPolicy,
     parse_docx_document,
 )
+from .tabular_parser import (
+    TabularDependencyMissingError,
+    TabularDocumentError,
+    TabularParserPolicy,
+    parse_csv_document,
+    parse_xlsx_document,
+)
 from .document_security import (
     DocumentKind,
     DocumentSecurityError,
@@ -115,6 +122,8 @@ __all__ = [
     "PdfParserPolicy", "parse_pdf_document",
     "DocxDependencyMissingError", "DocxDocumentError",
     "DocxParserPolicy", "parse_docx_document",
+    "TabularDependencyMissingError", "TabularDocumentError",
+    "TabularParserPolicy", "parse_csv_document", "parse_xlsx_document",
     "DocumentKind", "DocumentSecurityError", "DocumentSecurityPolicy",
     "InspectedDocument", "OcrDecision", "inspect_document", "ocr_decision",
     "IngestionState", "PresenceState",
