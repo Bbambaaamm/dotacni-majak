@@ -186,6 +186,23 @@ class TrustedLocalPublishTest(unittest.TestCase):
         finally:
             connection.close()
 
+
+    def test_active_refresh_entrypoints_do_not_use_legacy_direct_sql_publisher(self):
+        for relative in (
+            "scripts/local_ingest_nsa.py",
+            "scripts/local_ingest_dotaceeu.py",
+            "scripts/local_ingest_eu_funding.py",
+        ):
+            content = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn("render_import_sql", content, relative)
+            self.assertIn("publish_grants_to_local_d1", content, relative)
+
+        refresh = (ROOT / "scripts/local_refresh_data.mjs").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("applySql", refresh)
+        self.assertNotIn("-import.sql", refresh)
+
     def test_missing_raw_snapshot_fails_before_canonical_publish(self):
         bad = self.grant()
         missing_hash = hashlib.sha256(b"missing").hexdigest()
