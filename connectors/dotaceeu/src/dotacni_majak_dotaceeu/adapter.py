@@ -317,13 +317,27 @@ class DotaceEuAdapter(SourceAdapter):
                 )
                 for item in _xlsx_items(workbook_response.content):
                     url = str(item.detail_url)
-                    metadata = {
-                        **item.metadata,
-                        "listing_snapshot_id": listing_snapshot,
-                        "calendar_snapshot_id": workbook_snapshot,
-                        "calendar_url": workbook_url,
-                    }
-                    items_by_url[url] = item.model_copy(update={"metadata": metadata})
+                    existing = items_by_url.get(url)
+                    if existing is not None:
+                        merged_metadata = {
+                            **existing.metadata,
+                            "calendar_snapshot_id": workbook_snapshot,
+                            "calendar_url": workbook_url,
+                        }
+                        items_by_url[url] = existing.model_copy(
+                            update={"metadata": merged_metadata}
+                        )
+                    else:
+                        items_by_url[url] = item.model_copy(
+                            update={
+                                "metadata": {
+                                    **item.metadata,
+                                    "listing_snapshot_id": listing_snapshot,
+                                    "calendar_snapshot_id": workbook_snapshot,
+                                    "calendar_url": workbook_url,
+                                }
+                            }
+                        )
 
         items = sorted(items_by_url.values(), key=lambda item: item.external_id)
         return DiscoveryPage(
