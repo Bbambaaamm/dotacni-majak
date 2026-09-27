@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dotacni-majak.cz/schema/v1/evaluation-criterion.schema.json",
+  "title": "EvaluationCriterion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "grantCallVersionId",
+    "criterionType",
+    "title",
+    "necessity",
+    "evidenceId",
+    "completenessStatus",
+    "verificationStatus",
+    "sortOrder"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "grantCallVersionId": {"type": "string", "minLength": 1},
+    "criterionType": {
+      "description": "Official category of the evaluation criterion as published by the funding provider.",
+      "enum": [
+        "EXCELLENCE",
+        "IMPACT",
+        "QUALITY",
+        "FEASIBILITY",
+        "BUDGET",
+        "TEAM",
+        "IMPLEMENTATION",
+        "SUSTAINABILITY",
+        "COMPLIANCE",
+        "OTHER"
+      ]
+    },
+    "necessity": {
+      "description": "Whether the criterion always applies, is conditional, or is recommended.",
+      "enum": ["REQUIRED", "CONDITIONAL", "RECOMMENDED"]
+    },
+    "conditionGroupId": {
+      "description": "Optional reference to an eligibility RuleGroup that gates applicability of this criterion.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "title": {"type": "string", "minLength": 1},
+    "description": {"type": ["string", "null"]},
+    "pointsMax": {
+      "description": "Explicit maximum points for a scoring criterion; null when not specified by the source.",
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "weight": {
+      "description": "Explicit weight factor for weighted scoring; null when not specified by the source.",
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "threshold": {
+      "description": "Explicit minimum score required to pass an elimination criterion; null when not specified by the source.",
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "evidenceId": {
+      "description": "FieldEvidence reference anchoring this criterion to an immutable source document.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "completenessStatus": {
+      "description": "Whether the criterion description is complete, partial, or unknown from the official source.",
+      "enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]
+    },
+    "verificationStatus": {
+      "description": "Distinguishes official extracted fact from user input.",
+      "enum": [
+        "AUTO_EXTRACTED",
+        "PARTIALLY_VERIFIED",
+        "VERIFIED",
+        "NEEDS_REVIEW"
+      ]
+    },
+    "sortOrder": {
+      "description": "Deterministic ordering of criteria within a GrantCallVersion.",
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
