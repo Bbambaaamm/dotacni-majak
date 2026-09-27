@@ -24,6 +24,16 @@ SCHEDULE
 → NOTIFICATION OUTBOX
 ```
 
+## Artifact download (conditional requests)
+
+Connector artifacts (PDFs, HTML, ...) are fetched through the shared
+`ArtifactDownloader` (`pipelines/ingestion/src/dotacni_majak_ingestion/artifacts.py`).
+Viz `docs/ARTIFACT_DOWNLOADER.md` pro architekturu, invarianty a MIME policy.
+
+Artifacts používají ETag/Last-Modified/SHA-256 validátory pro conditional request.
+HTTP 304 (NOT_MODIFIED) má auditovatelnou invariantu: předchozí RAW snapshot
+musí existovat.
+
 ## Item states
 DISCOVERED → FETCHING → FETCHED → SNAPSHOTTED → PARSED → EXTRACTED → NORMALIZED → VALIDATED → STAGED → PUBLISHED → INDEXED → COMPLETED.
 
