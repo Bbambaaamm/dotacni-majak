@@ -140,6 +140,17 @@ from .source_records import (
     SqliteSourceRecordRepository,
 )
 from .sqlite_repository import SqliteIngestionRepository
+from .canonical_repository import (
+    GrantCallRecord,
+    GrantCallVersionRecord,
+    ProgrammeRecord,
+    ProviderRecord,
+    RepositoryError,
+    SqliteGrantCallRepository,
+    SqliteGrantCallVersionRepository,
+    SqliteProgrammeRepository,
+    SqliteProviderRepository,
+)
 from .staging import (
     SqliteCanonicalStagingRepository,
     StagedCanonicalCandidate,
@@ -199,4 +210,9 @@ __all__ = [
     "SqliteSourceRecordRepository",
     "SqliteCanonicalStagingRepository", "StagedCanonicalCandidate",
     "StagingProvenanceStatus", "StagingState", "StagingValidationStatus",
+    "ProviderRecord", "SqliteProviderRepository",
+    "ProgrammeRecord", "SqliteProgrammeRepository",
+    "GrantCallRecord", "SqliteGrantCallRepository",
+    "GrantCallVersionRecord", "SqliteGrantCallVersionRepository",
+    "RepositoryError",
 ]
