@@ -8,6 +8,17 @@ from .engine import (
     ProjectFinanceInput,
     ScenarioApplicability,
 )
+from .precision import (
+    CurrencyMismatchError,
+    CurrencyRegistry,
+    FinanceError,
+    Money,
+    MoneyRange,
+    Rate,
+    RateOutOfRangeError,
+    RoundingPolicy,
+    UnknownCurrencyError,
+)
 
 __all__ = [
     "FinanceEngine",
@@ -18,4 +29,14 @@ __all__ = [
     "PaymentMode",
     "ProjectFinanceInput",
     "ScenarioApplicability",
+    # precision library
+    "CurrencyMismatchError",
+    "CurrencyRegistry",
+    "FinanceError",
+    "Money",
+    "MoneyRange",
+    "Rate",
+    "RateOutOfRangeError",
+    "RoundingPolicy",
+    "UnknownCurrencyError",
 ]
