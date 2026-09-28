@@ -25,6 +25,7 @@ Pokud se zlomí connector, parser nebo source page:
 2. ponechat last-known-good canonical data,
 3. zablokovat destructive reconciliation,
 4. zkontrolovat RAW snapshot a SourceRun quality violations,
+5. pokud gate degraduje kvůli collapsed records, ověřit rolling baseline: je to bootstrap (příliš málo stejných-adapterových-verze běhů, is_bootstrapped = 1, stav UNKNOWN a bez úprav) nebo se skutečně klesl record count — v případě bootstrapu deadline, ne opravu parseru.
 5. opravit parser na fixture/regression testu,
 6. teprve potom reprocessnout RAW,
 7. Source Health vrátit na HEALTHY až po úspěšném ověření.

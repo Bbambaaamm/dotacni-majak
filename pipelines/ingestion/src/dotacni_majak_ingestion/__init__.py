@@ -139,6 +139,15 @@ from .source_records import (
     SourceRecordObservation,
     SqliteSourceRecordRepository,
 )
+from .source_run_baselines import (
+    BaselineConfig,
+    InMemorySourceRunBaselineRepository,
+    RollingBaselineCalculator,
+    SourceRunBaseline,
+    SourceRunBaselineRepository,
+    SourceRunRecord,
+    SqliteSourceRunBaselineRepository,
+)
 from .sqlite_repository import SqliteIngestionRepository
 from .canonical_repository import (
     GrantCallRecord,
@@ -208,6 +217,10 @@ __all__ = [
     "SqlitePresenceRepository",
     "SourceRecordChange", "SourceRecordObservation",
     "SqliteSourceRecordRepository",
+    "BaselineConfig", "InMemorySourceRunBaselineRepository",
+    "RollingBaselineCalculator", "SourceRunBaseline",
+    "SourceRunBaselineRepository", "SourceRunRecord",
+    "SqliteSourceRunBaselineRepository",
     "SqliteCanonicalStagingRepository", "StagedCanonicalCandidate",
     "StagingProvenanceStatus", "StagingState", "StagingValidationStatus",
     "ProviderRecord", "SqliteProviderRepository",
