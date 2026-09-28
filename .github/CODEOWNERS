@@ -1,0 +1,40 @@
+# Dotační maják — CODEOWNERS
+# 
+# Při zapnutí "Require review from Code Owners" v branch protection
+# vyžaduje tento soubor review od vlastníka repozitáře pro všechny změny.
+#
+# Repozitář má jeden vlastník (Bbambaaamm). Při přidání týmových
+# colaborátorů upravte owners podle skutečné role.
+
+# Výchozí: všechny změny vyžadují review od vlastníka
+* @Bbambaaamm
+
+# Canonical schema — vysoce dopadné, explicitní review
+schemas/ @Bbambaaamm
+
+# Migrace databáze — schéma evoluce
+migrations/ @Bbambaaamm
+
+# Konfigurace infrastruktury a bezpečnosti
+.github/ @Bbambaaamm
+wrangler.jsonc @Bbambaaamm
+.env.example @Bbambaaamm
+
+# Aplikace
+apps/ @Bbambaaamm
+
+# Connectory — každý connector je samostatná integrace
+connectors/ @Bbambaaamm
+
+# Core balíčky
+packages/ @Bbambaaamm
+
+# Ingestní pipeline
+pipelines/ @Bbambaaamm
+
+# Skripty (dev, ingest, refresh)
+scripts/ @Bbambaaamm
+
+# Dokumentace a specifikace
+docs/ @Bbambaaamm
+*.md @Bbambaaamm
