@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "eval:test-call-v1:excellence",
+  "grantCallVersionId": "grant-version:test:1",
+  "criterionType": "EXCELLENCE",
+  "necessity": "REQUIRED",
+  "conditionGroupId": null,
+  "title": "Kvalita a inovace projektu",
+  "description": "Hodnotí se inovace, kvalita řešení a metodika projektu.",
+  "pointsMax": 100,
+  "weight": 0.5,
+  "threshold": 40,
+  "evidenceId": "evidence:test:evaluation-table",
+  "completenessStatus": "PARTIAL",
+  "verificationStatus": "AUTO_EXTRACTED",
+  "sortOrder": 0
+}

@@ -34,6 +34,7 @@
 - `cost_categories`
 - `grant_cost_rules`
 - `grant_requirements`
+- `grant_evaluation_criteria`
 
 ## Ontology/search
 - `ontology_terms`
@@ -45,6 +46,8 @@
 - `grant_matches`
 
 ## Eligibility
+
+Hodnoticí kritéria (evaluation/scoring) a finance jsou odděleny od eligibility — viz `EVALUATION_CRITERIA.md`.
 - `attribute_definitions`
 - `applicant_types`
 - `eligibility_rule_sets`
