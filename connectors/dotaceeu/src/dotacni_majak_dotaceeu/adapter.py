@@ -321,6 +321,7 @@ class DotaceEuAdapter(SourceAdapter):
                     if existing is not None:
                         merged_metadata = {
                             **existing.metadata,
+                            "discovery_method": "XLSX",
                             "calendar_snapshot_id": workbook_snapshot,
                             "calendar_url": workbook_url,
                         }

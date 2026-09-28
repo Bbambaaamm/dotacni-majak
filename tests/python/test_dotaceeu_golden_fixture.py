@@ -54,7 +54,7 @@ EXPECTED = {
         ("03.07.2026", "Změna stavu: na Vyhlášená"),
         ("17.07.2026", "Změna stavu: na Otevřená"),
     ],
-    "discovery_methods": {"HTML", "XLSX"},
+    "discovery_methods": {"XLSX"},
 }
 
 
