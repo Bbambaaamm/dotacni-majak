@@ -61,6 +61,12 @@ jobs:
       - name: Core full-stack browser E2E
         run: npm run web:e2e
 
+      - name: Lint TypeScript (ESLint)
+        run: npx --yes eslint@9.1.0 .
+
+      - name: Format-check TypeScript (Prettier)
+        run: npx --yes prettier@3.3.3 --check .
+
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
 
@@ -201,3 +207,12 @@ jobs:
 
       - name: Compile Python sources
         run: python3 -m compileall packages/source-sdk/src pipelines/ingestion/src connectors/nsa/src connectors/opzp/src connectors/optak/src connectors/irop/src connectors/mpsv/src connectors/mmr/src connectors/mk/src connectors/mze/src connectors/tacr/src connectors/dzs/src connectors/nrb/src connectors/msmt/src connectors/modernization-fund/src connectors/dotaceeu/src connectors/praha/src connectors/karlovarsky/src connectors/plzensky/src connectors/jihocesky/src connectors/liberecky/src connectors/ustecky/src connectors/moravskoslezsky/src connectors/olomoucky/src connectors/zlinsky/src connectors/jihomoravsky/src connectors/pardubicky/src connectors/khk/src connectors/vysocina/src connectors/stredocesky/src connectors/jdp/src packages/applicant/src packages/eligibility/src packages/finance/src packages/change-detection/src packages/search/src packages/watches/src packages/notifications/src packages/workspace/src packages/budget/src packages/sharing/src packages/project-access/src packages/search/src packages/watches/src
+
+      - name: Install Ruff for Python linting
+        run: python3 -m pip install ruff==0.6.9
+
+      - name: Lint Python (Ruff)
+        run: ruff check .
+
+      - name: Format-check Python (Ruff)
+        run: ruff format --check .

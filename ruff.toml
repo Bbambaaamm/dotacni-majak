@@ -1,0 +1,29 @@
+# Ruff configuration for Dotační maják (Python lint + format)
+# Reprodukovatelná verze: ruff==0.6.9 (specifikováno v CI)
+# https://docs.astral.sh/ruff/configuration/
+
+[lint]
+# Základní pravidla: E (pycodestyle), F (pyflakes), I (isort), W (warnings),
+# B (bugbear), C4 (comprehensions), UP (pyupgrade).
+select = ["E", "F", "I", "W", "B", "C4", "UP"]
+# Ignorováno: E501 (line-too-long) — projekt používá 100 znaků,
+# ale E501 není vhodné pro silně zformátované soubory.
+ignore = ["E501"]
+
+[lint.isort]
+known-first-party = [
+    "dotacni_majak_source_sdk",
+    "dotacni_majak_ingestion",
+    "dotacni_majak_dotaceeu",
+    "dotacni_majak_modernization_fund",
+    "dotacni_majak_opzp",
+    "dotacni_majak_field_evidence",
+]
+
+[format]
+quote-style = "double"
+indent-width = 4
+
+[lint.per-file-ignores]
+# Testy mohou mít delší řádky a lokální importy.
+"tests/**" = ["E501", "B017"]
