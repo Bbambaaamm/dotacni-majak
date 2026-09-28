@@ -61,11 +61,11 @@ jobs:
       - name: Core full-stack browser E2E
         run: npm run web:e2e
 
-      - name: Lint TypeScript (ESLint)
-        run: npx --yes eslint@9.1.0 .
-
-      - name: Format-check TypeScript (Prettier)
-        run: npx --yes prettier@3.3.3 --check .
+      - name: Lint and format-check TypeScript
+        run: |
+          npm install -g eslint@9.1.0 typescript-eslint@8.10.0 @eslint/js prettier@3.3.3
+          npx eslint .
+          npx prettier --check .
 
       - name: Install Source SDK
         run: python3 -m pip install -e packages/source-sdk
