@@ -94,6 +94,11 @@ Squash commit message by měl:
 - Seznámení: CODEOWNERS review je povinné pouze pro změny v určených cestách
 - Výjimka: změnyOwner může ignorovat svůj vlastní CODEOWNERS (pouze owner)
 
+### Chybí CODEOWNERS soubor
+- Pokud branch protection vyžaduje CODEOWNERS review, ale soubor `.github/CODEOWNERS` chybí nebo je prázdný, GitHub blokuje merge všech PR
+- Chybové zpráva: "Required status checks are not met" nebo "This pull request cannot be merged because it does not have enough approvals"
+- Řešení: přidat CODEOWNERS soubor s platnými pravidly (viz `.github/CODEOWNERS`)
+
 ## Audit evidence
 
 Všechny protection změny v main jsou auditovány GitHub Logs:
