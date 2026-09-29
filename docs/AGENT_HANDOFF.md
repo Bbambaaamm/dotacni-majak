@@ -13,7 +13,8 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - Child agenti implementují/researchují/testují/reviewují v izolovaných worktree; permissions child ⊆ parent.
 - Merge gate: testy → zelené CI/security/dependency kontroly → independent review PASS na přesném head SHA → ověřit nezměněný head → merge.
 - Pozdější milestone nesmí předběhnout otevřený P0 dependency blocker jen proto, že má novější issue číslo.
-- Bez lidského zásahu pokračuj autonomně; zastav pouze na credential/billing/production-deploy/irreversible-action nebo skutečně neřešitelném bezpečnostním/produktovém blockeru.
+- Bez lidského zásahu pokračuj autonomně; zastav na credential/billing/production-deploy/irreversible-action, skutečně neřešitelném bezpečnostním/produktovém blockeru **a na každém explicitním human release gate**.
+- Public Beta ani v1.0 nesmí Hermes sám prohlásit za schválené: pokud gate vyžaduje reálné uživatelské/usability evidence, manuální audit, lidského reviewera nebo explicitní GO/NO-GO rozhodnutí, připrav všechny automatizovatelné podklady a pak eskaluj člověku bez fabrikace důkazů.
 - Root issue #662 zůstává otevřený až do splnění Public Beta a **#41 v1.0 production readiness gate**.
 
 ## Před prací vždy přečti
