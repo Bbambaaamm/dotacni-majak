@@ -127,6 +127,35 @@ Při překročení budget threshold:
 - po fixu přidat regression test,
 - provést incident review.
 
+## 11a. Privacy / data incident
+
+Zásadní data jsou inventarizována v `docs/PRIVACY_DATA_INVENTORY.md` (manifest
+`data/privacy/data_inventory.json`, verifikován testy v
+`tests/python/test_privacy_data_inventory.py`).
+
+Při podezření na únik či neoprávněný přístup k PII nebo secretům:
+
+1. **Identifikovat zasaženou kategorii** podle inventáře: applicant_profiles,
+   projects, watches, push_endpoints, notifications, logs_and_audit, project_capabilities
+   nebo uploads.
+2. **Zachovat audit logy** — neobsahují raw capability/share tokeny ani
+   `token` sloupec (garantováno testem `test_audit_log_tables_never_carry_raw_token`);
+   lze bezpečně kopírovat pro analýzu.
+3. **Nejednat o destructive akce před analýzou** — capability tokeny pouze
+   revokovat (rotate/revoke), nikoli mazat historický audit.
+4. **Fail-closed**: při nejistotě zda došlo k úniku, považovat za únik a
+   povolit přístup jen pro šetřovací tým; neumožnit export dat, dokud není
+   ověřeno.
+5. **Notifikovat**: privacy kontakt (viz PRIVACY.md Transparency) a případně
+   dohledatelné úřady podle zákona (např. UOOU).
+6. **Post-mortem**: přidat regression test do
+   `tests/python/test_privacy_data_inventory.py` a zkontrolovat, zda se
+   inventář nepotřebuje rozšířit o novou PII sloupci.
+
+Citlivé operace (mazání uživatelských dat, purge auditních logů) jsou
+fail-closed: pokud není možné jednoznačně určit scope, nemaže se.
+
+
 ## 12. Release rollback checklist
 
 - [ ] určit poslední známou dobrou Worker verzi
@@ -146,6 +175,7 @@ Bez produkčních dat/secrets simulovat minimálně:
 - výpadek Vectorize → FTS fallback,
 - failed outbox event → safe retry,
 - kompromitovaný share link → revoke,
-- DB restore/export scénář.
+- DB restore/export scénář,
+- únik PII → identifikovat kategorii dle PRIVACY_DATA_INVENTORY.md, fail-closed do doby ověření, zachovat audit logy.
 
 Každý scénář musí mít datum, účastníka/reviewer, výsledek a follow-up findings.

@@ -1,0 +1,273 @@
+{
+  "schema_version": "1",
+  "inventory_version": "1",
+  "status": "proposed-pre-beta",
+  "last_reviewed_at": "2026-09-29T00:00:00Z",
+  "scope": "Profiles, projects, watches, push endpoints, logs, uploads, analytics; purpose, retention, delete/export behavior. Covered by issue #431 (dependency #37 closed).",
+  "retention_review_gate": "Privacy gate before Public Beta (#40): a human reviewer must accept retention periods and residual risks. Proposed values are marked proposed_pre_beta.",
+  "categories": [
+    {
+      "id": "applicant_profiles",
+      "data_kind": "PII",
+      "purpose": "Applicant identity, type and geography for eligibility matching (CZ-NACE, IČO, municipality).",
+      "stores": [
+        {
+          "table": "applicant_profiles",
+          "columns": [
+            "user_id", "applicant_type", "ico", "organisation_name", "legal_form_code",
+            "municipality_code", "municipality_name", "region_code",
+            "municipality_population", "municipality_population_as_of", "vat_status",
+            "organisation_size", "created_at", "updated_at"
+          ]
+        },
+        {
+          "table": "applicant_attribute_values",
+          "columns": [
+            "applicant_profile_id", "attribute_definition_id", "value_json",
+            "source_kind", "source_reference", "observed_at", "verified_at"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "applicant_profiles.ico", "applicant_profiles.organisation_name",
+        "applicant_profiles.legal_form_code", "applicant_profiles.municipality_code",
+        "applicant_profiles.municipality_name", "applicant_profiles.region_code",
+        "applicant_profiles organisation_size", "applicant_profiles.user_id",
+        "applicant_attribute_values.value_json", "applicant_attribute_values.source_reference"
+      ],
+      "retention": "proposed_pre_beta: retained until the data subject requests deletion; export/deletion requested via privacy contact. Deleted 30 days after last account activity only on explicit user request.",
+      "delete_export": "User-initiated. Export via account data export; deletion via account deletion (cascades to applicant_attribute_values).",
+      "fail_closed": "Profile data is never inferred from third-party providers without explicit user action; UNKNOWN attribute verification_status does not block eligibility (UNKNOWN != FAIL, see ELIGIBILITY invariants)."
+    },
+    {
+      "id": "projects",
+      "data_kind": "PII_high_risk",
+      "purpose": "User's grant intent and application parameters for matching, readiness and workspace assistance.",
+      "stores": [
+        {
+          "table": "projects",
+          "columns": [
+            "id", "owner_user_id", "applicant_profile_id", "title",
+            "natural_language_intent", "location_id", "estimated_total_budget_minor",
+            "currency_code", "desired_grant_amount_minor", "max_own_contribution_bps",
+            "max_own_contribution_amount_minor", "planned_start", "planned_end",
+            "investment_type", "created_at", "updated_at"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "projects.owner_user_id", "projects.applicant_profile_id",
+        "projects.title", "projects.natural_language_intent"
+      ],
+      "retention": "proposed_pre_beta: retained until the data subject requests project deletion; no scheduled automatic purging of user intent. Exportable in full by the project owner.",
+      "delete_export": "Owner capability gate. Export: GET via /projects (owner-scoped). Delete: DELETE /projects (in roadmap). natural_language_intent is free text and may contain PII; treated as user-supplied and never sent to AI providers without explicit purpose (see PRIVACY.md AI section).",
+      "fail_closed": "Project text never becomes a canonical fact about a grant; only used for the owning user's matching. A project with no owner_user_id defaults to anonymous:{projectId} and remains manageable via its capability token."
+    },
+    {
+      "id": "watches",
+      "data_kind": "PII",
+      "purpose": "Grant change monitoring and notification triggering scoped to a project or user interest.",
+      "stores": [
+        {
+          "table": "watches",
+          "columns": [
+            "id", "user_id", "watch_type", "project_id", "grant_call_id",
+            "ontology_term_id", "provider_id", "geography_id", "filter_json",
+            "minimum_match_band", "enabled", "created_at", "updated_at"
+          ]
+        },
+        {
+          "table": "watch_matches",
+          "columns": [
+            "id", "watch_id", "project_id", "grant_call_id", "grant_call_version_id",
+            "status", "match_band", "relevance_score_ppm", "reason_codes_json",
+            "notification_candidate", "dedupe_key", "created_at", "updated_at"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "watches.user_id", "watches.filter_json"
+      ],
+      "retention": "proposed_pre_beta: retained until owner deletes the watch (DELETE /projects/:id/watch). watch_matches cascade on watch deletion.",
+      "delete_export": "Deleted with the parent project watch. filter_json may contain search intent; treated as user-controlled.",
+      "fail_closed": "A disabled or revoked watch produces no notifications. Watches require project owner capability; no public watch listing exists."
+    },
+    {
+      "id": "push_endpoints",
+      "data_kind": "PII_sensitive",
+      "purpose": "Push subscription endpoints for web push notifications.",
+      "stores": [
+        {
+          "table": "web_push_subscriptions",
+          "columns": [
+            "id", "user_id", "endpoint_ciphertext", "p256dh_ciphertext",
+            "auth_ciphertext", "active", "opt_in_at", "revoked_at",
+            "created_at", "updated_at"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "web_push_subscriptions.user_id",
+        "web_push_subscriptions.endpoint_ciphertext",
+        "web_push_subscriptions.p256dh_ciphertext",
+        "web_push_subscriptions.auth_ciphertext"
+      ],
+      "retention": "proposed_pre_beta: retained until user unsubscribes / revokes. endpoint/auth keys are encrypted at rest (ciphertext), never stored in plaintext.",
+      "delete_export": "Revoked on unsubscribe (revoked_at set). Inactive revoked rows retained 30 days then purged. user_id links to identity, not to project text.",
+      "fail_closed": "Push is opt-in and rate-limited. A failed or disabled push subscription falls back to in-app notification silently (see NOTIFICATIONS.md)."
+    },
+    {
+      "id": "notifications",
+      "data_kind": "PII",
+      "purpose": "Delivery of grant change and deadline reminders to the user.",
+      "stores": [
+        {
+          "table": "notifications",
+          "columns": [
+            "id", "user_id", "watch_id", "grant_call_version_id", "change_event_id",
+            "notification_type", "channel", "severity", "title", "body",
+            "dedupe_key", "status", "created_at", "sent_at", "read_at", "last_error"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "notifications.user_id", "notifications.title", "notifications.body"
+      ],
+      "retention": "proposed_pre_beta: 90 days from creation; suppressed/failed events with last_error retained for debugging only.",
+      "delete_export": "Tied to user identity; deleted or anonymised on account deletion. Notification body may echo grant/project text; contains no raw secrets or tokens.",
+      "fail_closed": "Outbox is at-least-once with dedupe_key; idempotent handlers (see RUNBOOK §8)."
+    },
+    {
+      "id": "logs_and_audit",
+      "data_kind": "operational_security",
+      "purpose": "Security audit trail, ingestion provenance and operational debugging.",
+      "stores": [
+        {
+          "table": "project_owner_audit_events",
+          "columns": ["id", "project_id", "event_type", "created_at"]
+        },
+        {
+          "table": "share_audit_events",
+          "columns": [
+            "id", "share_link_id", "project_id", "actor_user_id",
+            "event_type", "created_at"
+          ]
+        },
+        {
+          "table": "outbox_events",
+          "columns": [
+            "id", "event_type", "aggregate_type", "aggregate_id", "payload_json",
+            "dedupe_key", "status", "attempts", "available_at", "created_at",
+            "delivered_at", "last_error"
+          ]
+        },
+        {
+          "table": "change_events",
+          "columns": [
+            "id", "grant_call_id", "from_version_id", "to_version_id",
+            "change_type", "severity", "field_path", "old_value_json",
+            "new_value_json", "evidence_id", "created_at"
+          ]
+        },
+        {
+          "table": "source_runs",
+          "columns": [
+            "id", "source_id", "started_at", "finished_at", "status",
+            "records_seen", "new_records", "changed_records", "error_count",
+            "adapter_version"
+          ]
+        },
+        {
+          "table": "source_records",
+          "columns": [
+            "id", "source_id", "external_id", "canonical_url", "record_type",
+            "grant_call_id", "first_seen_at", "last_seen_at", "presence_state",
+            "missing_run_count", "content_hash"
+          ]
+        },
+        {
+          "table": "ingestion_runs",
+          "columns": [
+            "id", "source_code", "status", "started_at", "finished_at",
+            "checkpoint_before_json", "checkpoint_after_json", "processed",
+            "skipped", "gone", "failed", "pages", "last_error"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "share_audit_events.actor_user_id", "outbox_events.payload_json",
+        "outbox_events.last_error"
+      ],
+      "secrets_constraint": "Raw capability and share tokens are NEVER stored or logged. Only domain-separated SHA-256 hashes are persisted (project_owner_capabilities.token_hash, project_share_links.token_hash). Audit event tables have no token column.",
+      "retention": "proposed_pre_beta: Security/audit events (project_owner_audit_events, share_audit_events) 1 year; operational logs (outbox_events, source_runs, source_records, ingestion_runs, change_events) 90 days. No raw secrets, PII beyond user_id, or capability tokens in logs.",
+      "delete_export": "Operational logs are system-managed, not user-exportable. Audit logs may be retained longer for incident response; anonymised after the retention window where feasible.",
+      "fail_closed": "On source/parser failure the affected source is marked DEGRADED, last-known-good canonical data is preserved, and destructive reconciliation is blocked (see PRIVACY.md and RUNBOOK)."
+    },
+    {
+      "id": "project_capabilities",
+      "data_kind": "secrets",
+      "purpose": "One-time-use 256-bit owner capability tokens and revocable read-only share tokens for project access control.",
+      "stores": [
+        {
+          "table": "project_owner_capabilities",
+          "columns": [
+            "project_id", "token_hash", "generation", "created_at",
+            "rotated_at", "last_used_at", "revoked_at"
+          ]
+        },
+        {
+          "table": "project_share_links",
+          "columns": [
+            "id", "project_id", "owner_user_id", "token_hash", "scope",
+            "created_at", "expires_at", "revoked_at", "last_accessed_at"
+          ]
+        }
+      ],
+      "pii_columns": [],
+      "secrets_constraint": "CRITICAL INVARIANT: neither project_owner_capabilities nor project_share_links contains a raw 'token' column. Only token_hash is stored. Raw tokens are returned to the caller exactly once and never persisted.",
+      "retention": "proposed_pre_beta: capability hashes retained with the project for its lifetime; share links expire (default 30d, max 365d) and are revocable. Revoked/expired hashes retained 30 days then purged.",
+      "delete_export": "Capabilities are not user-exportable secrets. On project deletion, capability hash is deleted; revocation is immediate and idempotent.",
+      "fail_closed": "Missing/invalid capability returns 404 without disclosing project existence (see index.ts / projectAccess.ts)."
+    },
+    {
+      "id": "uploads",
+      "data_kind": "user_content",
+      "purpose": "Application/requirement documents uploaded by the user for workspace readiness and application preparation.",
+      "stores": [
+        {
+          "table": "workspace_documents",
+          "columns": [
+            "id", "workspace_id", "requirement_id", "filename", "storage_ref",
+            "status", "created_at", "updated_at"
+          ]
+        }
+      ],
+      "pii_columns": [
+        "workspace_documents.filename"
+      ],
+      "retention": "proposed_pre_beta: retained with the workspace; purged 30 days after workspace/project deletion. R2 object stored under workspace-scoped, content-addressed or capability-scoped keys.",
+      "delete_export": "Owner capability gate. Deleted with the parent workspace. filename may contain PII; storage_ref is an opaque object key, not user-visible.",
+      "fail_closed": "Uploaded documents are validated (MIME/size/archive limits, no XXE, no auto-fetch) before storage; failures quarantine without destructive changes (see DOCUMENT_SECURITY.md)."
+    },
+    {
+      "id": "analytics",
+      "data_kind": "anonymous_telemetry",
+      "purpose": "Aggregate product usage and source health metrics only; never project free-text.",
+      "stores": [],
+      "pii_columns": [],
+      "retention": "proposed_pre_beta: NOT IMPLEMENTED in the API worker. Cloudflare send_metrics is disabled (apps/api/wrangler.jsonc send_metrics=false). In-memory ResolverMetrics (packages/applicant) is ephemeral and never persisted. No anonymous telemetry, project text, or PII is collected until explicitly designed and disclosed.",
+      "delete_export": "N/A — no persistent analytics store exists yet.",
+      "fail_closed": "Absence of analytics degrades to zero telemetry; no implicit collection. Any future analytics provider must respect a deterministic core (AI minimization section in PRIVACY.md)."
+    }
+  ],
+  "invariants": [
+    "Official source is the source of truth; source disappearance != cancellation.",
+    "UNKNOWN != FAIL for eligibility; ambiguous source truth does not produce destructive changes.",
+    "RAW-first: every external record is snapshotted before parsing/extraction.",
+    "Immutable canonical versions; never overwrite history.",
+    "Fail-closed on source degradation: preserve last-known-good, block destructive reconciliation.",
+    "Secrets/PII never in logs: capability and share tokens stored only as SHA-256 hashes; audit events carry no raw token.",
+    "Zero-cost fallback: semantic retrieval degrades to FTS + ontology + structured filters; analytics collection never implicitly activates.",
+    "Share links are read-only, revocable, high-entropy, noindex, and disclose only a whitelisted projection."
+  ]
+}
