@@ -34,8 +34,8 @@ class MigrationTest(unittest.TestCase):
             "source_registry", "source_records", "source_documents",
             "document_versions", "document_sections", "field_evidence",
             "grant_deadlines", "funding_scenarios", "grant_requirements",
-            "grant_evaluation_criteria",
-            "projects", "change_events", "data_quality_issues",
+ "grant_evaluation_criteria", "grant_submissions",
+ "projects", "change_events", "data_quality_issues",
             "quarantine_items", "outbox_events", "source_health",
             "scheduler_watchdog_events", "historical_awards",
             "historical_award_ontology_terms", "relevance_feedback",
@@ -77,7 +77,7 @@ class MigrationTest(unittest.TestCase):
             "idx_applicant_types_parent",
             "idx_applicant_profiles_type_id",
             "idx_applicant_attribute_definition",
-            "idx_eval_criteria_version",
+            "idx_eval_criteria_version", "idx_grant_submissions_version",
             "idx_source_run_baselines_version",
             "idx_source_run_baselines_updated",
             "idx_source_runs_baseline_lookup",
@@ -172,6 +172,54 @@ class MigrationTest(unittest.TestCase):
             connection.execute(
                 "INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps) "
                 "VALUES ('f','v','invalid','CZK',10001)"
+            )
+
+    def test_grant_submissions_unique_per_version(self):
+        connection = self.migrate()
+        connection.execute(
+            "INSERT INTO providers(id,name,provider_type) VALUES ('p','Provider','NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO programmes(id,provider_id,name,funding_origin) VALUES ('pr','p','Program','CZ_NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO grant_calls(id,programme_id,canonical_slug,current_status,current_title,first_seen_at,created_at,updated_at) "
+            "VALUES ('g','pr','g','OPEN','Grant','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,status,verification_status,created_at) "
+            "VALUES ('v','g',1,'2026-01-01T00:00:00Z','Grant','OPEN','VERIFIED','2026-01-01T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO grant_submissions(id,grant_call_version_id,completeness_status,verification_status) "
+            "VALUES ('s1','v','COMPLETE','AUTO_EXTRACTED')"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO grant_submissions(id,grant_call_version_id,completeness_status,verification_status) "
+                "VALUES ('s2','v','PARTIAL','VERIFIED')"
+            )
+
+    def test_invalid_application_method_is_rejected(self):
+        connection = self.migrate()
+        connection.execute(
+            "INSERT INTO providers(id,name,provider_type) VALUES ('p','Provider','NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO programmes(id,provider_id,name,funding_origin) VALUES ('pr','p','Program','CZ_NATIONAL')"
+        )
+        connection.execute(
+            "INSERT INTO grant_calls(id,programme_id,canonical_slug,current_status,current_title,first_seen_at,created_at,updated_at) "
+            "VALUES ('g','pr','g','OPEN','Grant','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,status,verification_status,created_at) "
+            "VALUES ('v','g',1,'2026-01-01T00:00:00Z','Grant','OPEN','VERIFIED','2026-01-01T00:00:00Z')"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO grant_submissions(id,grant_call_version_id,application_method,completeness_status,verification_status) "
+                "VALUES ('s','v','BOGUS','COMPLETE','AUTO_EXTRACTED')"
             )
 
 
