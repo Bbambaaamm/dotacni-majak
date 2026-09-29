@@ -24,7 +24,24 @@ Pouze pro synchronizaci/watch/notification. První search funguje bez registrace
 - žádný session replay zachycující projektový text
 
 ## Retention
-Před beta definovat retention pro auth/security logs, notifications, anonymous telemetry a backups. Uživatel má mít export/deletion pro serverově uložené projekty/profil.
+Retention pro auth/security logs, notifications, anonymous telemetry, backups a
+uživatelská data je definována v `docs/PRIVACY_DATA_INVENTORY.md` a
+verifikována automaticky v `tests/python/test_privacy_data_inventory.py`.
+Navrhované hodnoty jsou označeny `proposed_pre_beta` a vyžadují schválení na
+Privacy gate před Public Beta (#40). Shrnutí:
+
+- **Security/audit logy** (`project_owner_audit_events`, `share_audit_events`): 1 rok.
+- **Operační logy** (`outbox_events`, `source_runs`, `source_records`,
+  `ingestion_runs`, `change_events`, `scheduler_watchdog_events`, `source_health`): 90 dní.
+- **Notifications**: 90 dnich ode dní vytvoření.
+- **Push endpointy** (šifrované): do unsubscription/revoke, poté 30 dnů.
+- **Uživatelská data** (profiles, projects, watches, uploads): do uživatelského
+  požadavku na smazání; export i deletejs jsou owner-scoped.
+- **Capability/share hash**: s projektem; share link expiruje (default 30d, max 365d);
+  zrušené/expirované hashe se sběhem 30 dnů vymažou.
+- **Backups**: retention sjednaný v rámci v1.0 gate (#41).
+- **Analytics**: NOT IMPLEMENTED — `send_metrics: false`; žádná implicitní sběrnost.
+
 
 ## Analytics
 Preferovat agregované metriky: search success/no-result, relevance feedback, source health, latency/error rate. Natural-language project text není běžná analytics dimension.
