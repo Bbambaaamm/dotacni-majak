@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dotacni_majak_checklist"
+version = "0.0.0"
+description = "Dotační maják — requirement checklist generator"
+requires-python = ">=3.11"
+dependencies = [
+    "dotacni_majak_eligibility",
+    "dotacni_majak_workspace",
+]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["dotacni_majak_checklist*"]
