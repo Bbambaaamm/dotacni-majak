@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "indicator:test-call-v1:co2",
+  "grantCallVersionId": "grant-version:test:1",
+  "indicatorCode": "CO2_REDUCTION",
+  "indicatorName": "Snížení emisí CO2",
+  "indicatorUnit": "t CO2-eq",
+  "indicatorCategory": "ENVIRONMENTAL",
+  "necessity": "REQUIRED",
+  "conditionGroupId": null,
+  "baseline": "120 t CO2-eq/rok",
+  "targetValue": 30,
+  "targetDirection": "DECREASE",
+  "targetPeriodType": "PER_PROJECT",
+  "evidenceId": "evidence:test:indicator-table",
+  "completenessStatus": "COMPLETE",
+  "verificationStatus": "AUTO_EXTRACTED",
+  "sortOrder": 0
+}
