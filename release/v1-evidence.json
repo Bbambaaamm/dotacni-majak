@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1.0",
+  "release": {
+    "version": "1.0.0",
+    "sha": "0ac00eff64e4c6c0a6461b5c87b9f04dfdda6504",
+    "candidateBuiltAt": "2026-09-23T22:25:25Z"
+  },
+  "automated": {
+    "ci": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: ci_green. RC 0ac00ef is NOT an ancestor of origin/main (provenance: commit exists in object store but unreachable from current main lineage 40c7b82; combined status pending/0 checks). No green CI evidence for this candidate. https://github.com/Bbambaaamm/dotacni-majak/commit/0ac00eff64e4c6c0a6461b5c87b9f04dfdda6504"
+    },
+    "schemaMigrations": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: schema_migration_compatibility_green. Not audited for RC 0ac00ef. See migrations/ + docs/RUNBOOK.md section 4."
+    },
+    "regression": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: unit_integration_e2e_green. Test suite not executed against RC 0ac00ef. See docs/RUNBOOK.md and tests/."
+    },
+    "searchGolden": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: search_golden_dataset_green. Not verified for RC 0ac00ef. See tests/fixtures/canonical + docs/SOURCE_FIXTURES.md."
+    },
+    "eligibility": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: eligibility_truth_tables_green. Not verified for RC 0ac00ef. See docs/ELIGIBILITY.md."
+    },
+    "finance": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: finance_regression_green. Not verified for RC 0ac00ef. See docs/FINANCE.md + packages/finance."
+    },
+    "connectorContracts": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: connector_contract_tests_green. Not verified for RC 0ac00ef. See docs/CONNECTOR_TESTING.md."
+    },
+    "sourceSmokes": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: source_live_smokes_match_declared_coverage. Not verified for RC 0ac00ef. See docs/LIVE_SMOKE.md."
+    },
+    "accessibilityAutomation": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: accessibility_automation_green. Not verified for RC 0ac00ef. See docs/ACCESSIBILITY.md + npm run web:a11y."
+    },
+    "productionBuildDryRun": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: production_build_green. Not verified for RC 0ac00ef. See docs/DEPLOYMENT_CLOUDFLARE.md."
+    },
+    "dependencySecurity": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: security_dependency_scan_acceptable. Backlog marks CodeQL/dependency-audit HOTOVO but not verified per-RC for 0ac00ef. See release/v1-gate.json automated.dependencySecurity."
+    },
+    "usageBudget": {
+      "status": "FAIL",
+      "evidence": "release/v1-gate.json: usage_budget_safe_or_degradation_verified. Not verified for RC 0ac00ef. See docs/ZERO_COST.md + UsageBudgetManager."
+    }
+  },
+  "manual": {
+    "betaUsability": {
+      "status": "FAIL",
+      "evidence": "BLOCKED: #40 M17 Public Beta gate is OPEN (state=open) — no human usability research evidence collected. https://github.com/Bbambaaamm/dotacni-majak/issues/40"
+    },
+    "keyboardAudit": {
+      "status": "FAIL",
+      "evidence": "docs/ACCESSIBILITY.md section keyboard-only audit not performed for RC 0ac00ef."
+    },
+    "screenReaderAudit": {
+      "status": "FAIL",
+      "evidence": "docs/ACCESSIBILITY.md section screen-reader audit not performed for RC 0ac00ef."
+    },
+    "mobileZoomReflowAudit": {
+      "status": "FAIL",
+      "evidence": "docs/ACCESSIBILITY.md section mobile + 200% zoom/reflow audit not performed for RC 0ac00ef."
+    },
+    "privacyReview": {
+      "status": "FAIL",
+      "evidence": "docs/PRIVACY.md not reviewed for RC 0ac00ef."
+    },
+    "securityThreatReview": {
+      "status": "FAIL",
+      "evidence": "docs/SECURITY.md + threat-model not reviewed for RC 0ac00ef."
+    },
+    "sourceCoverageAudit": {
+      "status": "FAIL",
+      "evidence": "docs/V1_RELEASE_GATE.md section source coverage audit not performed for RC 0ac00ef. See docs/SOURCE_HEALTH.md."
+    },
+    "provenanceSpotCheck": {
+      "status": "FAIL",
+      "evidence": "docs/V1_RELEASE_GATE.md section provenance spot-check not performed for RC 0ac00ef."
+    },
+    "recoveryTabletop": {
+      "status": "FAIL",
+      "evidence": "docs/RUNBOOK.md section 13 recovery tabletop not rehearsed for RC 0ac00ef."
+    },
+    "backupExportRestore": {
+      "status": "FAIL",
+      "evidence": "docs/RUNBOOK.md sections 5-6 backup/export/restore not verified for RC 0ac00ef."
+    },
+    "licenseGovernanceReview": {
+      "status": "FAIL",
+      "evidence": "License/governance final review not performed for RC 0ac00ef."
+    },
+    "incidentContactReview": {
+      "status": "FAIL",
+      "evidence": "docs/RUNBOOK.md section 11 incident/contact path not verified for RC 0ac00ef."
+    }
+  },
+  "knownLimitations": [
+    {
+      "id": "LIMIT-RC-NOT-GATE-AUDITED",
+      "summary": "Release candidate 0ac00ef has not undergone the v1.0 release gate audit. #40 Public Beta gate is OPEN (no human usability evidence) and all manual a11y/privacy/security/recovery/source-coverage audits are pending. The candidate SHA is also not an ancestor of current origin/main (provenance). Therefore v1.0 is not approved for release.",
+      "publiclyDisclosed": true,
+      "riskAccepted": false
+    }
+  ],
+  "decision": {
+    "status": "NO_GO",
+    "reviewedAt": "2026-09-29T13:30:00Z",
+    "reviewer": "Dotační maják Hermes agent — automated evidence scaffold (NOT a human release GO)",
+    "rationale": "Release candidate 0ac00eff64e4c6c0a6461b5c87b9f04dfdda6504 fails the v1.0 gate: (1) #40 Public Beta gate is OPEN with no human usability research evidence; (2) RC SHA 0ac00ef is not an ancestor of origin/main (provenance concern); (3) all 12 manual audits unperformed; (4) all 11 automated release gates unexecuted for this candidate. The gate validator fails-closed by design (scripts/validate_v1_release.py --require-gate exits non-zero). v1.0 is NOT approved for release pending closure of #40 and completion of the full audit."
+  }
+}
