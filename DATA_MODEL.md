@@ -35,6 +35,7 @@
 - `grant_cost_rules`
 - `grant_requirements`
 - `grant_evaluation_criteria`
+- `grant_submissions`
 
 ## Ontology/search
 - `ontology_terms`

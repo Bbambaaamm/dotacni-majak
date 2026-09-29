@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "submission:test-call-v1",
+  "grantCallVersionId": "grant-version:test:1",
+  "portalUrl": "https://prihlasovani.msp.gov.cz/dotace/test-call",
+  "applicationMethod": "ELECTRONIC",
+  "accountRequirement": "Podání vyžaduje profil občana na profil.obcjan.cz.",
+  "signatureRequirement": "Podpis elektronickým podpisem přes profil občana (eIDAS).",
+  "contactName": "Oddělení dotací MSP",
+  "contactRole": "Kontaktní osoba pro podání žádosti",
+  "contactEmail": "dotace@msp.gov.cz",
+  "contactPhone": "+420 555 123 456",
+  "evidenceId": "evidence:test:submission",
+  "completenessStatus": "COMPLETE",
+  "verificationStatus": "AUTO_EXTRACTED"
+}
