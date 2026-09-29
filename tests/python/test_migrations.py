@@ -42,7 +42,7 @@ class MigrationTest(unittest.TestCase):
             "project_share_links", "share_audit_events",
             "project_owner_capabilities", "project_owner_audit_events",
             "geographies", "grant_geographies", "applicant_types",
-            "source_run_baselines",
+            "source_run_baselines", "grant_project_indicators",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -78,6 +78,9 @@ class MigrationTest(unittest.TestCase):
             "idx_applicant_profiles_type_id",
             "idx_applicant_attribute_definition",
             "idx_eval_criteria_version",
+            "idx_indicators_version",
+            "idx_indicators_code",
+            "idx_indicators_necessity",
             "idx_source_run_baselines_version",
             "idx_source_run_baselines_updated",
             "idx_source_runs_baseline_lookup",

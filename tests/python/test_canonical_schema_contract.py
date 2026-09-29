@@ -28,6 +28,7 @@ class CanonicalSchemaContractTest(unittest.TestCase):
             "applicant-profile.schema.json",
             "applicant-attribute-value.schema.json",
             "project.schema.json",
+            "project-indicator.schema.json",
             "change-event.schema.json",
         }
         self.assertTrue(expected.issubset(names))
