@@ -71,6 +71,14 @@ Podrobnosti: [ARCHITECTURE.md](ARCHITECTURE.md) · [ROADMAP.md](ROADMAP.md) · [
 
 ## Lokální spuštění
 
+Před spuštěním si nejprve ověř předpoklady:
+
+```bash
+node scripts/prerequisites.mjs
+```
+
+Podrobný návod, včetně troubleshootingu a security/privacy poznámek: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
+
 Po `npm install` spouštějte projekt z kořene repository:
 
 ```bash
