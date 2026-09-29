@@ -45,6 +45,11 @@ SHA_RE = re.compile(r"^[a-fA-F0-9]{40}$")
 def validate_document(payload: dict[str, Any], *, require_gate: bool) -> list[str]:
     errors: list[str] = []
 
+    # Fail-closed: payload must be an object
+    if not isinstance(payload, dict):
+        errors.append("top-level document must be an object")
+        return errors
+
     if payload.get("schemaVersion") != "1.0":
         errors.append("schemaVersion must be 1.0")
 
