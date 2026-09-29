@@ -1,0 +1,46 @@
+{
+  "apiVersion": "real-contract-fixture-2026-09-23",
+  "pageNumber": 1,
+  "pageSize": 2,
+  "totalResults": 2,
+  "results": [
+    {
+      "reference": "511765TOPICSen",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/CLIMATE-2026-TF1",
+      "summary": "Climate action and resource efficiency call (forthcoming status)",
+      "metadata": {
+        "identifier": ["CLIMATE-2026-TF1"],
+        "title": ["Climate action and resource efficiency call"],
+        "status": ["31094501"],
+        "startDate": ["2026-06-01T00:00:00.000+0000"],
+        "deadlineDate": ["2026-12-15T00:00:00.000+0000"],
+        "frameworkProgramme": ["43252368"],
+        "callTitle": ["CLIMATE-2026-TF1 - Climate Action"],
+        "type": ["8"],
+        "esDA_IngestDate": ["2026-09-22T10:11:12.000+0000"],
+        "budgetOverview": ["{\"budgetYearsColumns\":[\"2026\",\"2027\"],\"budgetTopicActionMap\":{\"114963\":[{\"action\":\"CLIMATE-2026-TF1\",\"expectedGrants\":2,\"minContribution\":0,\"maxContribution\":0,\"budgetYearMap\":{\"2026\":\"3000000\",\"2027\":\"3000000\"},\"plannedOpeningDate\":\"2026-06-01\",\"deadlineModel\":\"single-stage\",\"deadlineDates\":[\"2026-12-15\"]}]}}"],
+        "topicConditions": ["<h4>Topic conditions</h4><a href=\"https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/climate/2026-2027/topic_conditions_en.pdf\">Topic conditions</a>"],
+        "links": ["[{\"callIdentifier\":\"CLIMATE-2026-TF1\",\"url\":\"https://ec.europa.eu/research/participants/submission/manage/screen/submission/create-draft/4412?topic=CLIMATE-2026-TF1\"}]"]
+      }
+    },
+    {
+      "reference": "511766TOPICSen",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/ENERGY-2026-TF2",
+      "summary": "Clean energy and digital transition call (forthcoming status)",
+      "metadata": {
+        "identifier": ["ENERGY-2026-TF2"],
+        "title": ["Clean energy and digital transition call"],
+        "status": ["31094501"],
+        "startDate": ["2026-07-01T00:00:00.000+0000"],
+        "deadlineDate": ["2027-01-15T00:00:00.000+0000"],
+        "frameworkProgramme": ["43252368"],
+        "callTitle": ["ENERGY-2026-TF2 - Energy Transition"],
+        "type": ["8"],
+        "esDA_IngestDate": ["2026-09-22T10:11:12.000+0000"],
+        "budgetOverview": ["{\"budgetYearsColumns\":[\"2026\",\"2027\"],\"budgetTopicActionMap\":{\"114964\":[{\"action\":\"ENERGY-2026-TF2\",\"expectedGrants\":1,\"minContribution\":0,\"maxContribution\":0,\"budgetYearMap\":{\"2026\":\"2000000\",\"2027\":\"2000000\"},\"plannedOpeningDate\":\"2026-07-01\",\"deadlineModel\":\"single-stage\",\"deadlineDates\":[\"2027-01-15\"]}]}}"],
+        "topicConditions": ["<h4>Topic conditions</h4><a href=\"https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/energy/2026-2027/topic_conditions_en.pdf\">Topic conditions</a>"],
+        "links": ["[{\"callIdentifier\":\"ENERGY-2026-TF2\",\"url\":\"https://ec.europa.eu/research/participants/submission/manage/screen/submission/create-draft/4413?topic=ENERGY-2026-TF2\"}]"]
+      }
+    }
+  ]
+}
