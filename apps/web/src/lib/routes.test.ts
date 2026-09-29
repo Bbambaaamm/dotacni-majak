@@ -34,4 +34,8 @@ describe("route foundation", () => {
   it("does not silently redirect unknown route to home", () => {
     expect(resolveRoute("/neexistuje").id).toBe("not-found");
   });
+
+  it("resolves profile wizard route", () => {
+    expect(resolveRoute("/profil-otevrena/").id).toBe("profile-wizard");
+  });
 });

@@ -10,7 +10,8 @@ export type RouteId =
   | "suggest-source"
   | "changelog"
   | "export-summary"
-  | "not-found";
+  | "not-found"
+  | "profile-wizard";
 
 export interface AppRoute {
   id: RouteId;
@@ -24,6 +25,7 @@ export const routes: readonly AppRoute[] = [
   { id: "projects", path: "/projekty", label: "Moje projekty" },
   { id: "compare", path: "/porovnat", label: "Porovnat výzvy" },
   { id: "export-summary", path: "/export/regiony-2026", label: "Export přehledu" },
+  { id: "profile-wizard", path: "/profil-otevrena/", label: "Nastavte svůj profil" },
 ] as const;
 
 export const utilityRoutes: readonly AppRoute[] = [

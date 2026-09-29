@@ -6,11 +6,13 @@ import { CoveragePage } from "./pages/CoveragePage";
 import { ExportSummaryPage } from "./pages/ExportSummaryPage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
+import { ProfileWizardPage } from "./pages/ProfileWizardPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SharedProjectPage } from "./pages/SharedProjectPage";
 import { SuggestSourcePage } from "./pages/SuggestSourcePage";
 import { resolveRoute } from "./lib/routes";
+import "./pages/profile.css";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -70,6 +72,9 @@ export function App() {
       break;
     case "how-it-works":
       content = <PlaceholderPage title="Jak to funguje" />;
+      break;
+    case "profile-wizard":
+      content = <ProfileWizardPage />;
       break;
     default:
       content = <NotFound />;
