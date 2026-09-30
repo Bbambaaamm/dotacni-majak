@@ -13,8 +13,9 @@ build/
 !.env.example
 .DS_Store
 
-# Build-time canonical contract artifacts
+# Build artifacts
 packages/canonical-schema/generated/
+tsconfig.tsbuildinfo
 
 # Local live source snapshots/imports
 .local/

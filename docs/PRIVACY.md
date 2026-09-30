@@ -10,6 +10,10 @@ Výzvy, poskytovatelé, dokumenty a provenance.
 ### Applicant profile
 U organizací preferovat veřejné registry. U fyzických osob minimalizovat osobní údaje a nikdy automaticky nedoplňovat citlivé atributy.
 
+Profil je ukládán lokálně (local-first) bez registrace. Na zařízení uživatele se ukládá pouze to, co bylo rozβřezeno z oficiálních veřejných zdrojů (ARES, CZSO) nebo explicitně uvedeno uživatelem. Žádné osobní identifikační údaje (rodné číslo, kontakt, email) se tam automaticky nedoplňují ani nepraví — profil může obsahovat pouze minimální místní kontext potřebný pro eligibility dotačních příležitostí.
+
+Profil je verzeovaný (schemaVersion) a obsahuje per-pole provenance (kdo/co/kdy): např. „IČO rozβřezeno z ARES", „počet obyvatel z ČSÚ", „typ subjektu uveden uživatelem". Bez registrace je profil pouze na tomto zařízení; po přihlášení se může synchronizovat jako součást serverového profilu (opt-in).
+
 ### Project data
 Záměr, rozpočet, lokalita, readiness a eligibility odpovědi jsou private-by-default.
 
