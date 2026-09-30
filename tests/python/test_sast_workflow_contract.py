@@ -149,42 +149,42 @@ class SastWorkflowContractTest(unittest.TestCase):
 
     def test_config_includes_application_code(self):
         text = self.config_text
-        self.assertTrue(_yaml_list_item(text, "include",
+        self.assertTrue(_yaml_list_item(text, "paths",
                                         "apps/web/src"),
                         "config must include web application code")
-        self.assertTrue(_yaml_list_item(text, "include",
+        self.assertTrue(_yaml_list_item(text, "paths",
                                         "apps/api/src"),
                         "config must include API application code")
-        self.assertTrue(_yaml_list_item(text, "include",
+        self.assertTrue(_yaml_list_item(text, "paths",
                                         "packages/"),
                         "config must include shared domain packages")
 
     def test_config_excludes_transient_generated_directories(self):
         text = self.config_text
-        self.assertTrue(_yaml_list_item(text, "exclude",
+        self.assertTrue(_yaml_list_item(text, "paths-ignore",
                                         "node_modules"),
                         "config must exclude node_modules")
-        self.assertTrue(_yaml_list_item(text, "exclude",
+        self.assertTrue(_yaml_list_item(text, "paths-ignore",
                                         "__pycache__"),
                         "config must exclude __pycache__")
 
     def test_config_excludes_worktrees(self):
         text = self.config_text
-        self.assertTrue(_yaml_list_item(text, "exclude",
+        self.assertTrue(_yaml_list_item(text, "paths-ignore",
                                         "worktrees"),
                         "config must exclude worktrees so each issue "
                         "checkout does not pollute the main scan")
 
     def test_config_excludes_test_fixtures(self):
         text = self.config_text
-        self.assertTrue(_yaml_list_item(text, "exclude",
+        self.assertTrue(_yaml_list_item(text, "paths-ignore",
                                         "tests/fixtures"),
                         "config must exclude golden fixtures (reviewed data, "
                         "not application logic)")
 
     def test_config_excludes_e2e_test_data(self):
         text = self.config_text
-        self.assertTrue(_yaml_list_item(text, "exclude",
+        self.assertTrue(_yaml_list_item(text, "paths-ignore",
                                         "tests/e2e"),
                         "config must exclude E2E test data")
 
