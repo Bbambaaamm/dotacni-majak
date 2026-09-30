@@ -10,6 +10,14 @@ import {
   revokeProjectShare,
   rotateOwnerCapability,
 } from "./projectAccess";
+import {
+  createAttachment,
+  deleteAttachment,
+  getAttachment,
+  listAttachments,
+  projectAttachmentPath,
+  validateAttachmentUpload,
+} from "./attachmentAccess";
 import { resolvePublicProjectShare } from "./share";
 import { getGrantDetail, grantCallIdFromPath } from "./grantDetail";
 import {
@@ -44,6 +52,24 @@ function projectSharePath(pathname: string): { projectId: string; shareId?: stri
 function projectOwnerPath(pathname: string): { projectId: string; action: "rotate" | "revoke" } | null {
   const match = pathname.match(/^\/projects\/(prj_[a-f0-9]{32})\/owner\/(rotate|revoke)$/);
   return match ? { projectId: match[1], action: match[2] as "rotate" | "revoke" } : null;
+}
+
+function projectAttachmentsPath(
+  pathname: string,
+): { projectId: string; attachmentId: string | null } | null {
+  const collectionMatch = pathname.match(
+    /^\/projects\/(prj_[a-f0-9]{32})\/attachments$/,
+  );
+  if (collectionMatch) {
+    return { projectId: collectionMatch[1], attachmentId: null };
+  }
+  const itemMatch = pathname.match(
+    /^\/projects\/(prj_[a-f0-9]{32})\/attachments\/(att_[a-f0-9]{32})$/,
+  );
+  if (itemMatch) {
+    return { projectId: itemMatch[1], attachmentId: itemMatch[2] };
+  }
+  return null;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -232,6 +258,62 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         status: 204,
         headers: { "cache-control": "no-store" },
       });
+    }
+
+    const attachmentsPath = projectAttachmentsPath(url.pathname);
+    if (attachmentsPath) {
+      const owner = bearerToken(request);
+      if (!owner) {
+        return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      }
+
+      if (request.method === "POST" && attachmentsPath.attachmentId === null) {
+        const validated = await validateAttachmentUpload(request);
+        const attachment = await createAttachment(
+          env,
+          attachmentsPath.projectId,
+          owner,
+          validated,
+        );
+        return json({ attachment }, { status: 201 });
+      }
+
+      if (request.method === "GET" && attachmentsPath.attachmentId === null) {
+        const attachments = await listAttachments(
+          env,
+          attachmentsPath.projectId,
+          owner,
+        );
+        return json({ attachments }, { status: 200 });
+      }
+
+      if (request.method === "GET" && attachmentsPath.attachmentId !== null) {
+        const attachment = await getAttachment(
+          env,
+          attachmentsPath.projectId,
+          owner,
+          attachmentsPath.attachmentId,
+        );
+        if (!attachment) {
+          return json({ error: "ATTACHMENT_NOT_FOUND" }, { status: 404 });
+        }
+        return json({ attachment }, { status: 200 });
+      }
+
+      if (request.method === "DELETE" && attachmentsPath.attachmentId !== null) {
+        await deleteAttachment(
+          env,
+          attachmentsPath.projectId,
+          owner,
+          attachmentsPath.attachmentId,
+        );
+        return new Response(null, {
+          status: 204,
+          headers: { "cache-control": "no-store" },
+        });
+      }
+
+      return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
     }
 
     if (["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(request.method)) {

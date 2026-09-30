@@ -108,6 +108,11 @@ function fakeEnv(authorized = true): Env {
     ENVIRONMENT: "local",
     DB: db,
     RAW: { async head() { return null; } },
+    ATTACHMENTS: {
+      async put() { return { key: "" }; },
+      async delete() { return true; },
+      async head() { return null; },
+    },
     SEARCH: { async describe() { return {}; } },
   };
 }
