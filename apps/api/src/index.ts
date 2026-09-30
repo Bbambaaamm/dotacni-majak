@@ -13,6 +13,14 @@ import {
 import { resolvePublicProjectShare } from "./share";
 import { getGrantDetail, grantCallIdFromPath } from "./grantDetail";
 import {
+  deleteApplicantProfile,
+  getApplicantProfile,
+  isApplicantProfileRefreshRoute,
+  isApplicantProfileRoute,
+  parseApplicantProfileInput,
+  upsertApplicantProfile,
+} from "./applicantProfile";
+import {
   deleteProjectWatch,
   enableProjectWatch,
   getProjectWatch,
@@ -232,6 +240,64 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         status: 204,
         headers: { "cache-control": "no-store" },
       });
+    }
+
+    // --- Applicant Profile CRUD (local-first local→server sync) ---
+    if (isApplicantProfileRefreshRoute(url.pathname)) {
+      // Read-only endpoint: returns lastResolvedAt for the caller's profile.
+      // Anonymous access is safe — it only exposes a timestamp, not PII.
+      if (request.method === "GET" || request.method === "HEAD") {
+        const token = bearerToken(request);
+        if (!token) {
+          return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+        }
+        try {
+          const profile = await getApplicantProfile(env, token);
+          return json(
+            { lastResolvedAt: profile?.lastResolvedAt ?? null },
+            { status: 200, headers: { "cache-control": "private, no-store" } },
+          );
+        } catch {
+          return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
+        }
+      }
+    }
+    if (isApplicantProfileRoute(url.pathname)) {
+      const token = bearerToken(request);
+      if (!token) {
+        return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      }
+      if (request.method === "GET" || request.method === "HEAD") {
+        try {
+          const profile = await getApplicantProfile(env, token);
+          if (!profile) {
+            return json({ profile: null }, { status: 404 });
+          }
+          return json({ profile }, { status: 200, headers: { "cache-control": "private, no-store" } });
+        } catch {
+          return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
+        }
+      }
+      if (request.method === "PUT" || request.method === "POST") {
+        try {
+          const input = await parseApplicantProfileInput(request);
+          const profile = await upsertApplicantProfile(input, env, token);
+          return json({ profile }, { status: 200 });
+        } catch (error) {
+          if (error instanceof ApiInputError) {
+            return json({ error: error.code }, { status: error.status });
+          }
+          return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
+        }
+      }
+      if (request.method === "DELETE") {
+        try {
+          await deleteApplicantProfile(env, token);
+          return json({ deleted: true }, { status: 200 });
+        } catch {
+          return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
+        }
+      }
     }
 
     if (["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(request.method)) {
