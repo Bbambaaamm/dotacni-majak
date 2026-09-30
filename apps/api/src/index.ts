@@ -12,6 +12,7 @@ import {
 } from "./projectAccess";
 import { resolvePublicProjectShare } from "./share";
 import { getGrantDetail, grantCallIdFromPath } from "./grantDetail";
+import { getWorkspaceTimeline, workspaceTimelinePath } from "./workspaceTimeline";
 import {
   deleteProjectWatch,
   enableProjectWatch,
@@ -232,6 +233,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         status: 204,
         headers: { "cache-control": "no-store" },
       });
+    }
+
+    const wsTimelineWorkspaceId = workspaceTimelinePath(url.pathname);
+    if (wsTimelineWorkspaceId && (request.method === "GET" || request.method === "HEAD")) {
+      const owner = bearerToken(request);
+      if (!owner) {
+        return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      }
+      try {
+        const timeline = await getWorkspaceTimeline(wsTimelineWorkspaceId, owner, env);
+        return json(
+          { timeline },
+          { status: 200, headers: { "cache-control": "private", "no-store": "" } },
+        );
+      } catch (error) {
+        if (error instanceof ApiInputError) {
+          return json({ error: error.code }, { status: error.status });
+        }
+        return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
+      }
     }
 
     if (["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(request.method)) {
