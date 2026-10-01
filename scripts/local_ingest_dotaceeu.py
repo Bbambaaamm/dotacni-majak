@@ -28,7 +28,12 @@ def canonical_status(native_status: str | None) -> str:
 
 
 def programme_identity(record):
-    return _NORMALIZER.programme_identity(record)
+    item = DiscoveryItem(
+        external_id=record.external_id,
+        detail_url=record.detail_url,
+        title_hint=record.native_title,
+    )
+    return _NORMALIZER.programme_identity(item, record)
 
 
 def to_searchable(record, captured_at: datetime):
@@ -59,6 +64,7 @@ async def async_main(args: argparse.Namespace) -> None:
         grants,
         raw_dir=raw_dir,
         persist_root=Path(args.db_root).resolve(),
+        adapter_version=DotaceEuAdapter.descriptor.adapter_version,
         now=datetime.now(timezone.utc),
     )
 

@@ -214,6 +214,7 @@ class SqliteOutboxRepository:
         worker_id: str,
         now: datetime | None = None,
         lease_seconds: int = 60,
+        commit: bool = True,
     ) -> OutboxEvent | None:
         """Claim one known event without consuming unrelated outbox work.
 
@@ -232,7 +233,8 @@ class SqliteOutboxRepository:
         now_iso = current.isoformat()
         lease_until = (current + timedelta(seconds=lease_seconds)).isoformat()
 
-        self.connection.execute("BEGIN IMMEDIATE")
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             row = self.connection.execute(
                 f"""SELECT {_SELECT_COLUMNS}
@@ -243,12 +245,14 @@ class SqliteOutboxRepository:
                 (dedupe_key,),
             ).fetchone()
             if row is None:
-                self.connection.commit()
+                if commit:
+                    self.connection.commit()
                 return None
 
             event = _row_to_event(row)
             if event.status == OutboxStatus.DELIVERED:
-                self.connection.commit()
+                if commit:
+                    self.connection.commit()
                 return None
             claimable = (
                 event.status in {OutboxStatus.PENDING, OutboxStatus.FAILED}
@@ -259,7 +263,8 @@ class SqliteOutboxRepository:
                 and event.lease_expires_at <= now_iso
             )
             if not claimable:
-                self.connection.commit()
+                if commit:
+                    self.connection.commit()
                 return None
 
             result = self.connection.execute(
@@ -274,15 +279,18 @@ class SqliteOutboxRepository:
                 (worker_id, lease_until, event.id),
             )
             if result.rowcount != 1:
-                self.connection.rollback()
+                if commit:
+                    self.connection.rollback()
                 return None
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
             claimed = self.get(event.id)
             if claimed is None:
                 raise RuntimeError("claimed outbox event disappeared")
             return claimed
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
     def mark_delivered(
@@ -291,6 +299,7 @@ class SqliteOutboxRepository:
         *,
         worker_id: str,
         now: datetime | None = None,
+        commit: bool = True,
     ) -> OutboxEvent:
         delivered = _utc(now)
         result = self.connection.execute(
@@ -307,11 +316,13 @@ class SqliteOutboxRepository:
             (delivered.isoformat(), event_id, worker_id),
         )
         if result.rowcount != 1:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise OutboxLeaseError(
                 "cannot deliver event without the active worker lease"
             )
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
         event = self.get(event_id)
         if event is None:
             raise RuntimeError("delivered outbox event disappeared")
@@ -326,6 +337,7 @@ class SqliteOutboxRepository:
         now: datetime | None = None,
         max_attempts: int = 5,
         retry_after_seconds: int = 30,
+        commit: bool = True,
     ) -> OutboxEvent:
         if max_attempts < 1:
             raise ValueError("max_attempts must be >= 1")
@@ -372,11 +384,13 @@ class SqliteOutboxRepository:
             ),
         )
         if result.rowcount != 1:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise OutboxLeaseError(
                 "outbox event lease changed during failure update"
             )
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
 
         updated = self.get(event_id)
         if updated is None:

@@ -38,6 +38,7 @@ async def async_main(args: argparse.Namespace) -> None:
         grants,
         raw_dir=raw_dir,
         persist_root=Path(args.db_root).resolve(),
+        adapter_version=EuFundingTendersAdapter.descriptor.adapter_version,
         now=datetime.now(timezone.utc),
     )
 

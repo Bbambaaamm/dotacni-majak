@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -37,8 +38,14 @@ class TrustedGrantIngestor:
         self.staging = SqliteCanonicalStagingRepository(connection)
         self.publisher = SqliteCanonicalPublisher(connection)
 
-    def _upsert_catalog(self, grant: SearchableGrant) -> None:
-        self.connection.execute("BEGIN IMMEDIATE")
+    def _upsert_catalog(
+        self,
+        grant: SearchableGrant,
+        *,
+        commit: bool = True,
+    ) -> None:
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             self.connection.execute(
                 """INSERT INTO providers(
@@ -93,9 +100,11 @@ class TrustedGrantIngestor:
                     grant.retrieval_mode,
                 ),
             )
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
     def ingest(
@@ -104,6 +113,8 @@ class TrustedGrantIngestor:
         *,
         record_snapshot: RawSnapshot,
         now: datetime | None = None,
+        source_run_id: str | None = None,
+        commit: bool = True,
     ) -> TrustedGrantIngestResult:
         grant.validate()
         if record_snapshot.source_code != grant.source_code:
@@ -116,7 +127,7 @@ class TrustedGrantIngestor:
             raise ValueError("now must be timezone-aware")
         current = current.astimezone(timezone.utc)
 
-        self._upsert_catalog(grant)
+        self._upsert_catalog(grant, commit=commit)
         source_record = self.source_records.observe(
             source_code=grant.source_code,
             external_id=grant.source_external_id,
@@ -124,6 +135,7 @@ class TrustedGrantIngestor:
             record_type="GRANT_CALL",
             content_hash=grant.content_hash,
             now=current,
+            commit=commit,
         )
         document = self.documents.observe_snapshot(
             source_code=grant.source_code,
@@ -132,6 +144,7 @@ class TrustedGrantIngestor:
             title=grant.title + " — source record",
             extraction_status="EXTRACTED",
             parser_version="source-record-v1",
+            commit=commit,
         )
 
         evidence = [
@@ -195,6 +208,31 @@ class TrustedGrantIngestor:
             "keywords": grant.keywords,
             "evidence": evidence,
         }
+        payload_json = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        previous_payload = self.connection.execute(
+            """SELECT c.payload_json
+               FROM canonical_staging_items c
+               JOIN source_registry s ON s.id=c.source_id
+               WHERE s.code=? AND c.external_id=?
+                 AND c.entity_type='GRANT_CALL' AND c.content_hash=?
+               LIMIT 1""",
+            (
+                grant.source_code,
+                grant.source_external_id,
+                grant.content_hash,
+            ),
+        ).fetchone()
+        force_reproject = (
+            previous_payload is not None
+            and str(previous_payload[0]) != payload_json
+        )
+
         candidate = self.staging.stage(
             source_code=grant.source_code,
             external_id=grant.source_external_id,
@@ -203,14 +241,22 @@ class TrustedGrantIngestor:
             payload=payload,
             content_hash=grant.content_hash,
             provenance_status=StagingProvenanceStatus.COMPLETE,
+            source_run_id=source_run_id,
             now=current,
+            commit=commit,
         )
         ready = self.staging.mark_validation(
             candidate.id,
             StagingValidationStatus.VALID,
             now=current,
+            commit=commit,
         )
-        publication = self.publisher.publish(ready.id, now=current)
+        publication = self.publisher.publish(
+            ready.id,
+            now=current,
+            force_reproject=force_reproject,
+            commit=commit,
+        )
         return TrustedGrantIngestResult(
             source_record=source_record,
             document_version=document,

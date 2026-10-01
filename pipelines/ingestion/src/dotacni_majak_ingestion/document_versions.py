@@ -104,6 +104,7 @@ class SqliteDocumentVersionRepository:
         extraction_status: str = "PENDING",
         page_count: int | None = None,
         language_code: str | None = None,
+        commit: bool = True,
     ) -> DocumentVersionObservation:
         if document_type not in _ALLOWED_DOCUMENT_TYPES:
             raise ValueError("unsupported document_type")
@@ -119,7 +120,8 @@ class SqliteDocumentVersionRepository:
             source_id, document_type, snapshot.source_url
         )
 
-        self.connection.execute("BEGIN IMMEDIATE")
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             existing_document = self.connection.execute(
                 """SELECT id, grant_call_id, title
@@ -207,9 +209,11 @@ class SqliteDocumentVersionRepository:
             row = self._version_row(source_document_id, snapshot.sha256)
             if row is None:
                 raise RuntimeError("document version observation was not persisted")
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
         (

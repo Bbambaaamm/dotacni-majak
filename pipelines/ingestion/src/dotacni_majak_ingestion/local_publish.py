@@ -72,6 +72,7 @@ class SearchableGrant:
     verification_status: str
 
     captured_at: str
+    raw_snapshot_id: str | None = None
     published_at: str | None = None
     submission_open_at: str | None = None
     submission_close_at: str | None = None
@@ -105,6 +106,11 @@ class SearchableGrant:
             )
         if not re.fullmatch(r"[a-f0-9]{64}", self.content_hash):
             raise ValueError("content_hash must be lowercase SHA-256 hex")
+        if (
+            self.raw_snapshot_id is not None
+            and self.raw_snapshot_id.rsplit(":", 1)[-1] != self.content_hash
+        ):
+            raise ValueError("raw_snapshot_id hash does not match content_hash")
         if self.retrieval_mode not in {
             "API", "JSON", "XML", "RSS", "CSV", "XLSX", "HTML", "PDF", "DOCX"
         }:
