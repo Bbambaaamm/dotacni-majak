@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -65,6 +66,7 @@ class GrantPublicationResult:
     created_version: bool
     evidence_count: int
     outbox_event_count: int
+    outbox_dedupe_keys: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +168,23 @@ def _stable_id(prefix: str, *parts: object) -> str:
     return prefix + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
 
 
+def _can_migrate_legacy_programme_identity(
+    source_code: str,
+    old_programme_id: str,
+    new_programme_id: str,
+) -> bool:
+    namespace = {"DOTACEEU": "dotaceeu", "EU_FT": "eu-ft"}.get(source_code)
+    if namespace is None:
+        return False
+    legacy = re.fullmatch(
+        rf"programme:{re.escape(namespace)}:[0-9a-f]{{16}}",
+        old_programme_id,
+    )
+    return bool(legacy) and new_programme_id.startswith(
+        f"programme:{namespace}:"
+    )
+
+
 class SqliteCanonicalPublisher:
     """Publish one READY staged GrantCall candidate as one atomic transaction."""
 
@@ -218,6 +237,8 @@ class SqliteCanonicalPublisher:
         candidate_id: str,
         *,
         now: datetime | None = None,
+        force_reproject: bool = False,
+        commit: bool = True,
     ) -> GrantPublicationResult:
         timestamp = _utc(now).isoformat()
         candidate = self.staging.get(candidate_id)
@@ -226,12 +247,9 @@ class SqliteCanonicalPublisher:
                 PublicationErrorCode.CANDIDATE_NOT_FOUND,
                 f"staging candidate {candidate_id!r} not found",
             )
-        if candidate.state is StagingState.PUBLISHED:
-            return self._already_published(
-                candidate.id,
-                candidate.published_entity_id,
-            )
-        if (
+
+        was_published = candidate.state is StagingState.PUBLISHED
+        if not was_published and (
             candidate.state is not StagingState.READY
             or candidate.validation_status is not StagingValidationStatus.VALID
             or candidate.provenance_status is StagingProvenanceStatus.MISSING
@@ -292,13 +310,19 @@ class SqliteCanonicalPublisher:
                 f"programme {payload.programme_id!r} does not exist",
             )
 
-        self.connection.execute("BEGIN IMMEDIATE")
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             existing_call = self.connection.execute(
-                """SELECT programme_id, canonical_slug
+                """SELECT programme_id, canonical_slug, current_version_id
                    FROM grant_calls WHERE id=?""",
                 (grant_call_id,),
             ).fetchone()
+            current_before = (
+                str(existing_call[2])
+                if existing_call is not None and existing_call[2] is not None
+                else None
+            )
             slug_owner = self.connection.execute(
                 "SELECT id FROM grant_calls WHERE canonical_slug=?",
                 (payload.canonical_slug,),
@@ -309,6 +333,7 @@ class SqliteCanonicalPublisher:
                     "canonical_slug belongs to another GrantCall",
                 )
 
+            programme_migrated = False
             if existing_call is None:
                 self.connection.execute(
                     """INSERT INTO grant_calls(
@@ -329,23 +354,45 @@ class SqliteCanonicalPublisher:
                         timestamp,
                     ),
                 )
-            elif (
-                str(existing_call[0]) != payload.programme_id
-                or str(existing_call[1]) != payload.canonical_slug
-            ):
-                raise CanonicalPublicationError(
-                    PublicationErrorCode.IDENTITY_CONFLICT,
-                    "stable GrantCall identity conflicts with existing programme/slug",
-                )
+            else:
+                old_programme_id = str(existing_call[0])
+                old_slug = str(existing_call[1])
+                if old_slug != payload.canonical_slug:
+                    raise CanonicalPublicationError(
+                        PublicationErrorCode.IDENTITY_CONFLICT,
+                        "stable GrantCall identity conflicts with existing slug",
+                    )
+                if old_programme_id != payload.programme_id:
+                    if not _can_migrate_legacy_programme_identity(
+                        candidate.source_code,
+                        old_programme_id,
+                        payload.programme_id,
+                    ):
+                        raise CanonicalPublicationError(
+                            PublicationErrorCode.IDENTITY_CONFLICT,
+                            "stable GrantCall identity conflicts with existing programme",
+                        )
+                    self.connection.execute(
+                        """UPDATE grant_calls
+                           SET programme_id=?, updated_at=?
+                           WHERE id=?""",
+                        (payload.programme_id, timestamp, grant_call_id),
+                    )
+                    programme_migrated = True
 
             existing_version = self.connection.execute(
-                """SELECT id, version_number
+                """SELECT
+                     id, version_number, title, summary, status, published_at,
+                     submission_open_at, submission_close_at, application_url,
+                     official_detail_url, currency_code, normalization_version,
+                     verification_status
                    FROM grant_call_versions
                    WHERE grant_call_id=? AND content_hash=?""",
                 (grant_call_id, candidate.content_hash),
             ).fetchone()
 
             created_version = existing_version is None
+            normalized_changed = False
             if created_version:
                 version_number = int(
                     self.connection.execute(
@@ -390,64 +437,122 @@ class SqliteCanonicalPublisher:
             else:
                 version_id = str(existing_version[0])
                 version_number = int(existing_version[1])
+                stored_normalized = tuple(existing_version[2:])
+                incoming_normalized = (
+                    payload.title,
+                    payload.summary,
+                    payload.status,
+                    payload.published_at,
+                    payload.submission_open_at,
+                    payload.submission_close_at,
+                    payload.application_url,
+                    payload.official_detail_url,
+                    payload.currency_code,
+                    payload.normalization_version,
+                    payload.verification_status,
+                )
+                normalized_changed = (
+                    stored_normalized != incoming_normalized
+                    or force_reproject
+                )
+                if normalized_changed:
+                    self.connection.execute(
+                        """UPDATE grant_call_versions
+                           SET title=?, summary=?, status=?, published_at=?,
+                               submission_open_at=?, submission_close_at=?,
+                               application_url=?, official_detail_url=?,
+                               currency_code=?, normalization_version=?,
+                               verification_status=?
+                           WHERE id=?""",
+                        (
+                            payload.title,
+                            payload.summary,
+                            payload.status,
+                            payload.published_at,
+                            payload.submission_open_at,
+                            payload.submission_close_at,
+                            payload.application_url,
+                            payload.official_detail_url,
+                            payload.currency_code,
+                            payload.normalization_version,
+                            payload.verification_status,
+                            version_id,
+                        ),
+                    )
+
+            reactivation_needed = current_before != version_id
+            publication_changed = (
+                created_version
+                or reactivation_needed
+                or normalized_changed
+                or programme_migrated
+            )
 
             evidence_count = 0
-            for item in payload.evidence:
-                field_path = _required_text(item, "field_path")
-                document_version_id = _required_text(
-                    item, "document_version_id"
-                )
-                verification_status = _required_text(
-                    item, "verification_status"
-                )
-                evidence_id = _stable_id(
-                    "fe_",
-                    version_id,
-                    field_path,
-                    document_version_id,
-                    item.get("document_section_id"),
-                    item.get("page_from"),
-                    item.get("page_to"),
-                    item.get("evidence_text"),
-                )
-                record = FieldEvidenceRecord(
-                    id=evidence_id,
-                    entity_type="GRANT_CALL_VERSION",
-                    entity_id=version_id,
-                    field_path=field_path,
-                    document_version_id=document_version_id,
-                    verification_status=verification_status,
-                    created_at=timestamp,
-                    document_section_id=item.get("document_section_id"),
-                    page_from=item.get("page_from"),
-                    page_to=item.get("page_to"),
-                    evidence_text=item.get("evidence_text"),
-                    extraction_method=item.get("extraction_method"),
-                    extractor_version=item.get("extractor_version"),
-                    confidence_ppm=item.get("confidence_ppm"),
-                )
-                try:
-                    self.evidence.save(record, commit=False)
-                except (FieldEvidenceIntegrityError, sqlite3.IntegrityError) as exc:
-                    raise CanonicalPublicationError(
-                        PublicationErrorCode.EVIDENCE_INVALID,
-                        str(exc),
-                    ) from exc
-                evidence_count += 1
+            if publication_changed:
+                for item in payload.evidence:
+                    field_path = _required_text(item, "field_path")
+                    document_version_id = _required_text(
+                        item, "document_version_id"
+                    )
+                    verification_status = _required_text(
+                        item, "verification_status"
+                    )
+                    evidence_id = _stable_id(
+                        "fe_",
+                        version_id,
+                        field_path,
+                        document_version_id,
+                        item.get("document_section_id"),
+                        item.get("page_from"),
+                        item.get("page_to"),
+                        item.get("evidence_text"),
+                    )
+                    record = FieldEvidenceRecord(
+                        id=evidence_id,
+                        entity_type="GRANT_CALL_VERSION",
+                        entity_id=version_id,
+                        field_path=field_path,
+                        document_version_id=document_version_id,
+                        verification_status=verification_status,
+                        created_at=timestamp,
+                        document_section_id=item.get("document_section_id"),
+                        page_from=item.get("page_from"),
+                        page_to=item.get("page_to"),
+                        evidence_text=item.get("evidence_text"),
+                        extraction_method=item.get("extraction_method"),
+                        extractor_version=item.get("extractor_version"),
+                        confidence_ppm=item.get("confidence_ppm"),
+                    )
+                    try:
+                        self.evidence.save(record, commit=False)
+                    except (
+                        FieldEvidenceIntegrityError,
+                        sqlite3.IntegrityError,
+                    ) as exc:
+                        raise CanonicalPublicationError(
+                            PublicationErrorCode.EVIDENCE_INVALID,
+                            str(exc),
+                        ) from exc
+                    evidence_count += 1
 
-            self.connection.execute(
-                """UPDATE grant_calls
-                   SET current_version_id=?, current_status=?,
-                       current_title=?, updated_at=?
-                   WHERE id=?""",
-                (
-                    version_id,
-                    payload.status,
-                    payload.title,
-                    timestamp,
-                    grant_call_id,
-                ),
-            )
+                self.connection.execute(
+                    """UPDATE grant_calls
+                       SET programme_id=?, canonical_code=?,
+                           current_version_id=?, current_status=?,
+                           current_title=?, updated_at=?
+                       WHERE id=?""",
+                    (
+                        payload.programme_id,
+                        payload.canonical_code,
+                        version_id,
+                        payload.status,
+                        payload.title,
+                        timestamp,
+                        grant_call_id,
+                    ),
+                )
+
             self.connection.execute(
                 """UPDATE source_records
                    SET grant_call_id=?, content_hash=?,
@@ -461,41 +566,78 @@ class SqliteCanonicalPublisher:
                 ),
             )
 
-            event_payload = {
-                "grantCallId": grant_call_id,
-                "grantCallVersionId": version_id,
-                "sourceCode": candidate.source_code,
-            }
-            for event_type in (
-                OutboxEventType.SEARCH_REINDEX_REQUIRED,
-                OutboxEventType.CHANGE_DETECTION_REQUIRED,
-            ):
-                self.outbox.enqueue(
-                    event_type=event_type,
-                    aggregate_type="GRANT_CALL",
-                    aggregate_id=grant_call_id,
-                    payload=event_payload,
-                    dedupe_key=f"{event_type.value}:{version_id}",
-                    now=_utc(now),
-                    commit=False,
-                )
+            outbox_keys: list[str] = []
+            if publication_changed:
+                event_payload = {
+                    "grantCallId": grant_call_id,
+                    "grantCallVersionId": version_id,
+                    "sourceCode": candidate.source_code,
+                }
+                if created_version:
+                    suffix = ""
+                else:
+                    activation_seed = "\x1f".join(
+                        (
+                            candidate.source_run_id or candidate.updated_at,
+                            current_before or "",
+                            version_id,
+                            json.dumps(
+                                candidate.payload,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                        )
+                    )
+                    activation = hashlib.sha256(
+                        activation_seed.encode("utf-8")
+                    ).hexdigest()[:20]
+                    suffix = f":activation:{activation}"
 
-            staged = self.connection.execute(
-                """UPDATE canonical_staging_items
-                   SET state='PUBLISHED', published_entity_id=?,
-                       published_at=?, updated_at=?
-                   WHERE id=? AND state='READY'""",
-                (version_id, timestamp, timestamp, candidate.id),
-            )
-            if staged.rowcount != 1:
-                raise CanonicalPublicationError(
-                    PublicationErrorCode.CANDIDATE_NOT_READY,
-                    "staging candidate changed during publication",
-                )
+                for event_type in (
+                    OutboxEventType.SEARCH_REINDEX_REQUIRED,
+                    OutboxEventType.CHANGE_DETECTION_REQUIRED,
+                ):
+                    dedupe_key = (
+                        f"{event_type.value}:{version_id}{suffix}"
+                    )
+                    self.outbox.enqueue(
+                        event_type=event_type,
+                        aggregate_type="GRANT_CALL",
+                        aggregate_id=grant_call_id,
+                        payload=event_payload,
+                        dedupe_key=dedupe_key,
+                        now=_utc(now),
+                        commit=False,
+                    )
+                    outbox_keys.append(dedupe_key)
 
-            self.connection.commit()
+            if was_published:
+                self.connection.execute(
+                    """UPDATE canonical_staging_items
+                       SET published_entity_id=?, updated_at=?
+                       WHERE id=? AND state='PUBLISHED'""",
+                    (version_id, timestamp, candidate.id),
+                )
+            else:
+                staged = self.connection.execute(
+                    """UPDATE canonical_staging_items
+                       SET state='PUBLISHED', published_entity_id=?,
+                           published_at=?, updated_at=?
+                       WHERE id=? AND state='READY'""",
+                    (version_id, timestamp, timestamp, candidate.id),
+                )
+                if staged.rowcount != 1:
+                    raise CanonicalPublicationError(
+                        PublicationErrorCode.CANDIDATE_NOT_READY,
+                        "staging candidate changed during publication",
+                    )
+
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
         return GrantPublicationResult(
@@ -504,5 +646,6 @@ class SqliteCanonicalPublisher:
             version_number=version_number,
             created_version=created_version,
             evidence_count=evidence_count,
-            outbox_event_count=2,
+            outbox_event_count=len(outbox_keys),
+            outbox_dedupe_keys=tuple(outbox_keys),
         )

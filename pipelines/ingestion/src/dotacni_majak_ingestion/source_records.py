@@ -86,6 +86,7 @@ class SqliteSourceRecordRepository:
         content_hash: str,
         grant_call_id: str | None = None,
         now: datetime | None = None,
+        commit: bool = True,
     ) -> SourceRecordObservation:
         if not external_id.strip():
             raise ValueError("external_id must not be empty")
@@ -98,7 +99,8 @@ class SqliteSourceRecordRepository:
         source_id = self._source_id(source_code)
         timestamp = _utc(now).isoformat()
 
-        self.connection.execute("BEGIN IMMEDIATE")
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             existing = self._get_by_identity(source_id, external_id)
             previous_hash: str | None = None
@@ -174,9 +176,11 @@ class SqliteSourceRecordRepository:
             row = self._get_by_identity(source_id, external_id)
             if row is None:
                 raise RuntimeError("source record observation was not persisted")
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
         (

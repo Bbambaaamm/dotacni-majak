@@ -47,30 +47,6 @@ function detectPython() {
   );
 }
 
-function applySql(file) {
-  return (
-    spawn(
-      "npm",
-      [
-        "--workspace",
-        "@dotacni-majak/api",
-        "exec",
-        "--",
-        "wrangler",
-        "d1",
-        "execute",
-        "dotacni-majak-local",
-        "--local",
-        "--persist-to",
-        "../../.wrangler/local",
-        "--file",
-        `../../.local/${file}`,
-      ],
-      { shell: platform === "win32" },
-    ).status === 0
-  );
-}
-
 await mkdir(join(root, ".local"), { recursive: true });
 
 if (!existsSync(venvPython)) {
@@ -105,19 +81,16 @@ const sources = [
   {
     code: "NSA",
     command: ["scripts/local_ingest_nsa.py"],
-    sql: "nsa-import.sql",
     coverage: { mode: "full" },
   },
   {
     code: "DOTACEEU",
     command: ["scripts/local_ingest_dotaceeu.py"],
-    sql: "dotaceeu-import.sql",
     coverage: { mode: "full" },
   },
   {
     code: "EU_FT",
     command: ["scripts/local_ingest_eu_funding.py", ...euFundingArgs],
-    sql: "eu-funding-import.sql",
     coverage: euFundingCoverage,
   },
 ];
@@ -128,17 +101,12 @@ const coverage = {};
 
 for (const source of sources) {
   console.log(`\n=== ${source.code}: live refresh ===`);
-  const generated = spawn(venvPython, source.command).status === 0;
-  if (!generated) {
-    failed.push({ source: source.code, stage: "fetch" });
-    console.warn(`${source.code}: fetch/normalize selhal, zachovávám last-known-good data.`);
-    continue;
-  }
-
-  const applied = applySql(source.sql);
-  if (!applied) {
-    failed.push({ source: source.code, stage: "publish" });
-    console.warn(`${source.code}: publish selhal, ostatní zdroje zůstávají nedotčené.`);
+  const refreshed = spawn(venvPython, source.command).status === 0;
+  if (!refreshed) {
+    failed.push({ source: source.code, stage: "trusted_refresh" });
+    console.warn(
+      `${source.code}: trusted fetch/publish selhal, zachovávám last-known-good data.`,
+    );
     continue;
   }
 

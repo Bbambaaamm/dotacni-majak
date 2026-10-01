@@ -113,7 +113,7 @@ Lokální vývoj používá u EU Funding & Tenders ve výchozím stavu bezpečn�
 
 Pro plný EU katalog při ručním refreshi nastavte před příkazem `DEV_EU_FUNDING_LIMIT=all`. Pro jiný vývojový cap použijte kladné celé číslo, například `DEV_EU_FUNDING_LIMIT=150`.
 
-Každý zdroj má vlastní RAW snapshots a vlastní D1 import transakci. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého a neblokuje úspěšný refresh ostatních zdrojů. Refresh marker navíc ukládá per-source coverage metadata, aby lokální sample nebyl prezentován jako kompletní katalog.
+Každý zdroj má vlastní RAW snapshots. Výsledky se publikují přes trusted cestu `SourceRecord → DocumentVersion → staging → atomic canonical publisher + FieldEvidence/outbox → search projection`; aktivní refresh už nepoužívá legacy direct-canonical SQL import. Selhání jednoho zdroje nemaže ani nepřepisuje last-known-good data druhého a neblokuje úspěšný refresh ostatních zdrojů. Refresh marker navíc ukládá per-source coverage metadata, aby lokální sample nebyl prezentován jako kompletní katalog.
 
 Pouze NSA lze ručně obnovit:
 
@@ -121,7 +121,7 @@ Pouze NSA lze ručně obnovit:
 npm run dev:data:refresh:nsa
 ```
 
-Refresh si vytvoří lokální Python `.venv`, nainstaluje pouze potřebné open-source dependency pro Source SDK a příslušné connectory, stáhne veřejná oficiální data přes GuardedHttpClient a idempotentně je publikuje do lokální D1.
+Refresh si vytvoří lokální Python `.venv`, nainstaluje pouze potřebné open-source dependency pro Source SDK a příslušné connectory, stáhne veřejná oficiální data přes GuardedHttpClient a idempotentně je publikuje do lokální D1 přes stejný trusted publisher jako integrační E2E. Search projection se zpracuje z `SEARCH_REINDEX_REQUIRED` outbox eventu; ostatní eventy zůstávají pro své vlastní workery.
 
 Pokud je oficiální zdroj dočasně nedostupný, `npm run dev` se přesto spustí a web ukáže poslední dostupná nebo prázdná data. Výpadek zdroje nevytváří falešné výzvy.
 
