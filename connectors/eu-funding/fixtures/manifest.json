@@ -11,6 +11,36 @@
       "piiStatus": "NONE_OBSERVED",
       "sanitization": "MINIMIZED",
       "sha256": "6e9008956be9c20ca308e92e19c6a6bd92131eb69df5d72a1b0bf2d87dc11bb0"
+    },
+    {
+      "path": "search-page-open.json",
+      "sourceUrl": "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=***",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "1c64d783a303c57fcbd333284d7535051c24ad8338f914edba21bdb057b99935"
+    },
+    {
+      "path": "search-page-planned.json",
+      "sourceUrl": "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=***",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "503d26094f2665242a99ccf3fd2536b73d998040a463ccf9d66539ae1d7e1e2a"
+    },
+    {
+      "path": "search-page-changed.json",
+      "sourceUrl": "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=***",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/json",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "a3c3bdaa8c16f9034d3a7f0e3c2eb437ebd61d47362bd9b07c046acc7a65515f"
     }
   ]
 }

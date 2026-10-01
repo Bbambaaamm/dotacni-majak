@@ -5,6 +5,18 @@ Tento dokument je vstupní instrukce pro AI agenta, který pokračuje ve vývoji
 ## Mise
 Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou open-source veřejnou službu pro české uživatele.
 
+## Orchestrace projektu
+- Root completion program je GitHub issue **#662** (`HERDR CONTROL · Dotační maják completion program → MVP → Beta → v1.0`).
+- **Herdr** je execution/policy control plane; **dotacni-majak-hermes** je stabilní persistent parent/coordinator.
+- Hermes před každým slice znovu načte `main`, otevřené PR/issue, readiness/roadmap a durable evidence; nesmí duplikovat již běžící práci.
+- Hermes volí nejbližší dependency-safe kritický slice, deleguje bounded child nodes a po merge ihned replanuje další krok.
+- Child agenti implementují/researchují/testují/reviewují v izolovaných worktree; permissions child ⊆ parent.
+- Merge gate: testy → zelené CI/security/dependency kontroly → independent review PASS na přesném head SHA → ověřit nezměněný head → merge.
+- Pozdější milestone nesmí předběhnout otevřený P0 dependency blocker jen proto, že má novější issue číslo.
+- Bez lidského zásahu pokračuj autonomně; zastav na credential/billing/production-deploy/irreversible-action, skutečně neřešitelném bezpečnostním/produktovém blockeru **a na každém explicitním human release gate**.
+- Public Beta ani v1.0 nesmí Hermes sám prohlásit za schválené: pokud gate vyžaduje reálné uživatelské/usability evidence, manuální audit, lidského reviewera nebo explicitní GO/NO-GO rozhodnutí, připrav všechny automatizovatelné podklady a pak eskaluj člověku bez fabrikace důkazů.
+- Root issue #662 zůstává otevřený až do splnění Public Beta a **#41 v1.0 production readiness gate**.
+
 ## Před prací vždy přečti
 1. README.md
 2. ARCHITECTURE.md

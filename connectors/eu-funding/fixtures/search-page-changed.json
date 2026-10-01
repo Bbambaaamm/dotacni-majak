@@ -1,0 +1,46 @@
+{
+  "apiVersion": "real-contract-fixture-2026-09-23",
+  "pageNumber": 1,
+  "pageSize": 2,
+  "totalResults": 2,
+  "results": [
+    {
+      "reference": "511767TOPICSen",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/AGRI-2026-TF3",
+      "summary": "Agriculture and food innovation call (budget updated, ingest 2026-09-22)",
+      "metadata": {
+        "identifier": ["AGRI-2026-TF3"],
+        "title": ["Agriculture and food innovation call"],
+        "status": ["31094502"],
+        "startDate": ["2026-08-01T00:00:00.000+0000"],
+        "deadlineDate": ["2026-09-24T00:00:00.000+0000"],
+        "frameworkProgramme": ["43252368"],
+        "callTitle": ["AGRI-2026-TF3 - Agriculture Innovation"],
+        "type": ["8"],
+        "esDA_IngestDate": ["2026-09-22T10:11:12.000+0000"],
+        "budgetOverview": ["{\"budgetYearsColumns\":[\"2026\"],\"budgetTopicActionMap\":{\"114965\":[{\"action\":\"AGRI-2026-TF3\",\"expectedGrants\":1,\"minContribution\":0,\"maxContribution\":0,\"budgetYearMap\":{\"2026\":\"4000000\"},\"plannedOpeningDate\":\"2026-08-01\",\"deadlineModel\":\"single-stage\",\"deadlineDates\":[\"2026-09-30\"]}]}}"],
+        "topicConditions": ["<h4>Topic conditions</h4><a href=\"https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/agri/2026-2027/topic_conditions_en.pdf\">Topic conditions</a>"],
+        "links": ["[{\"callIdentifier\":\"AGRI-2026-TF3\",\"url\":\"https://ec.europa.eu/research/participants/submission/manage/screen/submission/create-draft/4414?topic=AGRI-2026-TF3\"}]"]
+      }
+    },
+    {
+      "reference": "511768TOPICSen",
+      "url": "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/INFRA-2026-TF4",
+      "summary": "Digital transformation and infrastructure call (deadline extended, ingest 2026-09-22)",
+      "metadata": {
+        "identifier": ["INFRA-2026-TF4"],
+        "title": ["Digital transformation and infrastructure call"],
+        "status": ["31094502"],
+        "startDate": ["2026-07-15T00:00:00.000+0000"],
+        "deadlineDate": ["2026-09-25T00:00:00.000+0000"],
+        "frameworkProgramme": ["43252368"],
+        "callTitle": ["INFRA-2026-TF4 - Digital Infrastructure"],
+        "type": ["8"],
+        "esDA_IngestDate": ["2026-09-22T10:11:12.000+0000"],
+        "budgetOverview": ["{\"budgetYearsColumns\":[\"2026\"],\"budgetTopicActionMap\":{\"114966\":[{\"action\":\"INFRA-2026-TF4\",\"expectedGrants\":1,\"minContribution\":0,\"maxContribution\":0,\"budgetYearMap\":{\"2026\":\"3500000\"},\"plannedOpeningDate\":\"2026-07-15\",\"deadlineModel\":\"single-stage\",\"deadlineDates\":[\"2026-10-05\"]}]}}"],
+        "topicConditions": ["<h4>Topic conditions</h4><a href=\"https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/infra/2026-2027/topic_conditions_en.pdf\">Topic conditions</a>"],
+        "links": ["[{\"callIdentifier\":\"INFRA-2026-TF4\",\"url\":\"https://ec.europa.eu/research/participants/submission/manage/screen/submission/create-draft/4415?topic=INFRA-2026-TF4\"}]"]
+      }
+    }
+  ]
+}

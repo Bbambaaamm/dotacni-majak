@@ -1,0 +1,12 @@
+schema_version: 1
+consumer: majak
+herdr:
+  repository: Bbambaaamm/herdr
+  ref: v0.3.0-rc.8
+  commit: d58283bc4bf98490bb96bd9bffd58b293b451061
+policy_profile: grant-research
+hard_invariants:
+  - preserve_source_lineage
+  - no_unverified_eligibility_claim_as_fact
+inheritance:
+  child_may_expand_parent_permissions: false

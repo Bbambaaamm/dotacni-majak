@@ -21,6 +21,16 @@
       "piiStatus": "NONE_OBSERVED",
       "sanitization": "MINIMIZED",
       "sha256": "2ac98d5a561f8a1c584a7eb6870ef430995a42f5e8c9d1437998f6abe115d40c"
+    },
+    {
+      "path": "calendar.xlsx",
+      "sourceUrl": "https://www.dotaceeu.cz/media/calendar/vyzvy.xlsx",
+      "capturedAt": "2026-09-23T12:00:00Z",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "originType": "SANITIZED_DERIVATIVE",
+      "piiStatus": "NONE_OBSERVED",
+      "sanitization": "MINIMIZED",
+      "sha256": "4775512f83511a8734052224eb8a120f1a10dc4611e428e6eafe71e48645f009"
     }
   ]
 }

@@ -34,6 +34,7 @@ class MigrationTest(unittest.TestCase):
             "source_registry", "source_records", "source_documents",
             "document_versions", "document_sections", "field_evidence",
             "grant_deadlines", "funding_scenarios", "grant_requirements",
+            "grant_evaluation_criteria",
             "projects", "change_events", "data_quality_issues",
             "quarantine_items", "outbox_events", "source_health",
             "scheduler_watchdog_events", "historical_awards",
@@ -41,6 +42,7 @@ class MigrationTest(unittest.TestCase):
             "project_share_links", "share_audit_events",
             "project_owner_capabilities", "project_owner_audit_events",
             "geographies", "grant_geographies", "applicant_types",
+            "source_run_baselines",
         }
         self.assertTrue(expected.issubset(tables))
 
@@ -75,6 +77,10 @@ class MigrationTest(unittest.TestCase):
             "idx_applicant_types_parent",
             "idx_applicant_profiles_type_id",
             "idx_applicant_attribute_definition",
+            "idx_eval_criteria_version",
+            "idx_source_run_baselines_version",
+            "idx_source_run_baselines_updated",
+            "idx_source_runs_baseline_lookup",
         }:
             self.assertIn(name, indexes)
 

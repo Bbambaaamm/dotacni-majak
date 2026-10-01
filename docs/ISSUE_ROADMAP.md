@@ -157,3 +157,15 @@ requires deterministic evidence that:
 
 works without hardcoded demo data, and a browser-level regression covers the
 user journey.
+
+
+## Post-core readiness update — 2026-09-26
+
+The previous `#533 → #535/#536/#537 → #534 → #572 → #508` chain is now
+closed and proven. The current readiness snapshot is
+`docs/MVP_READINESS_2026-09-26.md`.
+
+New first blocker: **#639**, wiring the trusted ingestion/publisher contract
+into the default live/local refresh path. After that, prioritize browser-visible
+proof of **Pohlídá** (#509) and **Dotáhne** (#510/#511 plus their UI dependencies)
+before broadening later release work.
