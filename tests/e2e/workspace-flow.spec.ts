@@ -52,6 +52,17 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(accessibility.violations).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => ({
+    width: window.innerWidth,
+    overflow: Array.from(document.querySelectorAll("header, header nav, footer, main, .projects-page, .owner-secret, .share-card"))
+      .map(element => ({ element: element.className, right: Math.round(element.getBoundingClientRect().right) }))
+      .filter(element => element.right > window.innerWidth),
+    pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+  }))).toEqual({ width: 390, overflow: [], pageOverflow: false });
+  const mobileAccessibility = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(mobileAccessibility.violations).toEqual([]);
   const second = await (await page.request.get(`${base}/${id}`, { headers })).json();
   expect(second.workspace.baselineGrantVersionId).toBe("gcv-e2e-open");
   expect(second.workspace.currentGrantVersionId).not.toBe("gcv-e2e-open");

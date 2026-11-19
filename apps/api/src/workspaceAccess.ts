@@ -133,6 +133,9 @@ export async function readWorkspace(projectId: string, token: string | null, wor
       .bind(currentId?.id ?? "").all<{id: string; field_path: string}>(),
   ]);
   if (!base || !current) throw new Error("WORKSPACE_VERSION_MISSING");
+  if (!taskRows.success || !taskRows.results?.length) {
+    throw new ApiInputError("WORKSPACE_UNAVAILABLE", 503);
+  }
   const changed = base.id !== current.id;
   const changeRows = changed ? await env.DB.prepare(`SELECT field_path,old_value_json,new_value_json,evidence_id
     FROM change_events WHERE grant_call_id=? AND from_version_id=? AND to_version_id=?
