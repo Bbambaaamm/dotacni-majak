@@ -497,13 +497,18 @@ test("tennis intent never surfaces the CLOSED historical NSA fixture as active",
   await expect(watch).toHaveAttribute("href", /\/projekty\?.*watch=1/);
 });
 
-test("search API failure is fail-closed and shows no invented results", async ({ page }) => {
+test("search API failure is fail-closed and retries the same intent against real D1", async ({ page }) => {
+  let allowRecovery = false;
   await page.route("**/api/search?*", async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }),
-    });
+    if (!allowRecovery) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }),
+      });
+    } else {
+      await route.continue();
+    }
   });
 
   await page.goto("/hledat?intent=digitalizace%20obce");
@@ -514,6 +519,13 @@ test("search API failure is fail-closed and shows no invented results", async ({
   await expect(
     page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }),
   ).toHaveCount(0);
+
+  allowRecovery = true;
+  const retry = page.waitForResponse((response) => response.url().includes("/api/search?") && response.status() === 200);
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  expect(new URL((await retry).url()).searchParams.get("intent")).toBe("digitalizace obce");
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toHaveCount(0);
 });
 
 test("no result → saved watch → published source → notification → detail; failure keeps last good", async ({ page }) => {
