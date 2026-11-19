@@ -137,3 +137,37 @@ INSERT INTO grant_search_documents(
    'rekonstrukce tenisových kurtů sportovní zařízení sportovní infrastruktura',
    '','tenis kurt rekonstrukce sport','CLOSED','2026-01-19T23:59:59Z',
    '2026-09-26T20:00:00Z');
+
+-- Dedicated pagination dataset; it does not match the existing journey intents.
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+SELECT 'grant:e2e:page:' || i,'e2e-programme-open','E2E-PAGE-' || i,
+  'e2e-page-' || i,NULL,'OPEN','E2E stránkování ' || i,
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z' FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-page-' || i,'grant:e2e:page:' || i,1,'2026-09-26T20:00:00Z',
+  'E2E stránkování ' || i,'Testovací záznam stránkování.','OPEN',
+  'https://example.invalid/e2e/page/' || i,'CZK','e2e-v1',
+  printf('%064d',i),'VERIFIED','2026-09-26T20:00:00Z' FROM n;
+
+UPDATE grant_calls SET current_version_id = 'gcv-e2e-page-' || substr(id, length('grant:e2e:page:') + 1)
+WHERE id LIKE 'grant:e2e:page:%';
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
+INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
+  first_seen_at,last_seen_at,presence_state,missing_run_count,content_hash)
+SELECT 'e2e-sr-page-' || i,'e2e-source-open','E2E-PAGE-' || i,
+  'https://example.invalid/e2e/page/' || i,'GRANT_CALL','grant:e2e:page:' || i,
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z','SEEN',0,printf('%064d',i) FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+SELECT 'gcv-e2e-page-' || i,'E2E stránkování ' || i,'Testovací záznam stránkování.',
+  'strankovani','',CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení' WHEN 3 THEN 'plavecké zařízení' ELSE '' END,
+  'OPEN',NULL,'2026-09-26T20:00:00Z' FROM n;

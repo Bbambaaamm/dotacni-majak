@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
@@ -43,6 +43,9 @@ export function SearchPage() {
   const [data, setData] = useState<GrantSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(intent && !demoState));
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
+  const moreController = useRef<AbortController | null>(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [providerFilter, setProviderFilter] = useState("ALL");
   const [deadlineFilter, setDeadlineFilter] = useState("ALL");
@@ -76,8 +79,12 @@ export function SearchPage() {
     if (!intent || demoState) return;
 
     const controller = new AbortController();
+    moreController.current?.abort();
+    setData(null);
     setLoading(true);
     setError(null);
+    setLoadingMore(false);
+    setMoreError(null);
     setStatusFilter("ALL");
     setProviderFilter("ALL");
     setDeadlineFilter("ALL");
@@ -94,8 +101,31 @@ export function SearchPage() {
         setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => { controller.abort(); moreController.current?.abort(); };
   }, [intent, demoState]);
+
+  async function loadMore() {
+    if (!data?.nextCursor || loadingMore) return;
+    const cursor = data.nextCursor;
+    const controller = new AbortController();
+    moreController.current = controller;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const page = await searchGrants(intent, controller.signal, cursor);
+      if (controller.signal.aborted) return;
+      setData((current) => {
+        if (!current || current.nextCursor !== cursor) return current;
+        const seen = new Set(current.results.map((grant) => grant.grantCallVersionId));
+        return { ...current, nextCursor: page.nextCursor,
+          results: [...current.results, ...page.results.filter((grant) => !seen.has(grant.grantCallVersionId))] };
+      });
+    } catch (reason) {
+      if (!controller.signal.aborted) setMoreError(searchErrorMessage(reason));
+    } finally {
+      if (!controller.signal.aborted) setLoadingMore(false);
+    }
+  }
 
   if (demoState) {
     return (
@@ -202,7 +232,7 @@ export function SearchPage() {
                 {filteredResults.length === data.results.length
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
-                Toto jsou pouze právě načtené výsledky (nejvýše 20), nikoli počet všech odpovídajících výzev.
+                Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
                 Filtry a řazení se vztahují pouze na tuto sadu. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
@@ -379,6 +409,15 @@ export function SearchPage() {
               </article>
             ))}
           </div>
+          <div aria-live="polite" role="status">
+            Načteno {data.results.length} výsledků{data.nextCursor ? "; další mohou být dostupné." : "."}
+          </div>
+          {moreError ? <p role="alert">Další výsledky se nepodařilo načíst. Dosud načtené výsledky zůstávají zobrazené. {moreError}</p> : null}
+          {data.nextCursor ? (
+            <button className="button button--secondary" type="button" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? "Načítáme další výsledky…" : moreError ? "Zkusit načíst další znovu" : "Načíst další výsledky"}
+            </button>
+          ) : null}
         </section>
       ) : null}
 

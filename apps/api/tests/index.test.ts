@@ -137,6 +137,26 @@ describe("api worker", () => {
     expect(body.expandedTerms).toContain("Sportovní infrastruktura");
   });
 
+  it("rejects malformed search pagination inputs at the HTTP boundary", async () => {
+    for (const [query, error] of [
+      ["intent=test&limit=51", "INVALID_LIMIT"],
+      ["intent=test&limit=2.5", "INVALID_LIMIT"],
+      ["intent=test&limit=20oops", "INVALID_LIMIT"],
+      ["intent=test&cursor=garbage", "INVALID_CURSOR"],
+    ]) {
+      const response = await handleRequest(new Request(`https://example.test/search?${query}`), env());
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error });
+    }
+  });
+
+  it("fails closed when search D1 is unavailable", async () => {
+    const response = await handleRequest(new Request("https://example.test/search?intent=test"),
+      env(null, () => { throw new Error("D1 unavailable"); }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "SEARCH_UNAVAILABLE" });
+  });
+
   it("returns current dynamic grant detail from D1", async () => {
     const response = await handleRequest(
       new Request("https://example.test/grants/grant%3Ansa%3A16-2026"),

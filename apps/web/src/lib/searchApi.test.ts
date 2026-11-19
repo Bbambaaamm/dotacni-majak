@@ -48,6 +48,17 @@ describe("search API client", () => {
     });
   });
 
+  it("sends a continuation cursor for the same intent", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("intent=koupali%C5%A1t%C4%9B&cursor=next-page");
+      return new Response(JSON.stringify({ intent: "koupaliště", results: [],
+        expandedTerms: [], indexState: "READY", nextCursor: null }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await searchGrants("koupaliště", undefined, "next-page");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("explains local search backend unavailability", () => {
     expect(
       searchErrorMessage(

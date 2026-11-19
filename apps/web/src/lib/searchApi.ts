@@ -17,6 +17,7 @@ export interface GrantSearchResponse {
   results: GrantSearchResult[];
   expandedTerms: string[];
   indexState: "READY" | "EMPTY";
+  nextCursor: string | null;
 }
 
 export class SearchApiError extends Error {
@@ -31,8 +32,10 @@ export class SearchApiError extends Error {
 export async function searchGrants(
   intent: string,
   signal?: AbortSignal,
+  cursor?: string,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
+  if (cursor) params.set("cursor", cursor);
   const response = await fetch(`/api/search?${params.toString()}`, {
     method: "GET",
     headers: { accept: "application/json" },
