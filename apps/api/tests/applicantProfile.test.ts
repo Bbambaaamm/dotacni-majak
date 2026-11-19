@@ -28,12 +28,14 @@ interface StoredProfile {
   id: string;
   user_id: string;
   applicant_type: string;
+  applicant_type_id: string | null;
   ico: string | null;
   organisation_name: string | null;
   legal_form_code: string | null;
   municipality_code: string | null;
   municipality_name: string | null;
   region_code: string | null;
+  seat_geography_id: string | null;
   municipality_population: number | null;
   municipality_population_as_of: string | null;
   vat_status: string | null;
@@ -138,26 +140,31 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
 
           if (q.startsWith("INSERT INTO applicant_profiles")) {
             const existing = profiles.get(String(values[1]));
+            const mask = Number(values[21]);
+            const keep = <T>(index: number, bit: number, previous: T | undefined): T =>
+              existing && (mask & bit) === 0 ? previous as T : values[index] as T;
             const row: StoredProfile = {
               id: existing?.id ?? String(values[0]),
               user_id: String(values[1]),
               applicant_type: String(values[2]),
-              ico: values[3] as string | null,
-              organisation_name: values[4] as string | null,
-              legal_form_code: values[5] as string | null,
-              municipality_code: values[6] as string | null,
-              municipality_name: values[7] as string | null,
-              region_code: values[8] as string | null,
-              municipality_population: values[9] as number | null,
-              municipality_population_as_of: values[10] as string | null,
-              vat_status: values[11] as string | null,
-              organisation_size: values[12] as string | null,
-              public_private_status: values[13] as string | null,
-              nonprofit_status: values[14] as string | null,
-              cz_nace_json: String(values[15]),
-              field_sources_json: String(values[16]),
-              created_at: existing?.created_at ?? String(values[17]),
-              updated_at: String(values[18]),
+              applicant_type_id: keep(3, 1, existing?.applicant_type_id),
+              ico: keep(4, 2, existing?.ico),
+              organisation_name: keep(5, 4, existing?.organisation_name),
+              legal_form_code: keep(6, 8, existing?.legal_form_code),
+              municipality_code: keep(7, 16, existing?.municipality_code),
+              municipality_name: keep(8, 32, existing?.municipality_name),
+              region_code: keep(9, 64, existing?.region_code),
+              seat_geography_id: keep(10, 128, existing?.seat_geography_id),
+              municipality_population: keep(11, 256, existing?.municipality_population),
+              municipality_population_as_of: keep(12, 512, existing?.municipality_population_as_of),
+              vat_status: keep(13, 1024, existing?.vat_status),
+              organisation_size: keep(14, 2048, existing?.organisation_size),
+              public_private_status: keep(15, 4096, existing?.public_private_status),
+              nonprofit_status: keep(16, 8192, existing?.nonprofit_status),
+              cz_nace_json: keep(17, 16384, existing?.cz_nace_json),
+              field_sources_json: keep(18, 32768, existing?.field_sources_json),
+              created_at: existing?.created_at ?? String(values[19]),
+              updated_at: String(values[20]),
             };
             profiles.set(row.user_id, row);
             return result;
@@ -222,6 +229,20 @@ describe("applicant profile input validation", () => {
     expect(input.applicantType).toBe("UNKNOWN");
     expect(input.ico).toBe("12345678");
     expect(input.czNaceCodes).toEqual(["93.12", "94.99"]);
+  });
+
+  it("keeps omitted fields absent and recognizes explicit clearing values", async () => {
+    const parse = (body: unknown) => parseApplicantProfileInput(new Request("https://example.test/applicant-profile", {
+      method: "PUT", body: JSON.stringify(body),
+    }));
+    const sparse = await parse({ applicantType: "BUSINESS" });
+    expect(sparse).toEqual({ applicantType: "BUSINESS" });
+    const clearing = await parse({
+      applicantType: "BUSINESS", ico: null, czNaceCodes: null, fieldSources: null,
+    });
+    expect(clearing).toMatchObject({ ico: null, czNaceCodes: [], fieldSources: {} });
+    await expect(parse({ applicantType: "BUSINESS", schemaVersion: "2.0.0" }))
+      .rejects.toMatchObject({ code: "INVALID_SCHEMA_VERSION" });
   });
 
   it("rejects missing applicantType", async () => {
@@ -378,6 +399,7 @@ describe("applicant profile CRUD", () => {
     expect(retrieved?.id).toBe(saved.id);
     expect(retrieved?.ico).toBe("12345678");
     expect(retrieved?.czNaceCodes).toEqual(["93.12", "94.99"]);
+    expect(retrieved?.fieldSources).toEqual(input.fieldSources);
   });
 
   it("upsert is idempotent — second PUT updates without creating a new id", async () => {
@@ -402,6 +424,39 @@ describe("applicant profile CRUD", () => {
     expect(new Date(second.updatedAt).getTime()).toBe(t2.getTime());
     expect(new Date(second.createdAt).getTime()).toBe(t1.getTime());
     expect(first.createdAt).toBe(second.createdAt); // createdAt is immutable
+  });
+
+  it("preserves omitted fields and clears explicit null, arrays, and objects", async () => {
+    const env = fakeEnv();
+    const original = makeValidProfileInput({
+      schemaVersion: "1.0.0",
+      applicantTypeId: "type-1",
+      seatGeographyId: "geo-1",
+    });
+    const put = (body: unknown) => handleRequest(new Request("https://example.test/applicant-profile", {
+      method: "PUT",
+      headers: { authorization: `Bearer ${VALID_OWNER}` },
+      body: JSON.stringify(body),
+    }), env);
+    const first = await put(original);
+    expect(first.status).toBe(200);
+    const sparse = await put({ applicantType: "BUSINESS", organisationName: "Changed" });
+    expect(sparse.status).toBe(200);
+    const retained = (await sparse.json() as { profile: Record<string, unknown> }).profile;
+    expect(retained).toMatchObject({
+      schemaVersion: "1.0.0", applicantTypeId: "type-1", seatGeographyId: "geo-1",
+      organisationName: "Changed", ico: original.ico,
+      czNaceCodes: original.czNaceCodes, fieldSources: original.fieldSources,
+    });
+    const cleared = await put({
+      applicantType: "BUSINESS", applicantTypeId: null, seatGeographyId: null,
+      ico: null, czNaceCodes: [], fieldSources: {},
+    });
+    expect(cleared.status).toBe(200);
+    expect((await cleared.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      applicantTypeId: null, seatGeographyId: null, ico: null,
+      organisationName: "Changed", czNaceCodes: [], fieldSources: {}, lastResolvedAt: null,
+    });
   });
 
   it("computes lastResolvedAt from field sources (max observedAt)", async () => {

@@ -45,7 +45,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/applicant-profile` | Bearer owner capability | Returns the caller's profile (keyed by `projects.owner_user_id`) or `404 { profile: null }` when none exists. UNKNOWN ≠ FAIL. |
-| `PUT` | `/applicant-profile` | Bearer owner capability | Creates or updates (upsert) the caller's profile. Body size ≤ 16 KB. |
+| `PUT` | `/applicant-profile` | Bearer owner capability | Atomic create/update. `applicantType` is required; omitted optional fields retain their stored values, explicit `null`/`[]`/`{}` clears them. Body size ≤ 16 KB. |
 | `POST` | `/applicant-profile` | Bearer owner capability | Alias of `PUT` — same upsert semantics. |
 | `DELETE` | `/applicant-profile` | Bearer owner capability | Deletes the profile. Idempotent (returns `200 { deleted: true }` even if no profile exists). |
 | `GET` | `/applicant-profile/last-resolved` | Bearer owner capability | Read-only. Returns `{ lastResolvedAt: "ISO-8601" | null }` — the most recent `observedAt` from ARES, CZSO, or OTHER_OFFICIAL provenance. Exposes only the timestamp, never PII. |
@@ -71,7 +71,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 | `PROFILE_UNAVAILABLE` | 503 | DB error during read/write (no internal details, no PII) |
 
 ### Provenance & refresh timestamp
-- `field_sources_json` column stores per-field provenance: `sourceKind` (USER/ARES/CZSO/OTHER_OFFICIAL/DERIVED), `sourceReference`, `observedAt`, `verifiedAt`, `verificationStatus`, `evidenceId`.
+- `field_sources_json` column stores per-field provenance: `sourceKind` (USER/ARES/CZSO/OTHER_OFFICIAL/DERIVED), `sourceReference`, `observedAt`, `verifiedAt`, `verificationStatus`, `evidenceId`. GET/PUT responses return the complete stored `fieldSources`, plus canonical `schemaVersion`, `applicantTypeId` and `seatGeographyId` for lossless sync. `lastResolvedAt` is a derived API field; omit it when importing into the strictly shaped local profile store.
 - A live project owner capability resolves to `projects.owner_user_id`. Profile identity survives capability rotation; revoked or unknown capabilities return 404. One profile belongs to each owner ID; separate owners may use the same IČO.
 - `lastResolvedAt` = `max(observedAt)` across official field sources only. `null` when no official-source facts exist → caller knows a resolver refresh is due.
 - Future slice: `POST /applicant-profile/resolve` will trigger an async ARES/ČSÚ refresh background job.

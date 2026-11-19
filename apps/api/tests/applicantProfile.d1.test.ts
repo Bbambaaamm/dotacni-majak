@@ -44,6 +44,10 @@ async function setup(): Promise<Env> {
       await db.prepare(statement).run();
     }
   }
+  await db.prepare("INSERT INTO applicant_types(id,code,name_cs) VALUES (?,?,?)")
+    .bind("type-1", "BUSINESS", "Business").run();
+  await db.prepare("INSERT INTO geographies(id,geography_type,name,country_code) VALUES (?,?,?,?)")
+    .bind("geo-1", "MUNICIPALITY", "Test", "CZ").run();
   for (const [id, principal, capability] of [
     [projectA, "anonymous:" + projectA, token],
     [projectB, "anonymous:" + projectB, other],
@@ -102,14 +106,49 @@ describe("applicant profile with real D1", () => {
 
   it("atomically upserts one row under concurrent requests and allows shared IČO", async () => {
     const env = await setup();
-    const writes = await Promise.all(Array.from({ length: 8 }, (_, i) =>
-      handleRequest(request("PUT", token, { ...input, organisationName: `Owner A ${i}` }), env)));
+    const writes = await Promise.all([
+      { ...input, organisationName: "Owner A" },
+      { applicantType: "BUSINESS", municipalityCode: "123456" },
+      { applicantType: "BUSINESS", vatStatus: "PAYER" },
+      { applicantType: "BUSINESS", czNaceCodes: ["93.12"] },
+    ].map((body) => handleRequest(request("PUT", token, body), env)));
     expect(writes.every((response) => response.status === 200)).toBe(true);
+    const ownerProfile = await handleRequest(request("GET", token), env);
+    expect((await ownerProfile.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      ico: input.ico, organisationName: "Owner A", municipalityCode: "123456",
+      vatStatus: "PAYER", czNaceCodes: ["93.12"],
+    });
     const otherWrite = await handleRequest(request("PUT", other, { ...input, organisationName: "Owner B" }), env);
     expect(otherWrite.status).toBe(200);
     const rows = await env.DB.prepare("SELECT user_id, ico FROM applicant_profiles WHERE ico = ?")
       .bind(input.ico).all<{ user_id: string; ico: string }>();
     expect(rows.results).toHaveLength(2);
     expect(new Set((rows.results as { user_id: string }[]).map((row) => row.user_id)).size).toBe(2);
+  });
+
+  it("round-trips provenance and local identifiers through sparse and clearing writes", async () => {
+    const env = await setup();
+    const source = { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    const initial = { ...input, schemaVersion: "1.0.0", applicantTypeId: "type-1",
+      seatGeographyId: "geo-1", czNaceCodes: ["93.12"], fieldSources: { ico: source } };
+    expect((await handleRequest(request("POST", token, initial), env)).status).toBe(200);
+    const changed = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", organisationName: "Updated" }), env);
+    expect(changed.status).toBe(200);
+    const get = await handleRequest(request("GET", token), env);
+    expect(get.status).toBe(200);
+    expect((await get.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      schemaVersion: "1.0.0", applicantTypeId: "type-1", seatGeographyId: "geo-1",
+      ico: input.ico, organisationName: "Updated", czNaceCodes: ["93.12"],
+      fieldSources: { ico: source }, lastResolvedAt: source.observedAt,
+    });
+    const cleared = await handleRequest(request("POST", token, {
+      applicantType: "BUSINESS", applicantTypeId: null, seatGeographyId: null,
+      ico: null, czNaceCodes: [], fieldSources: {},
+    }), env);
+    expect(cleared.status).toBe(200);
+    expect((await cleared.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      applicantTypeId: null, seatGeographyId: null, ico: null,
+      organisationName: "Updated", czNaceCodes: [], fieldSources: {}, lastResolvedAt: null,
+    });
   });
 });

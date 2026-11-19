@@ -32,12 +32,40 @@ const MAX_CZNACE_CODES = 50;
  */
 export interface ApplicantProfileInput {
   applicantType: string;
+  schemaVersion?: "1.0.0";
+  applicantTypeId?: string | null;
+  ico?: string | null;
+  organisationName?: string | null;
+  legalFormCode?: string | null;
+  municipalityCode?: string | null;
+  municipalityName?: string | null;
+  regionCode?: string | null;
+  seatGeographyId?: string | null;
+  municipalityPopulation?: number | null;
+  municipalityPopulationAsOf?: string | null;
+  vatStatus?: string | null;
+  organisationSize?: string | null;
+  publicPrivateStatus?: string | null;
+  nonprofitStatus?: string | null;
+  czNaceCodes?: readonly string[];
+  fieldSources?: Record<string, unknown>;
+}
+
+/** Server-returned profile with derived provenance timestamp.
+ *  No raw token, user_id, or internal IDs are leaked.
+ */
+export interface ApplicantProfileResponse {
+  schemaVersion: "1.0.0";
+  id: string;
+  applicantType: string;
+  applicantTypeId: string | null;
   ico: string | null;
   organisationName: string | null;
   legalFormCode: string | null;
   municipalityCode: string | null;
   municipalityName: string | null;
   regionCode: string | null;
+  seatGeographyId: string | null;
   municipalityPopulation: number | null;
   municipalityPopulationAsOf: string | null;
   vatStatus: string | null;
@@ -46,27 +74,6 @@ export interface ApplicantProfileInput {
   nonprofitStatus: string | null;
   czNaceCodes: readonly string[];
   fieldSources: Record<string, unknown>;
-}
-
-/** Server-returned profile with derived provenance timestamp.
- *  No raw token, user_id, or internal IDs are leaked.
- */
-export interface ApplicantProfileResponse {
-  id: string;
-  applicantType: string;
-  ico: string | null;
-  organisationName: string | null;
-  legalFormCode: string | null;
-  municipalityCode: string | null;
-  municipalityName: string | null;
-  regionCode: string | null;
-  municipalityPopulation: number | null;
-  municipalityPopulationAsOf: string | null;
-  vatStatus: string | null;
-  organisationSize: string | null;
-  publicPrivateStatus: string | null;
-  nonprofitStatus: string | null;
-  czNaceCodes: readonly string[];
   /** Latest observedAt across official field_sources entries.
    *  null when no public-source facts have been recorded yet.
    *  This is the ARES/ČSÚ refresh timestamp the client uses to
@@ -81,12 +88,14 @@ export interface ApplicantProfileResponse {
 interface ProfileRow {
   id: string;
   applicant_type: string;
+  applicant_type_id: string | null;
   ico: string | null;
   organisation_name: string | null;
   legal_form_code: string | null;
   municipality_code: string | null;
   municipality_name: string | null;
   region_code: string | null;
+  seat_geography_id: string | null;
   municipality_population: number | null;
   municipality_population_as_of: string | null;
   vat_status: string | null;
@@ -170,24 +179,34 @@ function validateInputShape(body: unknown): ApplicantProfileInput {
   if (typeof applicantType !== "string" || !APPLICANT_TYPES.has(applicantType)) {
     throw new ApiInputError("INVALID_APPLICANT_TYPE");
   }
+  if (value.schemaVersion !== undefined && value.schemaVersion !== "1.0.0") {
+    throw new ApiInputError("INVALID_SCHEMA_VERSION");
+  }
 
   return {
     applicantType,
-    ico: nullableString(value.ico),
-    organisationName: nullableString(value.organisationName),
-    legalFormCode: nullableString(value.legalFormCode),
-    municipalityCode: nullableString(value.municipalityCode),
-    municipalityName: nullableString(value.municipalityName),
-    regionCode: nullableString(value.regionCode),
-    municipalityPopulation: nullableInteger(value.municipalityPopulation),
-    municipalityPopulationAsOf: nullableString(value.municipalityPopulationAsOf),
-    vatStatus: nullableString(value.vatStatus),
-    organisationSize: nullableString(value.organisationSize),
-    publicPrivateStatus: nullableString(value.publicPrivateStatus),
-    nonprofitStatus: nullableString(value.nonprofitStatus),
-    czNaceCodes: validateCzNaceCodes(value.czNaceCodes),
-    fieldSources: validateFieldSources(value.fieldSources),
+    ...(value.schemaVersion !== undefined && { schemaVersion: "1.0.0" as const }),
+    ...optional(value, "applicantTypeId", nullableString),
+    ...optional(value, "ico", nullableString),
+    ...optional(value, "organisationName", nullableString),
+    ...optional(value, "legalFormCode", nullableString),
+    ...optional(value, "municipalityCode", nullableString),
+    ...optional(value, "municipalityName", nullableString),
+    ...optional(value, "regionCode", nullableString),
+    ...optional(value, "seatGeographyId", nullableString),
+    ...optional(value, "municipalityPopulation", nullableInteger),
+    ...optional(value, "municipalityPopulationAsOf", nullableString),
+    ...optional(value, "vatStatus", nullableString),
+    ...optional(value, "organisationSize", nullableString),
+    ...optional(value, "publicPrivateStatus", nullableString),
+    ...optional(value, "nonprofitStatus", nullableString),
+    ...optional(value, "czNaceCodes", validateCzNaceCodes),
+    ...optional(value, "fieldSources", validateFieldSources),
   };
+}
+
+function optional<T>(value: Record<string, unknown>, key: string, parse: (raw: unknown) => T): Record<string, T> {
+  return Object.hasOwn(value, key) ? { [key]: parse(value[key]) } : {};
 }
 
 function nullableString(value: unknown): string | null {
@@ -308,35 +327,35 @@ function validCalendarDate(value: string): boolean {
 
 /** Semantic validation of cross-field / pattern constraints. */
 function validateFieldValues(profile: ApplicantProfileInput): void {
-  if (profile.ico !== null && !ICO_RE.test(profile.ico)) {
+  if (profile.ico != null && !ICO_RE.test(profile.ico)) {
     throw new ApiInputError("INVALID_ICO");
   }
   if (
-    profile.municipalityPopulationAsOf !== null &&
+    profile.municipalityPopulationAsOf != null &&
     !validCalendarDate(profile.municipalityPopulationAsOf)
   ) {
     throw new ApiInputError("INVALID_POPULATION_AS_OF");
   }
   if (
-    profile.vatStatus !== null &&
+    profile.vatStatus != null &&
     !["UNKNOWN", "PAYER", "NON_PAYER"].includes(profile.vatStatus)
   ) {
     throw new ApiInputError("INVALID_VAT_STATUS");
   }
   if (
-    profile.organisationSize !== null &&
+    profile.organisationSize != null &&
     !["UNKNOWN", "MICRO", "SMALL", "MEDIUM", "LARGE"].includes(profile.organisationSize)
   ) {
     throw new ApiInputError("INVALID_ORGANISATION_SIZE");
   }
   if (
-    profile.publicPrivateStatus !== null &&
+    profile.publicPrivateStatus != null &&
     !["PUBLIC", "PRIVATE", "MIXED", "UNKNOWN"].includes(profile.publicPrivateStatus)
   ) {
     throw new ApiInputError("INVALID_PUBLIC_PRIVATE_STATUS");
   }
   if (
-    profile.nonprofitStatus !== null &&
+    profile.nonprofitStatus != null &&
     !["NONPROFIT", "FOR_PROFIT", "UNKNOWN"].includes(profile.nonprofitStatus)
   ) {
     throw new ApiInputError("INVALID_NONPROFIT_STATUS");
@@ -361,11 +380,13 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
   }
 
   let lastResolvedAt: string | null = null;
+  let fieldSources: Record<string, unknown> = {};
   if (row.field_sources_json) {
     try {
-      const fieldSources: unknown = JSON.parse(row.field_sources_json);
-      if (typeof fieldSources === "object" && fieldSources !== null) {
-        const sources = fieldSources as Record<string, unknown>;
+      const parsed: unknown = JSON.parse(row.field_sources_json);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        fieldSources = parsed as Record<string, unknown>;
+        const sources = fieldSources;
         for (const s of Object.values(sources)) {
           if (
             s &&
@@ -390,14 +411,17 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
   }
 
   return {
+    schemaVersion: "1.0.0",
     id: row.id,
     applicantType: row.applicant_type,
+    applicantTypeId: row.applicant_type_id,
     ico: row.ico,
     organisationName: row.organisation_name,
     legalFormCode: row.legal_form_code,
     municipalityCode: row.municipality_code,
     municipalityName: row.municipality_name,
     regionCode: row.region_code,
+    seatGeographyId: row.seat_geography_id,
     municipalityPopulation: row.municipality_population,
     municipalityPopulationAsOf: row.municipality_population_as_of,
     vatStatus: row.vat_status,
@@ -405,6 +429,7 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
     publicPrivateStatus: row.public_private_status,
     nonprofitStatus: row.nonprofit_status,
     czNaceCodes,
+    fieldSources,
     lastResolvedAt,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -429,8 +454,8 @@ export async function getApplicantProfile(
   const userId = await ownerUserId(ownerToken, env);
   const row = await env.DB.prepare(
     `SELECT
-       id, applicant_type, ico, organisation_name, legal_form_code,
-       municipality_code, municipality_name, region_code,
+       id, applicant_type, applicant_type_id, ico, organisation_name, legal_form_code,
+       municipality_code, municipality_name, region_code, seat_geography_id,
        municipality_population, municipality_population_as_of,
        vat_status, organisation_size, public_private_status,
        nonprofit_status, cz_nace_json, field_sources_json,
@@ -455,44 +480,70 @@ export async function upsertApplicantProfile(
 ): Promise<ApplicantProfileResponse> {
   const userId = await ownerUserId(ownerToken, env);
   const timestamp = now.toISOString();
-  const czNaceJson = JSON.stringify([...input.czNaceCodes]);
-  const fieldSourcesJson = JSON.stringify(input.fieldSources);
-
+  const presenceMask = [
+    input.applicantTypeId !== undefined ? 1 : 0,
+    input.ico !== undefined ? 2 : 0,
+    input.organisationName !== undefined ? 4 : 0,
+    input.legalFormCode !== undefined ? 8 : 0,
+    input.municipalityCode !== undefined ? 16 : 0,
+    input.municipalityName !== undefined ? 32 : 0,
+    input.regionCode !== undefined ? 64 : 0,
+    input.seatGeographyId !== undefined ? 128 : 0,
+    input.municipalityPopulation !== undefined ? 256 : 0,
+    input.municipalityPopulationAsOf !== undefined ? 512 : 0,
+    input.vatStatus !== undefined ? 1024 : 0,
+    input.organisationSize !== undefined ? 2048 : 0,
+    input.publicPrivateStatus !== undefined ? 4096 : 0,
+    input.nonprofitStatus !== undefined ? 8192 : 0,
+    input.czNaceCodes !== undefined ? 16384 : 0,
+    input.fieldSources !== undefined ? 32768 : 0,
+  ].reduce((mask, bit) => mask | bit, 0);
   const profileId = "app_" + randomId();
   await env.DB.prepare(
-      `INSERT INTO applicant_profiles(
-         id, user_id, applicant_type, ico, organisation_name, legal_form_code,
-         municipality_code, municipality_name, region_code,
-         municipality_population, municipality_population_as_of,
-         vat_status, organisation_size, public_private_status,
-         nonprofit_status, cz_nace_json, field_sources_json,
-         created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id) WHERE user_id IS NOT NULL DO UPDATE SET
-         applicant_type = excluded.applicant_type, ico = excluded.ico,
-         organisation_name = excluded.organisation_name,
-         legal_form_code = excluded.legal_form_code,
-         municipality_code = excluded.municipality_code,
-         municipality_name = excluded.municipality_name,
-         region_code = excluded.region_code,
-         municipality_population = excluded.municipality_population,
-         municipality_population_as_of = excluded.municipality_population_as_of,
-         vat_status = excluded.vat_status,
-         organisation_size = excluded.organisation_size,
-         public_private_status = excluded.public_private_status,
-         nonprofit_status = excluded.nonprofit_status,
-         cz_nace_json = excluded.cz_nace_json,
-         field_sources_json = excluded.field_sources_json,
-         updated_at = excluded.updated_at`,
-    ).bind(
-      profileId, userId, input.applicantType, input.ico, input.organisationName,
-      input.legalFormCode, input.municipalityCode, input.municipalityName,
-      input.regionCode, input.municipalityPopulation, input.municipalityPopulationAsOf,
-      input.vatStatus, input.organisationSize, input.publicPrivateStatus,
-      input.nonprofitStatus, czNaceJson, fieldSourcesJson,
-      timestamp, timestamp,
+    `INSERT INTO applicant_profiles(
+       id, user_id, applicant_type, applicant_type_id, ico, organisation_name, legal_form_code, municipality_code,
+       municipality_name, region_code, seat_geography_id, municipality_population, municipality_population_as_of, vat_status, organisation_size,
+       public_private_status, nonprofit_status, cz_nace_json, field_sources_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) WHERE user_id IS NOT NULL DO UPDATE SET
+         applicant_type = excluded.applicant_type,
+         applicant_type_id = CASE WHEN (?22 & 1) != 0 THEN excluded.applicant_type_id ELSE applicant_profiles.applicant_type_id END,
+         ico = CASE WHEN (?22 & 2) != 0 THEN excluded.ico ELSE applicant_profiles.ico END,
+         organisation_name = CASE WHEN (?22 & 4) != 0 THEN excluded.organisation_name ELSE applicant_profiles.organisation_name END,
+         legal_form_code = CASE WHEN (?22 & 8) != 0 THEN excluded.legal_form_code ELSE applicant_profiles.legal_form_code END,
+         municipality_code = CASE WHEN (?22 & 16) != 0 THEN excluded.municipality_code ELSE applicant_profiles.municipality_code END,
+         municipality_name = CASE WHEN (?22 & 32) != 0 THEN excluded.municipality_name ELSE applicant_profiles.municipality_name END,
+         region_code = CASE WHEN (?22 & 64) != 0 THEN excluded.region_code ELSE applicant_profiles.region_code END,
+         seat_geography_id = CASE WHEN (?22 & 128) != 0 THEN excluded.seat_geography_id ELSE applicant_profiles.seat_geography_id END,
+         municipality_population = CASE WHEN (?22 & 256) != 0 THEN excluded.municipality_population ELSE applicant_profiles.municipality_population END,
+         municipality_population_as_of = CASE WHEN (?22 & 512) != 0 THEN excluded.municipality_population_as_of ELSE applicant_profiles.municipality_population_as_of END,
+         vat_status = CASE WHEN (?22 & 1024) != 0 THEN excluded.vat_status ELSE applicant_profiles.vat_status END,
+         organisation_size = CASE WHEN (?22 & 2048) != 0 THEN excluded.organisation_size ELSE applicant_profiles.organisation_size END,
+         public_private_status = CASE WHEN (?22 & 4096) != 0 THEN excluded.public_private_status ELSE applicant_profiles.public_private_status END,
+         nonprofit_status = CASE WHEN (?22 & 8192) != 0 THEN excluded.nonprofit_status ELSE applicant_profiles.nonprofit_status END,
+         cz_nace_json = CASE WHEN (?22 & 16384) != 0 THEN excluded.cz_nace_json ELSE applicant_profiles.cz_nace_json END,
+         field_sources_json = CASE WHEN (?22 & 32768) != 0 THEN excluded.field_sources_json ELSE applicant_profiles.field_sources_json END,
+         updated_at = excluded.updated_at
+    `).bind(
+      profileId, userId, input.applicantType,
+      input.applicantTypeId ?? null,
+      input.ico ?? null,
+      input.organisationName ?? null,
+      input.legalFormCode ?? null,
+      input.municipalityCode ?? null,
+      input.municipalityName ?? null,
+      input.regionCode ?? null,
+      input.seatGeographyId ?? null,
+      input.municipalityPopulation ?? null,
+      input.municipalityPopulationAsOf ?? null,
+      input.vatStatus ?? null,
+      input.organisationSize ?? null,
+      input.publicPrivateStatus ?? null,
+      input.nonprofitStatus ?? null,
+      JSON.stringify([...(input.czNaceCodes ?? [])]),
+      JSON.stringify(input.fieldSources ?? {}),
+      timestamp, timestamp, presenceMask,
     ).run();
-
   // Read back so the response reflects DB defaults/CONSTRAINTS and the
   // computed lastResolvedAt is fresh.
   const updated = await getApplicantProfile(env, ownerToken);
