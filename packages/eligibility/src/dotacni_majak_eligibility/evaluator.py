@@ -193,7 +193,7 @@ class EligibilityEvaluator:
 
         try:
             self._validate_group(rule_set.root)
-            root_result = self._evaluate_group(
+            root_result, causes = self._evaluate_group(
                 rule_set.root,
                 values,
                 condition_results,
@@ -212,11 +212,13 @@ class EligibilityEvaluator:
                 )
             )
             root_result = ConditionResult.ERROR
+            causes = set()
 
         status = self._public_status(
             rule_set,
             root_result,
             condition_results,
+            causes,
         )
         return EligibilityEvaluation(
             rule_set_id=rule_set.id,
@@ -244,30 +246,38 @@ class EligibilityEvaluator:
         group: RuleGroup,
         values: dict[str, Any],
         condition_results: list[ConditionEvaluation],
-    ) -> ConditionResult:
-        results: list[ConditionResult] = []
+    ) -> tuple[ConditionResult, set[str]]:
+        outcomes: list[tuple[ConditionResult, set[str]]] = []
         for child in group.children:
             if isinstance(child, RuleGroup):
-                results.append(
+                outcomes.append(
                     self._evaluate_group(child, values, condition_results)
                 )
                 continue
 
             evaluated = self._evaluate_condition(child, values)
             condition_results.append(evaluated)
-            results.append(
-                evaluated.result
-                if child.blocking
-                else ConditionResult.NOT_APPLICABLE
+            outcomes.append(
+                (evaluated.result, {child.id})
+                if child.blocking else (ConditionResult.NOT_APPLICABLE, set())
             )
 
+        results = [result for result, _ in outcomes]
         if group.operator is GroupOperator.NOT:
-            return _negate(results[0])
-        if group.operator is GroupOperator.AND:
-            return _and(results)
-        if group.operator is GroupOperator.OR:
-            return _or(results)
-        raise RuleDefinitionError(f"unsupported group operator {group.operator}")
+            result = _negate(results[0])
+            cause_result = results[0]
+        elif group.operator is GroupOperator.AND:
+            result = _and(results)
+            cause_result = result
+        elif group.operator is GroupOperator.OR:
+            result = _or(results)
+            cause_result = result
+        else:
+            raise RuleDefinitionError(f"unsupported group operator {group.operator}")
+        return result, set().union(*(
+            causes for child_result, causes in outcomes
+            if child_result is cause_result
+        ))
 
     def _evaluate_condition(
         self,
@@ -460,6 +470,7 @@ class EligibilityEvaluator:
         rule_set: RuleSet,
         root: ConditionResult,
         condition_results: list[ConditionEvaluation],
+        causes: set[str],
     ) -> EligibilityStatus:
         blocking = [item for item in condition_results if item.blocking]
 
@@ -472,7 +483,7 @@ class EligibilityEvaluator:
             failed = [
                 item
                 for item in blocking
-                if item.result is ConditionResult.FAIL
+                if item.condition_id in causes
             ]
             if any(
                 item.verification_status is not VerificationStatus.VERIFIED
