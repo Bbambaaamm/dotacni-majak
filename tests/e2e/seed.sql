@@ -115,7 +115,21 @@ INSERT INTO field_evidence(
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-deadline','GRANT_CALL_VERSION','gcv-e2e-open','/submission_close_at','e2e-dv-open',
    2,2,'Příjem žádostí do 31. prosince 2027, 23:59:59 UTC',
+   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
+  ('e2e-fe-applicant-type','GRANT_CALL_VERSION','gcv-e2e-open','/eligibility/applicant.type','e2e-dv-open',
+   1,1,'Pouze syntetický E2E test: žadatel je obec.',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z');
+
+-- Synthetic rule for the browser UNKNOWN -> declared answer -> fresh evaluation proof.
+-- It is test data only; it must never imply actual conditions of an official call.
+INSERT INTO eligibility_rule_sets(id,grant_call_version_id,name,completeness_status,verification_status)
+VALUES ('e2e-rule-set-open','gcv-e2e-open','E2E syntetický typ žadatele','COMPLETE','VERIFIED');
+INSERT INTO rule_groups(id,rule_set_id,group_operator)
+VALUES ('e2e-rule-root-open','e2e-rule-set-open','AND');
+INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,
+  expected_value_json,verification_status,evidence_id)
+VALUES ('e2e-applicant-type','e2e-rule-root-open','attr-applicant-type','EQ',
+  '"MUNICIPALITY"','VERIFIED','e2e-fe-applicant-type');
 
 INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at,timezone,description,evidence_id)
 VALUES ('e2e-deadline-open','gcv-e2e-open','APPLICATION_CLOSE',

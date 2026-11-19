@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
+import { ProjectEligibility } from "../components/ProjectEligibility";
 import {
   absoluteShareUrl,
   createAnonymousProject,
@@ -394,6 +395,14 @@ export function ProjectsPage() {
           </>
         )}
       </section>
+
+      {workspace && !workspaceError && (
+        <ProjectEligibility
+          key={`${project.projectId}:${workspace.workspace.grantCallId}`}
+          grantCallId={workspace.workspace.grantCallId}
+          ownerCapability={project.ownerCapability}
+        />
+      )}
 
       <section className="share-card" aria-labelledby="watch-title">
         <div className="share-page__head">
