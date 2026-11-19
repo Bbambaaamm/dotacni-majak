@@ -187,6 +187,14 @@ proměnit v hromadné „zmizení“ výzev.
 nemění `grant_calls.current_status`; CLOSED/CANCELLED smí vzniknout jen z
 autoritativního důkazu ve verzi výzvy.
 
+Detail výzvy zobrazuje výskyt každého `source_record` zvlášť. `SEEN` znamená
+pozorování u daného zdroje, `MISSING_CANDIDATE` předběžné chybění a
+`CONFIRMED_MISSING` chybění potvrzené úspěšnými běhy téhož zdroje. Ani jeden
+stav sám nemění stav výzvy nebo nedokládá zrušení. Pokud nejsou k výzvě žádné
+zdrojové záznamy, výskyt je neznámý. U více zdrojů může být jeden záznam
+viděn, zatímco jiný chybí; upozornění pro celou výzvu se proto ukazuje jen
+tehdy, když všechny zobrazené záznamy (Detail API vrací nejvýše 20) chybí nebo
+jsou kandidáty na chybění; netvrdí tím nic o nezobrazených záznamech.
 
 ### Persistent quarantine review/reprocess
 
