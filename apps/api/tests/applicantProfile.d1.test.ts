@@ -245,4 +245,85 @@ describe("applicant profile with real D1", () => {
     });
     expect(profile.fieldSources).toEqual({ municipalityCode: municipalitySource });
   });
+
+  it("invalidates an omitted population date and its source when population changes", async () => {
+    const env = await setup();
+    const official = { sourceKind: "CZSO", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    const unrelated = { sourceKind: "ARES", observedAt: "2026-09-20T12:00:00Z", verificationStatus: "VERIFIED" };
+    expect((await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "12345678", municipalityCode: "123456",
+      municipalityPopulation: 100, municipalityPopulationAsOf: "2026-01-01",
+    }), env)).status).toBe(200);
+    await seedTrustedSources(env, { municipalityPopulation: official, municipalityPopulationAsOf: official, ico: unrelated });
+
+    const unchanged = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", municipalityPopulation: 100 }), env);
+    expect(unchanged.status).toBe(200);
+    expect((await unchanged.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      municipalityPopulationAsOf: "2026-01-01",
+      fieldSources: { municipalityPopulation: official, municipalityPopulationAsOf: official, ico: unrelated },
+      lastResolvedAt: official.observedAt,
+    });
+
+    const changed = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", municipalityPopulation: 200 }), env);
+    expect(changed.status).toBe(200);
+    expect((await changed.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      municipalityCode: "123456", municipalityPopulation: 200, municipalityPopulationAsOf: null,
+      fieldSources: { ico: unrelated }, lastResolvedAt: unrelated.observedAt,
+    });
+    const retry = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", municipalityPopulation: 200 }), env);
+    expect(retry.status).toBe(200);
+    expect((await retry.json() as { profile: { fieldSources: Record<string, unknown>; municipalityPopulationAsOf: string | null } }).profile)
+      .toMatchObject({ municipalityPopulationAsOf: null, fieldSources: { ico: unrelated } });
+  });
+
+  it("invalidates omitted municipality dependents and old provenance, including on concurrent sparse writes", async () => {
+    const env = await setup();
+    const official = { sourceKind: "CZSO", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    const unrelated = { sourceKind: "ARES", observedAt: "2026-09-20T12:00:00Z", verificationStatus: "VERIFIED" };
+    expect((await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "12345678", municipalityCode: "123456", municipalityName: "Old town", regionCode: "OLD",
+      seatGeographyId: "geo-1", municipalityPopulation: 100, municipalityPopulationAsOf: "2026-01-01",
+    }), env)).status).toBe(200);
+    await seedTrustedSources(env, {
+      ico: unrelated, municipalityCode: official, municipalityName: official, regionCode: official, seatGeographyId: official,
+      municipalityPopulation: official, municipalityPopulationAsOf: official,
+    });
+
+    const writes = await Promise.all([
+      { applicantType: "BUSINESS", municipalityCode: "654321" },
+      { applicantType: "BUSINESS", organisationName: "Concurrent update" },
+    ].map((body) => handleRequest(request("PUT", token, body), env)));
+    expect(writes.map((response) => response.status)).toEqual([200, 200]);
+    const profile = (await (await handleRequest(request("GET", token), env)).json() as { profile: Record<string, unknown> }).profile;
+    expect(profile).toMatchObject({
+      ico: "12345678", organisationName: "Concurrent update", municipalityCode: "654321",
+      municipalityName: null, regionCode: null, seatGeographyId: null,
+      municipalityPopulation: null, municipalityPopulationAsOf: null,
+      fieldSources: { ico: unrelated }, lastResolvedAt: unrelated.observedAt,
+    });
+    expect(profile.fieldSources).toEqual({ ico: unrelated });
+  });
+
+  it("keeps explicit replacement values without carrying their old official provenance", async () => {
+    const env = await setup();
+    const official = { sourceKind: "CZSO", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    expect((await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", municipalityCode: "123456", seatGeographyId: "geo-1",
+      municipalityPopulation: 100, municipalityPopulationAsOf: "2026-01-01",
+    }), env)).status).toBe(200);
+    await seedTrustedSources(env, {
+      municipalityCode: official, seatGeographyId: official,
+      municipalityPopulation: official, municipalityPopulationAsOf: official,
+    });
+    const changed = await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", municipalityCode: "654321", seatGeographyId: "geo-1",
+      municipalityPopulation: 100, municipalityPopulationAsOf: "2026-02-01",
+    }), env);
+    expect(changed.status).toBe(200);
+    expect((await changed.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      municipalityCode: "654321", seatGeographyId: "geo-1",
+      municipalityPopulation: 100, municipalityPopulationAsOf: "2026-02-01",
+      fieldSources: {}, lastResolvedAt: null,
+    });
+  });
 });

@@ -529,6 +529,18 @@ export async function upsertApplicantProfile(
   const changed = (column: string, bit: number) => column === "applicant_type_id"
     ? `(((?22 & 1) != 0 AND applicant_profiles.applicant_type_id IS NOT excluded.applicant_type_id) OR ((?22 & 1) = 0 AND applicant_profiles.applicant_type IS NOT excluded.applicant_type AND applicant_profiles.applicant_type_id IS NOT NULL))`
     : `${bit ? `(?22 & ${bit}) != 0 AND ` : ""}applicant_profiles.${column} IS NOT excluded.${column}`;
+  const municipalityChanged = changed("municipality_code", 16);
+  const populationChanged = changed("municipality_population", 256);
+  const invalidated = (key: string, column: string, bit: number) => {
+    const ownChange = changed(column, bit);
+    if (["municipalityName", "regionCode", "seatGeographyId", "municipalityPopulation"].includes(key)) {
+      return `(${ownChange}) OR (${municipalityChanged})`;
+    }
+    if (key === "municipalityPopulationAsOf") {
+      return `(${ownChange}) OR (${populationChanged}) OR (${municipalityChanged})`;
+    }
+    return ownChange;
+  };
   const pruneSources = (base: string, explicit: boolean) => `json_remove(${base}, ${sourcedFields.map(([key, column, bit]) => {
     const path = `$.${key}`;
     // A replacement source is accepted unless it is identical to the old
@@ -536,7 +548,7 @@ export async function upsertApplicantProfile(
     const stale = explicit
       ? ` AND json_extract(applicant_profiles.field_sources_json, '${path}') IS json_extract(excluded.field_sources_json, '${path}')`
       : "";
-    return `CASE WHEN (${changed(column, bit)})${stale} THEN '${path}' ELSE '$.__unchanged' END`;
+    return `CASE WHEN (${invalidated(key, column, bit)})${stale} THEN '${path}' ELSE '$.__unchanged' END`;
   }).join(", ")})`;
   const profileId = "app_" + randomId();
   await env.DB.prepare(
@@ -552,11 +564,11 @@ export async function upsertApplicantProfile(
          organisation_name = CASE WHEN (?22 & 4) != 0 THEN excluded.organisation_name ELSE applicant_profiles.organisation_name END,
          legal_form_code = CASE WHEN (?22 & 8) != 0 THEN excluded.legal_form_code ELSE applicant_profiles.legal_form_code END,
          municipality_code = CASE WHEN (?22 & 16) != 0 THEN excluded.municipality_code ELSE applicant_profiles.municipality_code END,
-         municipality_name = CASE WHEN (?22 & 32) != 0 THEN excluded.municipality_name ELSE applicant_profiles.municipality_name END,
-         region_code = CASE WHEN (?22 & 64) != 0 THEN excluded.region_code ELSE applicant_profiles.region_code END,
-         seat_geography_id = CASE WHEN (?22 & 128) != 0 THEN excluded.seat_geography_id ELSE applicant_profiles.seat_geography_id END,
-         municipality_population = CASE WHEN (?22 & 256) != 0 THEN excluded.municipality_population ELSE applicant_profiles.municipality_population END,
-         municipality_population_as_of = CASE WHEN (?22 & 512) != 0 THEN excluded.municipality_population_as_of ELSE applicant_profiles.municipality_population_as_of END,
+         municipality_name = CASE WHEN (?22 & 32) != 0 THEN excluded.municipality_name WHEN ${municipalityChanged} THEN NULL ELSE applicant_profiles.municipality_name END,
+         region_code = CASE WHEN (?22 & 64) != 0 THEN excluded.region_code WHEN ${municipalityChanged} THEN NULL ELSE applicant_profiles.region_code END,
+         seat_geography_id = CASE WHEN (?22 & 128) != 0 THEN excluded.seat_geography_id WHEN ${municipalityChanged} THEN NULL ELSE applicant_profiles.seat_geography_id END,
+         municipality_population = CASE WHEN (?22 & 256) != 0 THEN excluded.municipality_population WHEN ${municipalityChanged} THEN NULL ELSE applicant_profiles.municipality_population END,
+         municipality_population_as_of = CASE WHEN (?22 & 512) != 0 THEN excluded.municipality_population_as_of WHEN (${populationChanged}) OR (${municipalityChanged}) THEN NULL ELSE applicant_profiles.municipality_population_as_of END,
          vat_status = CASE WHEN (?22 & 1024) != 0 THEN excluded.vat_status ELSE applicant_profiles.vat_status END,
          organisation_size = CASE WHEN (?22 & 2048) != 0 THEN excluded.organisation_size ELSE applicant_profiles.organisation_size END,
          public_private_status = CASE WHEN (?22 & 4096) != 0 THEN excluded.public_private_status ELSE applicant_profiles.public_private_status END,
