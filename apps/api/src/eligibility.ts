@@ -116,7 +116,8 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
           if (v.data_type !== c.data_type || v.value_type !== c.data_type) throw new Error("INVALID_INPUT_TYPE");
           if (!["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"].includes(v.source_kind)
             || !["USER_DECLARED", "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"].includes(v.verification_status)
-            || (v.source_kind === "USER") !== (v.verification_status === "USER_DECLARED")) throw new Error("INVALID_INPUT_PROVENANCE");
+            || (v.source_kind === "USER") !== (v.verification_status === "USER_DECLARED")
+            || (v.verification_status === "VERIFIED" && !v.evidence_id)) throw new Error("INVALID_INPUT_PROVENANCE");
           actual = parsed(v.value_json);
           if (actual === "UNKNOWN" && !["STRING", "ENUM", "GEO_ID"].includes(c.data_type)) throw new Error("INVALID_INPUT_TYPE");
           if (actual !== null && actual !== "UNKNOWN") {
@@ -172,13 +173,17 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
   const root = outcome.result;
   const blocking = out.filter((c) => c.blocking);
   const conditionById = new Map(conditions.map((condition) => [condition.id, condition]));
+  const inputTrusted = (c: PublicCondition) => c.inputVerification === "VERIFIED"
+    && c.inputSource === "ATTRIBUTE_VALUE" && c.inputEvidenceId !== null;
+  const definitive = (c: PublicCondition) => conditionById.get(c.conditionId)?.verification_status === "VERIFIED"
+    && inputTrusted(c);
   let status: Status;
   if (root === "ERROR") status = "NEEDS_REVIEW";
-  else if (root === "FAIL") status = outcome.causes.some((id) => conditionById.get(id)?.verification_status !== "VERIFIED") ? "NEEDS_REVIEW" : "INELIGIBLE";
+  else if (root === "FAIL") status = outcome.causes.some((id) => !definitive(out.find((c) => c.conditionId === id)!)) ? "NEEDS_REVIEW" : "INELIGIBLE";
   else if (root === "UNKNOWN") status = "NEEDS_INFORMATION";
   else if (root === "NOT_APPLICABLE") status = "NEEDS_REVIEW";
   else status = ruleSet.completeness_status === "COMPLETE" && ruleSet.verification_status === "VERIFIED"
-    && blocking.every((c) => c.result === "NOT_APPLICABLE" || conditionById.get(c.conditionId)?.verification_status === "VERIFIED")
+    && blocking.every((c) => c.result === "NOT_APPLICABLE" || definitive(c))
     ? "ELIGIBLE" : "LIKELY_ELIGIBLE";
   return { ...base, status, rootResult: root, reason: "EVALUATED", conditions: out,
     missingAttributes: [...new Set(out.filter((c) => c.result === "UNKNOWN" && c.reason === "MISSING_INPUT").map((c) => c.attributeKey))],

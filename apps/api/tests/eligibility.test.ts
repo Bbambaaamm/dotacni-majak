@@ -18,12 +18,12 @@ describe("eligibility evaluator parity subset", () => {
       rootResult: "UNKNOWN", status: "NEEDS_INFORMATION", missingAttributes: ["applicant.type"],
     });
     const pass = evaluateRules(base, set, groups, [condition], profile, []);
-    expect(pass).toMatchObject({ status: "ELIGIBLE", rootResult: "PASS", conditions: [{
+    expect(pass).toMatchObject({ status: "LIKELY_ELIGIBLE", rootResult: "PASS", conditions: [{
       conditionId: "c", evidenceId: "evidence-1", inputSource: "PROFILE", result: "PASS",
     }] });
     expect(JSON.stringify(pass)).not.toContain("MUNICIPALITY");
     expect(evaluateRules(base, set, groups, [condition], { ...profile, applicant_type: "BUSINESS" }, []))
-      .toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["c"] });
+      .toMatchObject({ status: "NEEDS_REVIEW", rootResult: "FAIL", blockers: ["c"] });
     expect(evaluateRules(base, set, groups, [{ ...condition, verification_status: "AUTO_EXTRACTED" }],
       { ...profile, applicant_type: "BUSINESS" }, []).status).toBe("NEEDS_REVIEW");
   });
@@ -40,7 +40,7 @@ describe("eligibility evaluator parity subset", () => {
     expect(JSON.stringify(result)).not.toContain("3200");
     expect(JSON.stringify(result)).not.toContain("5000");
     expect(evaluateRules(base, set, groups, [{ ...condition, condition_operator: "IN",
-      expected_value_json: '["MUNICIPALITY","REGION"]' }], profile, []).status).toBe("ELIGIBLE");
+      expected_value_json: '["MUNICIPALITY","REGION"]' }], profile, []).status).toBe("LIKELY_ELIGIBLE");
   });
 
   it("falls back from missing mapped values while keeping present columns authoritative", () => {
@@ -54,9 +54,9 @@ describe("eligibility evaluator parity subset", () => {
       conditions: [{ result: "PASS" }, { result: "FAIL", inputSource: "ATTRIBUTE_VALUE",
         inputVerification: "VERIFIED", inputEvidenceId: "input-evidence" }] });
     expect(evaluateRules(base, set, groups, [legal], { ...profile, legal_form_code: "GOOD" }, [sparse]))
-      .toMatchObject({ rootResult: "PASS", conditions: [{ inputSource: "PROFILE", result: "PASS" }] });
+      .toMatchObject({ status: "LIKELY_ELIGIBLE", rootResult: "PASS", conditions: [{ inputSource: "PROFILE", result: "PASS" }] });
     expect(evaluateRules(base, set, groups, [legal], { ...profile, legal_form_code: "UNKNOWN" }, [sparse]))
-      .toMatchObject({ rootResult: "FAIL", conditions: [{ inputSource: "ATTRIBUTE_VALUE" }] });
+      .toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", conditions: [{ inputSource: "ATTRIBUTE_VALUE" }] });
     expect(evaluateRules(base, set, groups, [legal], profile, [])).toMatchObject({
       rootResult: "NOT_APPLICABLE", status: "NEEDS_REVIEW", conditions: [{ result: "NOT_APPLICABLE" }] });
   });
@@ -67,7 +67,7 @@ describe("eligibility evaluator parity subset", () => {
     const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
       data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
       verification_status: "VERIFIED", evidence_id: "input-evidence" };
-    for (const altered of [{ value_type: "INTEGER" }, { value_json: "42" },
+    for (const altered of [{ value_type: "INTEGER" }, { value_json: "42" }, { evidence_id: null },
       { value_json: "{bad" }, { source_kind: "USER", verification_status: "VERIFIED" },
       { source_kind: "ARES", verification_status: "USER_DECLARED" }]) {
       expect(evaluateRules(base, set, groups, [legal], profile, [{ ...sparse, ...altered }]))
@@ -77,6 +77,18 @@ describe("eligibility evaluator parity subset", () => {
       .toMatchObject({ status: "NEEDS_REVIEW", rootResult: "ERROR" });
     expect(evaluateRules(base, set, groups, [{ ...legal, condition_operator: "EXISTS" }], profile,
       [{ ...sparse, value_json: "null" }])).toMatchObject({ rootResult: "UNKNOWN", status: "NEEDS_INFORMATION" });
+  });
+
+  it("downgrades a retained sparse fact after identity invalidation", () => {
+    const legal = { ...condition, attribute_key: "applicant.legal_form", data_type: "STRING",
+      expected_value_json: '"GOOD"' };
+    const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
+      data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
+      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+    expect(evaluateRules(base, set, groups, [legal], profile, [sparse]).status).toBe("INELIGIBLE");
+    expect(evaluateRules(base, set, groups, [legal], profile,
+      [{ ...sparse, verification_status: "NEEDS_REVIEW" }]))
+      .toMatchObject({ rootResult: "FAIL", status: "NEEDS_REVIEW", blockers: ["c"] });
   });
 
   it("fails closed for malformed, unsupported, and disconnected rules", () => {
@@ -125,6 +137,12 @@ describe("eligibility evaluator parity subset", () => {
       rootResult: "FAIL", status: "NEEDS_REVIEW", blockers: ["first"],
     });
     expect(evaluateRules(base, set, nested, [{ ...first, verification_status: "VERIFIED" }, second], profile, []))
+      .toMatchObject({ rootResult: "FAIL", status: "NEEDS_REVIEW", blockers: ["first"] });
+    const official = { attribute_definition_id: "attr-applicant-type", attribute_key: "applicant.type",
+      data_type: "ENUM", value_type: "ENUM", value_json: '"MUNICIPALITY"', source_kind: "ARES",
+      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+    expect(evaluateRules(base, set, nested, [{ ...first, verification_status: "VERIFIED" }, second],
+      { ...profile, applicant_type: "UNKNOWN" }, [official]))
       .toMatchObject({ rootResult: "FAIL", status: "INELIGIBLE", blockers: ["first"] });
     const doubleNot = [...nested, { id: "inner", parent_group_id: "choice", group_operator: "NOT", sort_order: 0 }];
     expect(evaluateRules(base, set, doubleNot, [{ ...first, rule_group_id: "inner" }, second], profile, []))
@@ -155,7 +173,7 @@ describe("eligibility evaluator parity subset", () => {
     const token = "A".repeat(43);
     expect((await evaluateGrant(env, token, "g"))?.status).toBe("NEEDS_INFORMATION");
     applicant = true;
-    expect((await evaluateGrant(env, token, "g"))?.status).toBe("ELIGIBLE");
+    expect((await evaluateGrant(env, token, "g"))?.status).toBe("LIKELY_ELIGIBLE");
     expect(batches).toHaveLength(2);
     for (const statements of batches) {
       expect(statements).toHaveLength(6);

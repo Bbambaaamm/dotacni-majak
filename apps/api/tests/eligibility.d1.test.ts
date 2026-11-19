@@ -24,9 +24,11 @@ async function setup(): Promise<Env> {
   const migrations = resolve(import.meta.dirname, "../../../migrations");
   for (const file of ["0001_core_identity.sql", "0002_documents_provenance.sql", "0003_funding_projects_changes.sql",
     "0006_eligibility_rules.sql", "0007_applicant_profiles.sql", "0017_project_sharing.sql",
-    "0018_project_owner_capabilities.sql", "0023_geography_applicant_rules.sql", "0029_applicant_profile_owner_identity.sql"]) {
+    "0018_project_owner_capabilities.sql", "0023_geography_applicant_rules.sql", "0029_applicant_profile_owner_identity.sql",
+    "0030_applicant_sparse_ico_invalidation.sql"]) {
     const sql = readFileSync(resolve(migrations, file), "utf8")
       .replace(/^\s*--[^\n]*$/gm, "").replace(/^PRAGMA foreign_keys = ON;\s*/gm, "").replace(/\r?\n/g, " ");
+    if (file.startsWith("0030_")) { await db.exec(sql); continue; }
     for (const statement of sql.split(";").map((part: string) => part.trim()).filter(Boolean)) await db.prepare(statement).run();
   }
   await db.prepare("INSERT INTO providers(id,name,provider_type) VALUES ('provider','Provider','NATIONAL')").run();
@@ -81,10 +83,10 @@ describe("eligibility endpoint with real D1", () => {
       method: "PUT", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ applicantType }),
     }), env);
     expect((await put("MUNICIPALITY")).status).toBe(200);
-    expect(await result(env)).toMatchObject({ status: "ELIGIBLE", rootResult: "PASS", missingAttributes: [] });
+    expect(await result(env)).toMatchObject({ status: "LIKELY_ELIGIBLE", rootResult: "PASS", missingAttributes: [] });
     expect((await put("BUSINESS")).status).toBe(200);
     const failed = await result(env);
-    expect(failed).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["type-v1"] });
+    expect(failed).toMatchObject({ status: "NEEDS_REVIEW", rootResult: "FAIL", blockers: ["type-v1"] });
     expect(JSON.stringify(failed)).not.toContain("MUNICIPALITY");
     expect(JSON.stringify(failed)).not.toContain("BUSINESS");
   });
@@ -99,7 +101,7 @@ describe("eligibility endpoint with real D1", () => {
     await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at)
       VALUES ('profile-other',?,?,?,?)`).bind(`anonymous:prj_${"b".repeat(32)}`, "MUNICIPALITY", now, now).run();
     expect((await result(env)).status).toBe("NEEDS_INFORMATION");
-    expect((await result(env, other)).status).toBe("ELIGIBLE");
+    expect((await result(env, other)).status).toBe("LIKELY_ELIGIBLE");
     await env.DB.prepare("UPDATE project_owner_capabilities SET revoked_at = ? WHERE token_hash = ?")
       .bind(now, await hashOwnerToken(other)).run();
     expect((await handleRequest(req(other), env)).status).toBe(404);
@@ -109,7 +111,7 @@ describe("eligibility endpoint with real D1", () => {
     const env = await setup(); await seedRule(env);
     await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at)
       VALUES ('profile-a',?,?,?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, "MUNICIPALITY", now, now).run();
-    expect((await result(env)).status).toBe("ELIGIBLE");
+    expect((await result(env)).status).toBe("LIKELY_ELIGIBLE");
     await env.DB.prepare(`INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,status,verification_status,created_at)
       VALUES (?,?,?,?,?,?,?,?)`).bind("v2", grant, 2, now, "Grant", "OPEN", "VERIFIED", now).run();
     await env.DB.prepare("UPDATE grant_calls SET current_version_id = 'v2' WHERE id = ?").bind(grant).run();
@@ -123,7 +125,7 @@ describe("eligibility endpoint with real D1", () => {
     expect(await result(env)).toMatchObject({ versionId: "v1", status: "NEEDS_INFORMATION" });
     await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at)
       VALUES ('profile-a',?,?,?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, "MUNICIPALITY", now, now).run();
-    expect(await result(env)).toMatchObject({ versionId: "v1", status: "ELIGIBLE" });
+    expect(await result(env)).toMatchObject({ versionId: "v1", status: "LIKELY_ELIGIBLE" });
   });
 
   it("uses verified sparse legal form when the mapped column is null, with column precedence when present", async () => {
@@ -142,10 +144,37 @@ describe("eligibility endpoint with real D1", () => {
       conditions: [{ conditionId: "type-v1", result: "PASS" }, { conditionId: "legal", result: "FAIL",
         inputSource: "ATTRIBUTE_VALUE", inputVerification: "VERIFIED", inputEvidenceId: "evidence-rule" }] });
     await env.DB.prepare("UPDATE applicant_profiles SET legal_form_code = 'GOOD' WHERE id = 'profile-a'").run();
-    expect(await result(env)).toMatchObject({ status: "ELIGIBLE", rootResult: "PASS",
+    expect(await result(env)).toMatchObject({ status: "LIKELY_ELIGIBLE", rootResult: "PASS",
       conditions: [{ result: "PASS" }, { result: "PASS", inputSource: "PROFILE" }] });
     await env.DB.prepare("UPDATE applicant_profiles SET legal_form_code = 'UNKNOWN' WHERE id = 'profile-a'").run();
     expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL",
       conditions: [{ result: "PASS" }, { result: "FAIL", inputSource: "ATTRIBUTE_VALUE" }] });
+  });
+
+  it("invalidates verified sparse facts atomically when the owner changes IČO", async () => {
+    const env = await setup(); await seedRule(env);
+    await env.DB.prepare(`INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,
+      expected_value_json,verification_status,evidence_id,sort_order)
+      VALUES ('legal','root-v1','attr-applicant-legal-form','EQ','"GOOD"','VERIFIED','evidence-rule',1)`).run();
+    await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,ico,created_at,updated_at)
+      VALUES ('profile-a',?,'MUNICIPALITY','12345678',?,?)`)
+      .bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
+      value_type,value_json,source_kind,observed_at,verified_at,verification_status,evidence_id)
+      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,?,'VERIFIED','evidence-rule')`)
+      .bind(now, now).run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"] });
+    const response = await handleRequest(new Request("https://example.test/applicant-profile", {
+      method: "PUT", headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({ applicantType: "MUNICIPALITY", ico: "87654321" }),
+    }), env);
+    expect(response.status).toBe(200);
+    expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW", rootResult: "FAIL", blockers: ["legal"],
+      conditions: [{ inputVerification: "USER_DECLARED" }, { inputVerification: "NEEDS_REVIEW" }] });
+    const sparse = await env.DB.prepare("SELECT verification_status, verified_at FROM applicant_attribute_values WHERE id = 'legal-value'").first();
+    expect(sparse).toMatchObject({ verification_status: "NEEDS_REVIEW", verified_at: null });
+    const otherProject = await env.DB.prepare("SELECT natural_language_intent FROM projects WHERE id = ?")
+      .bind("prj_" + "b".repeat(32)).first();
+    expect(otherProject?.natural_language_intent).toBe("test");
   });
 });
