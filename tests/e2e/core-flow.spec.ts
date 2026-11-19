@@ -653,11 +653,12 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await filterToggle.click();
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E plánovaná výzva");
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE_LATEST");
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E otevřená výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E otevřená výzva");
+  await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toBeVisible();
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();

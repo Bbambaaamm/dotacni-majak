@@ -323,6 +323,9 @@ export function SearchPage() {
 
           <details className="filter-panel" ref={attachFilterPanel}
             onToggle={(event) => {
+              // A detached panel can dispatch a delayed toggle after a new search
+              // has mounted its replacement; never overwrite that panel's state.
+              if (event.currentTarget !== filterPanel.current) return;
               if (!window.matchMedia("(min-width: 801px)").matches) {
                 mobileFiltersOpen.current = event.currentTarget.open;
               }
