@@ -45,6 +45,7 @@ export function SearchPage() {
   const demoState = parseDemoResultState(params.get("demoState"));
   const [data, setData] = useState<GrantSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [loading, setLoading] = useState(Boolean(intent && !demoState));
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
@@ -169,7 +170,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder, retryKey]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -258,6 +259,9 @@ export function SearchPage() {
             <h2>Výsledky teď neumíme bezpečně zobrazit.</h2>
             <p>{error}</p>
           </div>
+          <button className="button button--primary" type="button" onClick={() => setRetryKey((key) => key + 1)}>
+            Zkusit vyhledávání znovu
+          </button>
           <a className="button button--secondary button-link" href="/">
             Upravit záměr
           </a>
