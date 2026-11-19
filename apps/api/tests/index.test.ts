@@ -143,6 +143,10 @@ describe("api worker", () => {
       ["intent=test&limit=2.5", "INVALID_LIMIT"],
       ["intent=test&limit=20oops", "INVALID_LIMIT"],
       ["intent=test&cursor=garbage", "INVALID_CURSOR"],
+      ["intent=test&status=CLOSED", "INVALID_STATUS"],
+      ["intent=test&status=ALL", "INVALID_STATUS"],
+      ["intent=test&status=", "INVALID_STATUS"],
+      ["intent=test&status=OPEN&status=PLANNED", "INVALID_STATUS"],
     ]) {
       const response = await handleRequest(new Request(`https://example.test/search?${query}`), env());
       expect(response.status).toBe(400);

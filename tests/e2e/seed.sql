@@ -143,7 +143,8 @@ WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
   current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
 SELECT 'grant:e2e:page:' || i,'e2e-programme-open','E2E-PAGE-' || i,
-  'e2e-page-' || i,NULL,'OPEN','E2E stránkování ' || i,
+  'e2e-page-' || i,NULL,CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,
+  CASE WHEN i = 25 THEN 'E2E pozdější plánovaná výzva' ELSE 'E2E stránkování ' || i END,
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z' FROM n;
 
@@ -151,7 +152,8 @@ WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
   official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
 SELECT 'gcv-e2e-page-' || i,'grant:e2e:page:' || i,1,'2026-09-26T20:00:00Z',
-  'E2E stránkování ' || i,'Testovací záznam stránkování.','OPEN',
+  CASE WHEN i = 25 THEN 'E2E pozdější plánovaná výzva' ELSE 'E2E stránkování ' || i END,
+  'Testovací záznam stránkování.',CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,
   'https://example.invalid/e2e/page/' || i,'CZK','e2e-v1',
   printf('%064d',i),'VERIFIED','2026-09-26T20:00:00Z' FROM n;
 
@@ -168,6 +170,9 @@ SELECT 'e2e-sr-page-' || i,'e2e-source-open','E2E-PAGE-' || i,
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
   eligible_costs,keywords,status,submission_close_at,updated_at)
-SELECT 'gcv-e2e-page-' || i,'E2E stránkování ' || i,'Testovací záznam stránkování.',
-  'strankovani','',CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení' WHEN 3 THEN 'plavecké zařízení' ELSE '' END,
-  'OPEN',NULL,'2026-09-26T20:00:00Z' FROM n;
+SELECT 'gcv-e2e-page-' || i,
+  CASE WHEN i = 25 THEN 'E2E pozdější plánovaná výzva' ELSE 'E2E stránkování ' || i END,
+  'Testovací záznam stránkování.',CASE WHEN i = 25 THEN '' ELSE 'strankovani' END,'',
+  CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení'
+    WHEN 3 THEN 'plavecké zařízení' WHEN 25 THEN 'strankovani' ELSE '' END,
+  CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,NULL,'2026-09-26T20:00:00Z' FROM n;
