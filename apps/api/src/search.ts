@@ -22,7 +22,7 @@ export interface GrantSearchResponse {
   expandedTerms: string[];
   indexState: "READY" | "EMPTY";
   nextCursor: string | null;
-  facets: SearchFacets;
+  facets: SearchFacets | null;
 }
 
 export interface SearchFacets {
@@ -33,6 +33,7 @@ export interface SearchFacets {
 }
 
 const PROVIDER_FACET_LIMIT = 20;
+export const FACET_MATCH_LIMIT = 500;
 
 type Phase = "DIRECT" | "ONTOLOGY";
 type SearchSort = "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST";
@@ -293,18 +294,29 @@ function toResult(row: SearchRow, matchKind: "DIRECT" | "ONTOLOGY"): GrantSearch
   };
 }
 
-// IDs are unioned before joining metadata, so a direct and ontology hit is counted once.
-// Each branch applies the other two facet dimensions. Date bounds always apply.
+// Bound each FTS phase before any metadata join. A phase over budget, or a union
+// over budget after removing overlap, makes all counts unavailable.
 async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
   status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null,
-  closesFrom: string | null, closesBy: string | null): Promise<SearchFacets> {
+  closesFrom: string | null, closesBy: string | null): Promise<SearchFacets | null> {
   const facets: SearchFacets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
     deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };
   if (!direct && !expanded) return facets;
-  const matches = [direct, expanded].filter(Boolean)
-    .map(() => "SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?")
-    .join(" UNION ");
-  const shared = `WITH matched AS MATERIALIZED (${matches}), eligible AS MATERIALIZED (
+  const ids = new Set<string>();
+  for (const query of [direct, expanded]) {
+    if (!query) continue;
+    const matches = await db.prepare(`SELECT grant_call_version_id FROM grant_search_fts
+      WHERE grant_search_fts MATCH ? LIMIT ?`).bind(query, FACET_MATCH_LIMIT + 1)
+      .all<{ grant_call_version_id: string }>();
+    const phase = matches.results ?? [];
+    if (phase.length > FACET_MATCH_LIMIT) return null;
+    for (const match of phase) ids.add(match.grant_call_version_id);
+    if (ids.size > FACET_MATCH_LIMIT) return null;
+  }
+  if (!ids.size) return facets;
+  const shared = `WITH matched AS MATERIALIZED (
+    SELECT value AS grant_call_version_id FROM json_each(?)
+  ), eligible AS MATERIALIZED (
     SELECT d.status, d.submission_close_at, p.name AS provider_name
     FROM matched m JOIN grant_search_documents d ON d.grant_call_version_id = m.grant_call_version_id
     JOIN grant_call_versions v ON v.id = d.grant_call_version_id
@@ -313,8 +325,8 @@ async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
     JOIN providers p ON p.id = pr.provider_id
     WHERE d.status IN (?, ?, ?) ${dateFilters(closesFrom, closesBy)}
   )`;
-  const bindings = [ ...(direct ? [direct] : []), ...(expanded ? [expanded] : []),
-    ...ACTIVE_STATUSES, ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []) ];
+  const bindings = [JSON.stringify([...ids]), ...ACTIVE_STATUSES,
+    ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []) ];
   const aggregate = `${shared} SELECT 'status' AS kind, status AS value, COUNT(*) AS count FROM eligible
       WHERE 1=1 ${provider ? "AND provider_name = ?" : ""}
       ${deadline ? `AND submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
@@ -374,7 +386,7 @@ export async function searchGrants(
       expandedTerms: expandIntentTerms(intent),
       indexState,
       nextCursor: null,
-      facets: { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+      facets: cursor ? null : { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
         deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false },
     };
   }
@@ -382,7 +394,8 @@ export async function searchGrants(
   const expandedTerms = expandIntentTerms(intent);
   const directQuery = buildDirectFtsQuery(intent);
   const expandedQuery = buildExpandedFtsQuery(expandedTerms);
-  const facets = await queryFacets(db, directQuery, expandedQuery, status, deadline, provider, closesFrom, closesBy);
+  const facets = cursor ? null : await queryFacets(db, directQuery, expandedQuery,
+    status, deadline, provider, closesFrom, closesBy);
   if (sort !== "RELEVANCE") {
     const rows = await queryDateSorted(db, directQuery, expandedQuery, limit + 1,
       cursor as DateCursor | null, status, deadline, provider, closesFrom, closesBy, sort);

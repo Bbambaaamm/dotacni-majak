@@ -2,6 +2,38 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("unavailable facets show no counts, allow manual filters, and preserve first-page facets on load-more", async ({ page }) => {
+  const result = (id: string) => ({ grantCallVersionId: id, grantCallId: id,
+    title: `Facet test ${id}`, summary: "", status: "OPEN", submissionCloseAt: null,
+    providerName: "Manual provider", officialDetailUrl: null, matchKind: "DIRECT" });
+  await page.route("**/api/search?*", async (route) => {
+    const url = new URL(route.request().url());
+    const provider = url.searchParams.get("provider");
+    const cursor = url.searchParams.get("cursor");
+    const facets = provider ? null : cursor ? null : {
+      status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 2 },
+      providers: [{ name: "Manual provider", count: 2 }], providersTruncated: false,
+    };
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+      intent: "facet-browser-test", indexState: "READY", expandedTerms: [],
+      results: [result(cursor ? "v-2" : "v-1")], nextCursor: cursor || provider ? null : "page-2", facets,
+    }) });
+  });
+  await page.goto("/hledat?intent=facet-browser-test");
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost (2)");
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(2);
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost (2)");
+  await page.getByLabel("Přesný název poskytovatele").fill("Manual provider");
+  await page.getByRole("button", { name: "Použít poskytovatele" }).click();
+  await expect(page.getByText("Počty pro filtry nejsou dostupné", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost");
+  await expect(page.getByLabel("Termín podání").locator('option[value="UNKNOWN"]')).toHaveText("Termín neuveden (UNKNOWN)");
+  await expect(page.locator("#search-providers option")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: Manual provider" })).toBeVisible();
+});
+
 test("real D1 search loads more than 20 distinct results and retries a failed later page", async ({ page }) => {
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);

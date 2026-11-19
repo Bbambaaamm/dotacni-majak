@@ -23,7 +23,7 @@ export interface GrantSearchResponse {
     deadline: Record<"KNOWN" | "UNKNOWN", number>;
     providers: { name: string; count: number }[];
     providersTruncated: boolean;
-  };
+  } | null;
 }
 
 export class SearchApiError extends Error {
