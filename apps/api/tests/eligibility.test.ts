@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { evaluateRules } from "../src/eligibility";
+import { evaluateGrant, evaluateRules } from "../src/eligibility";
+import type { Env } from "../src/env";
 
 const base = { grantCallId: "g", versionId: "v", ruleSetId: "rs" };
 const set = { id: "rs", completeness_status: "COMPLETE", verification_status: "VERIFIED" };
@@ -75,5 +76,56 @@ describe("eligibility evaluator parity subset", () => {
       [condition, second], profile, []).rootResult).toBe("PASS");
     expect(evaluateRules(base, set, [{ ...groups[0], group_operator: "NOT" }],
       [condition], profile, []).rootResult).toBe("FAIL");
+  });
+
+  it("tracks verified causes through NOT and OR for failures", () => {
+    const nested = [
+      { ...groups[0], group_operator: "NOT" },
+      { id: "choice", parent_group_id: "root", group_operator: "OR", sort_order: 0 },
+    ];
+    const first = { ...condition, id: "first", rule_group_id: "choice", verification_status: "AUTO_EXTRACTED" };
+    const second = { ...condition, id: "second", rule_group_id: "choice", expected_value_json: '"REGION"', sort_order: 1 };
+    expect(evaluateRules(base, set, nested, [first, second], profile, [])).toMatchObject({
+      rootResult: "FAIL", status: "NEEDS_REVIEW", blockers: ["first"],
+    });
+    expect(evaluateRules(base, set, nested, [{ ...first, verification_status: "VERIFIED" }, second], profile, []))
+      .toMatchObject({ rootResult: "FAIL", status: "INELIGIBLE", blockers: ["first"] });
+    const doubleNot = [...nested, { id: "inner", parent_group_id: "choice", group_operator: "NOT", sort_order: 0 }];
+    expect(evaluateRules(base, set, doubleNot, [{ ...first, rule_group_id: "inner" }, second], profile, []))
+      .toMatchObject({ rootResult: "PASS", status: "LIKELY_ELIGIBLE", blockers: [] });
+  });
+
+  it("uses one read-only batch for fresh version, rules and applicant inputs", async () => {
+    let applicant = false;
+    const batches: { query: string; params: unknown[] }[][] = [];
+    const env = { DB: {
+      prepare(query: string) {
+        const statement = { query, params: [] as unknown[],
+          bind(...params: unknown[]) { this.params = params; return this; },
+          async first() { return { owner_user_id: "owner" }; },
+          async all() { throw new Error("evaluation read outside batch"); },
+          async run() { throw new Error("evaluation write"); },
+        };
+        return statement;
+      },
+      async batch(statements: { query: string; params: unknown[] }[]) {
+        batches.push(statements);
+        return [
+          [{ id: "v" }], [set], [groups[0]], [condition],
+          applicant ? [profile] : [], [],
+        ].map((results) => ({ success: true, results }));
+      },
+    } } as unknown as Env;
+    const token = "A".repeat(43);
+    expect((await evaluateGrant(env, token, "g"))?.status).toBe("NEEDS_INFORMATION");
+    applicant = true;
+    expect((await evaluateGrant(env, token, "g"))?.status).toBe("ELIGIBLE");
+    expect(batches).toHaveLength(2);
+    for (const statements of batches) {
+      expect(statements).toHaveLength(6);
+      expect(statements.every((statement) => /^\s*SELECT\b/i.test(statement.query))).toBe(true);
+      expect(statements.slice(0, 4).every((statement) => statement.params[0] === "g")).toBe(true);
+      expect(statements.slice(4).every((statement) => statement.params[0] === "owner")).toBe(true);
+    }
   });
 });

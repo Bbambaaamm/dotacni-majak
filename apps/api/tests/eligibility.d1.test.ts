@@ -117,4 +117,12 @@ describe("eligibility endpoint with real D1", () => {
     await seedRule(env, "v2", "GEO_WITHIN", '"geo-1"');
     expect(await result(env)).toMatchObject({ versionId: "v2", status: "NEEDS_REVIEW", rootResult: "ERROR" });
   });
+
+  it("reads fresh applicant inputs across real D1 batches", async () => {
+    const env = await setup(); await seedRule(env);
+    expect(await result(env)).toMatchObject({ versionId: "v1", status: "NEEDS_INFORMATION" });
+    await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at)
+      VALUES ('profile-a',?,?,?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, "MUNICIPALITY", now, now).run();
+    expect(await result(env)).toMatchObject({ versionId: "v1", status: "ELIGIBLE" });
+  });
 });

@@ -71,7 +71,8 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
   const byKey = new Map(values.map((v) => [v.attribute_key, v]));
   const out: PublicCondition[] = [];
   const visited = new Set<string>();
-  function visit(group: Group, depth: number): Result {
+  type Outcome = { result: Result; causes: string[] };
+  function visit(group: Group, depth: number): Outcome {
     if (depth > 16 || visited.has(group.id) || !["AND", "OR", "NOT"].includes(group.group_operator)) throw new Error("INVALID_TREE");
     visited.add(group.id);
     const children = [
@@ -79,7 +80,7 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
       ...conditions.filter((c) => c.rule_group_id === group.id).map((c) => ({ order: c.sort_order, id: c.id, condition: c })),
     ].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
     if (!children.length || (group.group_operator === "NOT" && children.length !== 1)) throw new Error("INVALID_TREE");
-    const results = children.map((child): Result => {
+    const outcomes = children.map((child): Outcome => {
       if ("group" in child && child.group) return visit(child.group, depth + 1);
       if (!("condition" in child)) throw new Error("INVALID_TREE");
       const c = child.condition;
@@ -141,29 +142,33 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
       }
       out.push({ conditionId: c.id, attributeKey: c.attribute_key, result, reason, blocking: c.blocking === 1,
         evidenceId: c.evidence_id, inputSource: source, inputVerification: verification, inputEvidenceId });
-      return c.blocking === 1 ? result : "NOT_APPLICABLE";
+      return { result: c.blocking === 1 ? result : "NOT_APPLICABLE", causes: c.blocking === 1 ? [c.id] : [] };
     });
-    return aggregate(results, group.group_operator);
+    const result = aggregate(outcomes.map((outcome) => outcome.result), group.group_operator);
+    const causalResult = group.group_operator === "NOT" ? (result === "FAIL" ? "PASS" : result === "PASS" ? "FAIL" : result) : result;
+    return { result, causes: outcomes.filter((outcome) => outcome.result === causalResult).flatMap((outcome) => outcome.causes) };
   }
-  let root: Result;
+  let outcome: Outcome;
   try {
-    root = visit(roots[0], 0);
+    outcome = visit(roots[0], 0);
     if (visited.size !== groups.length || out.length !== conditions.length) throw new Error("INVALID_TREE");
   } catch {
     return review(base, "INVALID_RULE_DEFINITION");
   }
+  const root = outcome.result;
   const blocking = out.filter((c) => c.blocking);
+  const conditionById = new Map(conditions.map((condition) => [condition.id, condition]));
   let status: Status;
   if (root === "ERROR") status = "NEEDS_REVIEW";
-  else if (root === "FAIL") status = blocking.some((c) => c.result === "FAIL" && conditions.find((r) => r.id === c.conditionId)?.verification_status !== "VERIFIED") ? "NEEDS_REVIEW" : "INELIGIBLE";
+  else if (root === "FAIL") status = outcome.causes.some((id) => conditionById.get(id)?.verification_status !== "VERIFIED") ? "NEEDS_REVIEW" : "INELIGIBLE";
   else if (root === "UNKNOWN") status = "NEEDS_INFORMATION";
   else if (root === "NOT_APPLICABLE") status = "NEEDS_REVIEW";
   else status = ruleSet.completeness_status === "COMPLETE" && ruleSet.verification_status === "VERIFIED"
-    && blocking.every((c) => c.result === "NOT_APPLICABLE" || conditions.find((r) => r.id === c.conditionId)?.verification_status === "VERIFIED")
+    && blocking.every((c) => c.result === "NOT_APPLICABLE" || conditionById.get(c.conditionId)?.verification_status === "VERIFIED")
     ? "ELIGIBLE" : "LIKELY_ELIGIBLE";
   return { ...base, status, rootResult: root, reason: "EVALUATED", conditions: out,
     missingAttributes: [...new Set(out.filter((c) => c.result === "UNKNOWN" && c.reason === "MISSING_INPUT").map((c) => c.attributeKey))],
-    blockers: out.filter((c) => c.blocking && c.result === "FAIL").map((c) => c.conditionId) };
+    blockers: root === "FAIL" ? [...new Set(outcome.causes)] : [] };
 }
 
 export function eligibilityPath(pathname: string): string | null {
@@ -174,27 +179,39 @@ export function eligibilityPath(pathname: string): string | null {
 
 export async function evaluateGrant(env: Env, token: string, grantCallId: string): Promise<EligibilityResponse | null> {
   const principal = await ownerUserId(token, env);
-  const version = await env.DB.prepare(`SELECT v.id FROM grant_calls g JOIN grant_call_versions v ON v.id = g.current_version_id
-    WHERE g.id = ? AND v.grant_call_id = g.id LIMIT 1`).bind(grantCallId).first<{ id: string }>();
+  // All evaluation inputs are selected from one D1 transaction snapshot.
+  const currentVersion = `SELECT v.id FROM grant_calls g JOIN grant_call_versions v ON v.id = g.current_version_id
+    WHERE g.id = ? AND v.grant_call_id = g.id LIMIT 1`;
+  const currentSet = `SELECT rs.id FROM eligibility_rule_sets rs WHERE rs.grant_call_version_id = (${currentVersion})
+    ORDER BY rs.id LIMIT 1`;
+  const [versionRows, setRows, groupRows, conditionRows, profileRows, valueRows] = await env.DB.batch([
+    env.DB.prepare(`SELECT id FROM grant_call_versions WHERE id = (${currentVersion})`).bind(grantCallId),
+    env.DB.prepare(`SELECT id, completeness_status, verification_status FROM eligibility_rule_sets
+      WHERE grant_call_version_id = (${currentVersion}) ORDER BY id LIMIT 2`).bind(grantCallId),
+    env.DB.prepare(`SELECT id, parent_group_id, group_operator, sort_order FROM rule_groups
+      WHERE rule_set_id = (${currentSet}) ORDER BY sort_order, id LIMIT 65`).bind(grantCallId),
+    env.DB.prepare(`SELECT c.id, c.rule_group_id, a.attribute_key, a.scope, a.data_type, a.active, c.condition_operator,
+      c.expected_value_json, c.blocking, c.unknown_policy, c.verification_status, c.evidence_id, c.sort_order
+      FROM rule_conditions c JOIN rule_groups g ON g.id = c.rule_group_id JOIN attribute_definitions a ON a.id = c.attribute_definition_id
+      WHERE g.rule_set_id = (${currentSet}) ORDER BY c.sort_order, c.id LIMIT 129`).bind(grantCallId),
+    env.DB.prepare(`SELECT id, applicant_type, ico, legal_form_code, municipality_code, municipality_population,
+      vat_status, organisation_size, cz_nace_json FROM applicant_profiles WHERE user_id = ? LIMIT 1`).bind(principal),
+    env.DB.prepare(`SELECT av.attribute_definition_id, a.attribute_key, a.data_type, av.value_type,
+      av.value_json, av.source_kind, av.verification_status, av.evidence_id FROM applicant_attribute_values av
+      JOIN attribute_definitions a ON a.id = av.attribute_definition_id
+      WHERE av.applicant_profile_id = (SELECT id FROM applicant_profiles WHERE user_id = ? LIMIT 1) LIMIT 129`).bind(principal),
+  ]);
+  const version = (versionRows.results as { id: string }[] | undefined)?.[0];
   if (!version) return null;
   const base = { grantCallId, versionId: version.id, ruleSetId: null as string | null };
-  const sets = (await env.DB.prepare(`SELECT id, completeness_status, verification_status FROM eligibility_rule_sets
-    WHERE grant_call_version_id = ? ORDER BY id LIMIT 2`).bind(version.id).all<RuleSet>()).results ?? [];
+  const sets = (setRows.results ?? []) as RuleSet[];
   if (!sets.length) return { ...base, status: "NEEDS_REVIEW", rootResult: "UNKNOWN", reason: "NO_RULE_SET",
     conditions: [], missingAttributes: [], blockers: [] };
   if (sets.length !== 1) return review(base, "MULTIPLE_RULE_SETS");
   base.ruleSetId = sets[0].id;
-  const [groupRows, conditionRows, profile] = await Promise.all([
-    env.DB.prepare(`SELECT id, parent_group_id, group_operator, sort_order FROM rule_groups WHERE rule_set_id = ? ORDER BY sort_order, id LIMIT 65`).bind(sets[0].id).all<Group>(),
-    env.DB.prepare(`SELECT c.id, c.rule_group_id, a.attribute_key, a.scope, a.data_type, a.active, c.condition_operator,
-      c.expected_value_json, c.blocking, c.unknown_policy, c.verification_status, c.evidence_id, c.sort_order
-      FROM rule_conditions c JOIN rule_groups g ON g.id = c.rule_group_id JOIN attribute_definitions a ON a.id = c.attribute_definition_id
-      WHERE g.rule_set_id = ? ORDER BY c.sort_order, c.id LIMIT 129`).bind(sets[0].id).all<Condition>(),
-    env.DB.prepare(`SELECT id, applicant_type, ico, legal_form_code, municipality_code, municipality_population,
-      vat_status, organisation_size, cz_nace_json FROM applicant_profiles WHERE user_id = ? LIMIT 1`).bind(principal).first<Profile>(),
-  ]);
   const groups = (groupRows.results ?? []) as Group[];
   const conditions = (conditionRows.results ?? []) as Condition[];
+  const profile = (profileRows.results as Profile[] | undefined)?.[0];
   if (groups.length > 64 || conditions.length > 128) return review(base, "RULE_LIMIT_EXCEEDED");
   if (!profile) {
     const checked = evaluateRules(base, sets[0], groups, conditions, null, []);
@@ -202,9 +219,7 @@ export async function evaluateGrant(env: Env, token: string, grantCallId: string
     return { ...base, status: "NEEDS_INFORMATION", rootResult: "UNKNOWN", reason: "NO_PROFILE",
       conditions: checked.conditions, missingAttributes: checked.missingAttributes, blockers: [] };
   }
-  const values = (await env.DB.prepare(`SELECT av.attribute_definition_id, a.attribute_key, a.data_type, av.value_type,
-    av.value_json, av.source_kind, av.verification_status, av.evidence_id FROM applicant_attribute_values av
-    JOIN attribute_definitions a ON a.id = av.attribute_definition_id WHERE av.applicant_profile_id = ? LIMIT 129`).bind(profile.id).all<Value>()).results ?? [];
+  const values = (valueRows.results ?? []) as Value[];
   if (values.length > 128) return review(base, "INPUT_LIMIT_EXCEEDED");
   return evaluateRules(base, sets[0], groups, conditions, profile, values);
 }
