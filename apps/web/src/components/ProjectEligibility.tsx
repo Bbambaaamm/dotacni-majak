@@ -28,8 +28,9 @@ function label(snapshot: EligibilitySnapshot): string {
   }
 }
 
-export function ProjectEligibility({ grantCallId, ownerCapability, onWritePendingChange }: {
-  grantCallId: string; ownerCapability: string; onWritePendingChange: (pending: boolean) => void;
+export function ProjectEligibility({ grantCallId, ownerCapability, onWritePendingChange, onWriteCommitted }: {
+  grantCallId: string; ownerCapability: string;
+  onWritePendingChange: (pending: boolean) => void; onWriteCommitted: () => void;
 }) {
   const [revision, setRevision] = useState(0);
   const [snapshot, setSnapshot] = useState<EligibilitySnapshot | null>(null);
@@ -63,7 +64,7 @@ export function ProjectEligibility({ grantCallId, ownerCapability, onWritePendin
     setError(false);
     try {
       await answerApplicantType(answer, ownerCapability);
-      setRevision((value) => value + 1);
+      onWriteCommitted();
     } catch {
       setError(true);
       setLoading(false);

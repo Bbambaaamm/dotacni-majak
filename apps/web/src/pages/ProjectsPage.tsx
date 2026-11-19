@@ -66,6 +66,7 @@ export function ProjectsPage() {
   const [workspaceList, setWorkspaceList] = useState<Array<{ id: string; grantCallId: string }>>([]);
   const [workspaceError, setWorkspaceError] = useState(false);
   const [eligibilityWritePending, setEligibilityWritePending] = useState(false);
+  const [eligibilityRevision, setEligibilityRevision] = useState(0);
 
   useEffect(() => {
     if (!project) return;
@@ -399,10 +400,11 @@ export function ProjectsPage() {
 
       {workspace && !workspaceError && (
         <ProjectEligibility
-          key={`${project.projectId}:${workspace.workspace.grantCallId}:${workspace.workspace.currentGrantVersionId}`}
+          key={`${project.projectId}:${workspace.workspace.grantCallId}:${workspace.workspace.currentGrantVersionId}:${eligibilityRevision}`}
           grantCallId={workspace.workspace.grantCallId}
           ownerCapability={project.ownerCapability}
           onWritePendingChange={setEligibilityWritePending}
+          onWriteCommitted={() => setEligibilityRevision((value) => value + 1)}
         />
       )}
 
