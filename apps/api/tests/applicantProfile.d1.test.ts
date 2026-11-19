@@ -76,6 +76,11 @@ function request(method: string, capability: string, body?: unknown): Request {
   });
 }
 
+async function seedTrustedSources(env: Env, sources: Record<string, unknown>): Promise<void> {
+  await env.DB.prepare("UPDATE applicant_profiles SET field_sources_json = ? WHERE user_id = ?")
+    .bind(JSON.stringify(sources), "anonymous:" + projectA).run();
+}
+
 const input = { applicantType: "BUSINESS", ico: "12345678", fieldSources: {} };
 
 describe("applicant profile with real D1", () => {
@@ -89,12 +94,15 @@ describe("applicant profile with real D1", () => {
     const saved = await handleRequest(request("PUT", token, input), env);
     expect(saved.status).toBe(200);
     const id = ((await saved.json()) as { profile: { id: string } }).profile.id;
+    const trusted = { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    await seedTrustedSources(env, { ico: trusted });
     await env.DB.prepare("UPDATE project_owner_capabilities SET token_hash = ?, generation = 2, rotated_at = ? WHERE project_id = ?")
       .bind(await hashOwnerToken(rotated), now, projectA).run();
     expect((await handleRequest(request("GET", token), env)).status).toBe(404);
     const afterRotation = await handleRequest(request("GET", rotated), env);
     expect(afterRotation.status).toBe(200);
-    expect(((await afterRotation.json()) as { profile: { id: string } }).profile.id).toBe(id);
+    expect(((await afterRotation.json()) as { profile: { id: string; fieldSources: Record<string, unknown>; lastResolvedAt: string } }).profile)
+      .toMatchObject({ id, fieldSources: { ico: trusted }, lastResolvedAt: trusted.observedAt });
     await env.DB.prepare("UPDATE project_owner_capabilities SET revoked_at = ? WHERE project_id = ?")
       .bind(now, projectA).run();
     for (const method of ["GET", "PUT", "DELETE"]) {
@@ -102,6 +110,35 @@ describe("applicant profile with real D1", () => {
       expect(response.status).toBe(404);
       expect((await response.json() as { error: string }).error).toBe("OWNER_CAPABILITY_INVALID");
     }
+  });
+
+  it("rejects initial and repeated forged official claims without modifying a trusted row", async () => {
+    const env = await setup();
+    const source = { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    const forged = { applicantType: "BUSINESS", ico: "12345678", fieldSources: { ico: source } };
+    for (const method of ["PUT", "POST"] as const) {
+      const response = await handleRequest(request(method, token, forged), env);
+      expect(response.status).toBe(400);
+      expect((await response.json() as { error: string }).error).toBe("UNTRUSTED_FIELD_SOURCE");
+    }
+    expect((await env.DB.prepare("SELECT id FROM applicant_profiles").all()).results).toHaveLength(0);
+
+    expect((await handleRequest(request("PUT", token, input), env)).status).toBe(200);
+    await seedTrustedSources(env, { ico: source });
+    const before = await env.DB.prepare("SELECT id, ico, field_sources_json, updated_at FROM applicant_profiles").first();
+    for (const method of ["PUT", "POST", "PUT"] as const) {
+      const response = await handleRequest(request(method, token, forged), env);
+      expect(response.status).toBe(400);
+      expect((await response.json() as { error: string }).error).toBe("UNTRUSTED_FIELD_SOURCE");
+      expect(await env.DB.prepare("SELECT id, ico, field_sources_json, updated_at FROM applicant_profiles").first()).toEqual(before);
+    }
+    const profile = (await (await handleRequest(request("GET", token), env)).json() as { profile: { fieldSources: Record<string, unknown>; lastResolvedAt: string } }).profile;
+    expect(profile.fieldSources).toEqual({ ico: source });
+    expect(profile.lastResolvedAt).toBe(source.observedAt);
+    const refresh = await handleRequest(new Request("https://example.test/applicant-profile/last-resolved", {
+      headers: { authorization: `Bearer ${token}` },
+    }), env);
+    expect(await refresh.json()).toEqual({ lastResolvedAt: source.observedAt });
   });
 
   it("atomically upserts one row under concurrent requests and allows shared IČO", async () => {
@@ -130,8 +167,9 @@ describe("applicant profile with real D1", () => {
     const env = await setup();
     const source = { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
     const initial = { ...input, schemaVersion: "1.0.0", applicantTypeId: "type-1",
-      seatGeographyId: "geo-1", czNaceCodes: ["93.12"], fieldSources: { ico: source } };
+      seatGeographyId: "geo-1", czNaceCodes: ["93.12"] };
     expect((await handleRequest(request("POST", token, initial), env)).status).toBe(200);
+    await seedTrustedSources(env, { ico: source });
     const changed = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", organisationName: "Updated" }), env);
     expect(changed.status).toBe(200);
     const get = await handleRequest(request("GET", token), env);
@@ -158,9 +196,9 @@ describe("applicant profile with real D1", () => {
     const municipalitySource = { sourceKind: "CZSO", observedAt: "2026-09-23T00:00:00Z", verificationStatus: "VERIFIED" };
     const initial = await handleRequest(request("PUT", token, {
       applicantType: "BUSINESS", ico: "12345678", municipalityCode: "123456",
-      fieldSources: { ico: icoSource, municipalityCode: municipalitySource },
     }), env);
     expect(initial.status).toBe(200);
+    await seedTrustedSources(env, { ico: icoSource, municipalityCode: municipalitySource });
 
     const changed = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", ico: "87654321", municipalityCode: "123456" }), env);
     expect(changed.status).toBe(200);
@@ -171,27 +209,15 @@ describe("applicant profile with real D1", () => {
     const get = await handleRequest(request("GET", token), env);
     expect((await get.json() as { profile: { fieldSources: Record<string, unknown> } }).profile.fieldSources.ico).toBeUndefined();
 
-    const freshSource = { ...icoSource, observedAt: "2026-10-02T09:00:00Z" };
-    const fresh = await handleRequest(request("PUT", token, {
-      applicantType: "BUSINESS", ico: "22222222",
-      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
-    }), env);
-    expect(fresh.status).toBe(200);
-    expect((await fresh.json() as { profile: { fieldSources: Record<string, unknown>; lastResolvedAt: string } }).profile)
-      .toMatchObject({ fieldSources: { ico: freshSource, municipalityCode: municipalitySource }, lastResolvedAt: freshSource.observedAt });
-
-    // An identical old verification cannot be carried across another value change.
-    const stale = await handleRequest(request("PUT", token, {
-      applicantType: "BUSINESS", ico: "11111111",
-      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
-    }), env);
-    expect(stale.status).toBe(200);
-    expect((await stale.json() as { profile: { fieldSources: Record<string, unknown> } }).profile.fieldSources).toEqual({ municipalityCode: municipalitySource });
-
-    expect((await handleRequest(request("PUT", token, {
-      applicantType: "BUSINESS", ico: "22222222",
-      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
-    }), env)).status).toBe(200);
+    // A client cannot restore the old official claim on an identical retry.
+    for (const method of ["PUT", "POST"] as const) {
+      const forged = await handleRequest(request(method, token, {
+        applicantType: "BUSINESS", ico: "87654321",
+        fieldSources: { ico: icoSource },
+      }), env);
+      expect(forged.status).toBe(400);
+      expect((await forged.json() as { error: string }).error).toBe("UNTRUSTED_FIELD_SOURCE");
+    }
 
     const cleared = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", ico: null }), env);
     expect(cleared.status).toBe(200);
@@ -205,8 +231,8 @@ describe("applicant profile with real D1", () => {
     const municipalitySource = { sourceKind: "CZSO", observedAt: "2026-09-23T00:00:00Z", verificationStatus: "VERIFIED" };
     expect((await handleRequest(request("PUT", token, {
       applicantType: "BUSINESS", applicantTypeId: "type-1", municipalityCode: "123456",
-      fieldSources: { applicantType: typeSource, applicantTypeId: typeSource, municipalityCode: municipalitySource },
     }), env)).status).toBe(200);
+    await seedTrustedSources(env, { applicantType: typeSource, applicantTypeId: typeSource, municipalityCode: municipalitySource });
     const sameType = await handleRequest(request("PUT", token, { applicantType: "BUSINESS" }), env);
     expect((await sameType.json() as { profile: { applicantTypeId: string } }).profile.applicantTypeId).toBe("type-1");
 

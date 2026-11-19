@@ -71,19 +71,11 @@ function makeValidProfileInput(
     czNaceCodes: ["93.12", "94.99"],
     fieldSources: {
       ico: {
-        sourceKind: "ARES",
-        sourceReference: "https://ares.gov.cz/test",
+        sourceKind: "USER",
+        sourceReference: null,
         observedAt: "2026-09-25T12:00:00Z",
-        verifiedAt: "2026-09-25T12:00:00Z",
-        verificationStatus: "VERIFIED",
-        evidenceId: null,
-      },
-      municipalityPopulation: {
-        sourceKind: "CZSO",
-        sourceReference: "CZSO:OBY02E",
-        observedAt: "2026-09-23T00:00:00Z",
         verifiedAt: null,
-        verificationStatus: "AUTO_EXTRACTED",
+        verificationStatus: "USER_DECLARED",
         evidenceId: null,
       },
     },
@@ -308,6 +300,25 @@ describe("applicant profile input validation", () => {
     }
   });
 
+  it("accepts only user-declared provenance from public payloads", async () => {
+    for (const sourceKind of ["ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"]) {
+      const req = new Request("https://example.test/applicant-profile", {
+        method: "PUT", body: JSON.stringify(makeValidProfileInput({ fieldSources: {
+          ico: { sourceKind, observedAt: "2026-09-25T12:00:00Z", verificationStatus: "USER_DECLARED" },
+        } })),
+      });
+      await expect(parseApplicantProfileInput(req)).rejects.toMatchObject({ code: "UNTRUSTED_FIELD_SOURCE", status: 400 });
+    }
+    for (const verificationStatus of ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"]) {
+      const req = new Request("https://example.test/applicant-profile", {
+        method: "POST", body: JSON.stringify(makeValidProfileInput({ fieldSources: {
+          ico: { sourceKind: "USER", observedAt: "2026-09-25T12:00:00Z", verificationStatus },
+        } })),
+      });
+      await expect(parseApplicantProfileInput(req)).rejects.toMatchObject({ code: "UNTRUSTED_FIELD_SOURCE", status: 400 });
+    }
+  });
+
   it("rejects impossible population calendar dates", async () => {
     const req = new Request("https://example.test/applicant-profile", {
       method: "PUT", body: JSON.stringify(makeValidProfileInput({ municipalityPopulationAsOf: "2026-02-30" })),
@@ -481,86 +492,18 @@ describe("applicant profile CRUD", () => {
     });
   });
 
-  it("computes lastResolvedAt from field sources (max observedAt)", async () => {
+  it("does not derive freshness from user-declared sources", async () => {
     const env = fakeEnv();
-    await upsertApplicantProfile(
-      makeValidProfileInput({
-        fieldSources: {
-          ico: {
-            sourceKind: "ARES",
-            sourceReference: "https://ares.gov.cz/test",
-            observedAt: "2026-09-25T12:00:00Z",
-            verifiedAt: "2026-09-25T12:00:00Z",
-            verificationStatus: "VERIFIED",
-            evidenceId: null,
-          },
-          municipalityPopulation: {
-            sourceKind: "CZSO",
-            sourceReference: "CZSO:OBY02E",
-            observedAt: "2026-09-23T00:00:00Z",
-            verifiedAt: null,
-            verificationStatus: "AUTO_EXTRACTED",
-            evidenceId: null,
-          },
-        },
-      }),
-      env,
-      VALID_OWNER,
-    );
-
-    const retrieved = await getApplicantProfile(env, VALID_OWNER);
-    // 2026-09-25 > 2026-09-23, so ARES observed_at is the max
-    expect(retrieved?.lastResolvedAt).toBe("2026-09-25T12:00:00Z");
-  });
-
-  it("lastResolvedAt is null when no public-source fields exist", async () => {
-    const env = fakeEnv();
-    await upsertApplicantProfile(
-      makeValidProfileInput({ fieldSources: {} }),
-      env,
-      VALID_OWNER,
-    );
-    const retrieved = await getApplicantProfile(env, VALID_OWNER);
-    expect(retrieved?.lastResolvedAt).toBeNull();
-  });
-
-  it("ignores user and derived sources for lastResolvedAt", async () => {
-    const env = fakeEnv();
-    await upsertApplicantProfile(makeValidProfileInput({ fieldSources: {
-      ico: { sourceKind: "USER", observedAt: "2026-12-01T00:00:00Z", verificationStatus: "USER_DECLARED" },
-      municipalityCode: { sourceKind: "DERIVED", observedAt: "2026-12-02T00:00:00Z", verificationStatus: "AUTO_EXTRACTED" },
-    } }), env, VALID_OWNER);
+    await upsertApplicantProfile(makeValidProfileInput(), env, VALID_OWNER);
     expect((await getApplicantProfile(env, VALID_OWNER))?.lastResolvedAt).toBeNull();
   });
 
-  it("updates the lastResolvedAt when a newer ARES observation is stored", async () => {
+  it("rejects forged provenance from direct upsert callers", async () => {
     const env = fakeEnv();
-    const input = makeValidProfileInput();
-    await upsertApplicantProfile(input, env, VALID_OWNER);
-    expect((await getApplicantProfile(env, VALID_OWNER))?.lastResolvedAt).toBe(
-      "2026-09-25T12:00:00Z",
-    );
-
-    // Upsert with a newer ARES observation
-    await upsertApplicantProfile(
-      makeValidProfileInput({
-        fieldSources: {
-          ico: {
-            sourceKind: "ARES",
-            sourceReference: "https://ares.gov.cz/test",
-            observedAt: "2026-10-01T09:00:00Z",
-            verifiedAt: "2026-10-01T09:00:00Z",
-            verificationStatus: "VERIFIED",
-            evidenceId: null,
-          },
-        },
-      }),
-      env,
-      VALID_OWNER,
-    );
-
-    const updated = await getApplicantProfile(env, VALID_OWNER);
-    expect(updated?.lastResolvedAt).toBe("2026-10-01T09:00:00Z");
+    await expect(upsertApplicantProfile(makeValidProfileInput({ fieldSources: {
+      ico: { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" },
+    } }), env, VALID_OWNER)).rejects.toMatchObject({ code: "UNTRUSTED_FIELD_SOURCE" });
+    expect(env.profiles.size).toBe(0);
   });
 
   it("deletes the profile and it disappears from GET", async () => {
@@ -669,7 +612,7 @@ describe("applicant profile HTTP routes", () => {
     expect(putRes.status).toBe(200);
     const putBody = await putRes.json() as { profile: Record<string, unknown> };
     expect(putBody.profile.ico).toBe("12345678");
-    expect(putBody.profile.lastResolvedAt).toBe("2026-09-25T12:00:00Z");
+    expect(putBody.profile.lastResolvedAt).toBeNull();
 
     // GET
     const getRes = await handleRequest(
@@ -682,7 +625,7 @@ describe("applicant profile HTTP routes", () => {
     const getBody = await getRes.json() as { profile: Record<string, unknown> };
     expect(getBody.profile.ico).toBe("12345678");
     expect(getBody.profile.czNaceCodes).toEqual(["93.12", "94.99"]);
-    expect(getBody.profile.lastResolvedAt).toBe("2026-09-25T12:00:00Z");
+    expect(getBody.profile.lastResolvedAt).toBeNull();
   });
 
   it("PUT with invalid input returns 400 with error code, no PII leaked", async () => {
@@ -782,7 +725,7 @@ describe("applicant profile HTTP routes", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
-    expect(body.lastResolvedAt).toBe("2026-09-25T12:00:00Z");
+    expect(body.lastResolvedAt).toBeNull();
   });
 
   it("PUT accepts applicantType UNKNOWN as a valid explicit type", async () => {

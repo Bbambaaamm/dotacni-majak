@@ -285,6 +285,9 @@ function validateFieldSources(value: unknown): Record<string, unknown> {
     ) {
       throw new ApiInputError("INVALID_SOURCE_KIND");
     }
+    if (s.sourceKind !== "USER") {
+      throw new ApiInputError("UNTRUSTED_FIELD_SOURCE");
+    }
     if (
       s.sourceReference !== undefined && s.sourceReference !== null &&
       typeof s.sourceReference !== "string"
@@ -299,6 +302,9 @@ function validateFieldSources(value: unknown): Record<string, unknown> {
     }
     if (!["USER_DECLARED", "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"].includes(s.verificationStatus as string)) {
       throw new ApiInputError("INVALID_VERIFICATION_STATUS");
+    }
+    if (s.verificationStatus !== "USER_DECLARED") {
+      throw new ApiInputError("UNTRUSTED_FIELD_SOURCE");
     }
     if (s.evidenceId !== undefined && s.evidenceId !== null &&
       (typeof s.evidenceId !== "string" || s.evidenceId.length === 0)) {
@@ -478,6 +484,8 @@ export async function upsertApplicantProfile(
   ownerToken: string,
   now: Date = new Date(),
 ): Promise<ApplicantProfileResponse> {
+  // Keep direct callers subject to the same public trust boundary as HTTP.
+  if (input.fieldSources !== undefined) validateFieldSources(input.fieldSources);
   const userId = await ownerUserId(ownerToken, env);
   const timestamp = now.toISOString();
   const presenceMask = [
