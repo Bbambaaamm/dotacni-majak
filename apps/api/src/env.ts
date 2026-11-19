@@ -22,6 +22,21 @@ export interface R2BucketLike {
   head(key: string): Promise<unknown | null>;
 }
 
+export interface R2StorageLike {
+  put(key: string, options: R2PutOptions): Promise<R2PutResult>;
+  delete(key: string): Promise<boolean>;
+  head(key: string): Promise<unknown | null>;
+}
+
+export interface R2PutOptions {
+  body: ArrayBuffer | string;
+  contentType?: string;
+}
+
+export interface R2PutResult {
+  key: string;
+}
+
 export interface VectorizeIndexLike {
   describe(): Promise<unknown>;
 }
@@ -29,6 +44,7 @@ export interface VectorizeIndexLike {
 export interface Env {
   DB: D1DatabaseLike;
   RAW: R2BucketLike;
+  ATTACHMENTS: R2StorageLike;
   SEARCH: VectorizeIndexLike;
   ENVIRONMENT: "local" | "staging" | "production";
   RELEASE_SHA?: string;

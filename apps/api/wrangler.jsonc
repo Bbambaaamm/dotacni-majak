@@ -21,6 +21,10 @@
     {
       "binding": "RAW",
       "bucket_name": "dotacni-majak-raw-local"
+    },
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "dotacni-majak-attachments-local"
     }
   ],
   "vectorize": [

@@ -63,6 +63,17 @@ function env(
         return null;
       },
     },
+    ATTACHMENTS: {
+      async put(_key, options) {
+        return { key: options?.body ? String(options.body) : "" };
+      },
+      async delete(_key) {
+        return true;
+      },
+      async head() {
+        return null;
+      },
+    },
     SEARCH: {
       async describe() {
         return {};
@@ -455,5 +466,289 @@ describe("api worker", () => {
       env(),
     );
     expect(response.status).toBe(405);
+  });
+
+  it("creates a user document attachment for an authorized project owner", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const expectedOwnerHash = await hashOwnerToken(owner);
+    const payload = new Uint8Array(512).buffer;
+    let ownerLookup = false;
+    let insertValues: unknown[] = [];
+
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner}`,
+          "content-type": "application/pdf",
+          "x-attachment-filename": "vypocty.pdf",
+          "content-length": String(payload.byteLength),
+        },
+        body: payload,
+      }),
+      env(null, (query, values, mode) => {
+        if (query.includes("FROM project_owner_capabilities") && mode === "first") {
+          ownerLookup = true;
+          return { ok: 1 };
+        }
+        if (query.includes("INNER JOIN project_owner_capabilities") && mode === "first") {
+          return { owner_user_id: `anonymous:${projectId}` };
+        }
+        if (query.includes("INSERT INTO user_document_attachments") && mode === "run") {
+          insertValues = values;
+          return { success: true, meta: { changes: 1 } };
+        }
+        if (query.includes("INSERT INTO user_document_attachment_events") && mode === "run") {
+          return { success: true, meta: { changes: 1 } };
+        }
+        // Official source-document tables must never be touched by the
+        // user-attachment flow (AC3: official vs user separation).
+        if (
+          query.includes("source_documents") ||
+          query.includes("document_versions") ||
+          query.includes("field_evidence")
+        ) {
+          throw new Error("ATTACHMENT_FLOW_TOUCHED_OFFICIAL_TABLE");
+        }
+        return { success: true, meta: { changes: 1 } };
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(ownerLookup).toBe(true);
+    const body = await response.json() as {
+      attachment: {
+        id: string;
+        projectId: string;
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+      };
+    };
+    expect(body.attachment.id).toMatch(/^att_[a-f0-9]{32}$/);
+    expect(body.attachment.projectId).toBe(projectId);
+    expect(body.attachment.filename).toBe("vypocty.pdf");
+    expect(body.attachment.mimeType).toBe("application/pdf");
+    expect(body.attachment.sizeBytes).toBe(512);
+    expect(body.attachment.status).toBe("UPLOADED");
+    expect(body.attachment.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // owner_user_id (the principal) is stored, not the raw token or hash.
+    expect(insertValues).toContain(`anonymous:${projectId}`);
+    expect(insertValues).not.toContain(owner);
+  });
+
+  it("rejects attachment creation without an owner capability", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/pdf",
+          "x-attachment-filename": "vypocty.pdf",
+        },
+        body: new Uint8Array(10).buffer,
+      }),
+      env(),
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "OWNER_CAPABILITY_INVALID" });
+  });
+
+  it("rejects attachment creation for a non-owner caller", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${"x".repeat(43)}`,
+          "content-type": "application/pdf",
+          "x-attachment-filename": "vypocty.pdf",
+        },
+        body: new Uint8Array(10).buffer,
+      }),
+      env(null, (query) => {
+        if (query.includes("FROM project_owner_capabilities")) {
+          return { ok: 0 };
+        }
+        return { success: true, meta: { changes: 1 } };
+      }),
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "OWNER_CAPABILITY_INVALID" });
+  });
+
+  it("returns 404 for an unknown attachment id", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments/att_${"b".repeat(32)}`, {
+        method: "GET",
+        headers: { authorization: `Bearer ${owner}` },
+      }),
+      env(null, (query, _values, mode) => {
+        if (query.includes("FROM project_owner_capabilities") && mode === "first") {
+          return { ok: 1 };
+        }
+        if (mode === "first") {
+          return null;
+        }
+        return { success: true, results: [] };
+      }),
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "ATTACHMENT_NOT_FOUND" });
+  });
+
+  it("lists attachments for an authorized project owner", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "GET",
+        headers: { authorization: `Bearer ${owner}` },
+      }),
+      env(null, (query, _values, mode) => {
+        if (query.includes("FROM project_owner_capabilities") && mode === "first") {
+          return { ok: 1 };
+        }
+        if (query.includes("user_document_attachments") && mode === "all") {
+          return {
+            success: true,
+            results: [
+              {
+                id: "att_" + "c".repeat(32),
+                project_id: projectId,
+                filename: "plan.xlsx",
+                mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                size_bytes: 8192,
+                status: "UPLOADED",
+                created_at: "2026-10-01T10:00:00Z",
+                updated_at: "2026-10-01T10:00:00Z",
+              },
+            ],
+          };
+        }
+        return { success: true, results: [] };
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json() as { attachments: unknown[] };
+    expect(body.attachments).toHaveLength(1);
+    expect(body.attachments[0]).toMatchObject({
+      id: "att_" + "c".repeat(32),
+      filename: "plan.xlsx",
+    });
+  });
+
+  it("deletes an attachment for an authorized project owner", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const attachmentId = "att_" + "d".repeat(32);
+    let updateQuery = "";
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments/${attachmentId}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${owner}` },
+      }),
+      env(null, (query, _values, mode) => {
+        if (query.includes("FROM project_owner_capabilities") && mode === "first") {
+          return { ok: 1 };
+        }
+        if (query.includes("SELECT storage_key") && mode === "first") {
+          return { storage_key: "proj/" + projectId + "/" + attachmentId + "/key" };
+        }
+        if (query.includes("UPDATE user_document_attachments") && mode === "run") {
+          updateQuery = query;
+          return { success: true, meta: { changes: 1 } };
+        }
+        if (mode === "run") {
+          return { success: true, meta: { changes: 1 } };
+        }
+        return { success: true, results: [] };
+      }),
+    );
+    expect(response.status).toBe(204);
+    expect(updateQuery).toContain("SET status = 'DELETED'");
+  });
+
+  it("rejects disallowed attachment MIME types", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner}`,
+          "content-type": "application/x-executable",
+          "x-attachment-filename": "malware.exe",
+        },
+        body: new Uint8Array(10).buffer,
+      }),
+      env(),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "INVALID_ATTACHMENT_MIME" });
+  });
+
+  it("rejects attachment filenames with path traversal", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner}`,
+          "content-type": "application/pdf",
+          "x-attachment-filename": "../etc/passwd",
+        },
+        body: new Uint8Array(10).buffer,
+      }),
+      env(),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects attachment payloads exceeding the size limit", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const large = new Uint8Array(11 * 1024 * 1024);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner}`,
+          "content-type": "application/pdf",
+          "x-attachment-filename": "big.pdf",
+          "content-length": String(large.byteLength),
+        },
+        body: large,
+      }),
+      env(),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "ATTACHMENT_TOO_LARGE" });
+  });
+
+  it("rejects empty attachment payloads", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "O".repeat(43);
+    const response = await handleRequest(
+      new Request(`https://example.test/projects/${projectId}/attachments`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner}`,
+          "content-type": "application/pdf",
+          "x-attachment-filename": "empty.pdf",
+        },
+        body: new Uint8Array(0).buffer,
+      }),
+      env(),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "INVALID_ATTACHMENT_EMPTY" });
   });
 });
