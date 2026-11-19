@@ -176,6 +176,13 @@ def _can_migrate_legacy_programme_identity(
     namespace = {"DOTACEEU": "dotaceeu", "EU_FT": "eu-ft"}.get(source_code)
     if namespace is None:
         return False
+    if (
+        source_code == "EU_FT"
+        and old_programme_id == "programme:eu-ft:catalogue"
+        and re.fullmatch(r"programme:eu-ft:[A-Za-z0-9_.:-]{2,64}", new_programme_id)
+        and new_programme_id != old_programme_id
+    ):
+        return True
     legacy = re.fullmatch(
         rf"programme:{re.escape(namespace)}:[0-9a-f]{{16}}",
         old_programme_id,
@@ -490,6 +497,19 @@ class SqliteCanonicalPublisher:
 
             evidence_count = 0
             if publication_changed:
+                if not created_version and normalized_changed:
+                    # The same RAW can be re-normalized. Retain prior auto
+                    # evidence for audit, but exclude it from current-version
+                    # queries; manually verified evidence is not touched.
+                    self.connection.execute(
+                        """UPDATE field_evidence
+                           SET entity_type='GRANT_CALL_VERSION_SUPERSEDED'
+                           WHERE entity_type='GRANT_CALL_VERSION'
+                             AND entity_id=?
+                             AND extraction_method='SOURCE_RECORD_SNAPSHOT'
+                             AND extractor_version='trusted-ingest-v1'""",
+                        (version_id,),
+                    )
                 for item in payload.evidence:
                     field_path = _required_text(item, "field_path")
                     document_version_id = _required_text(
@@ -523,6 +543,14 @@ class SqliteCanonicalPublisher:
                         extraction_method=item.get("extraction_method"),
                         extractor_version=item.get("extractor_version"),
                         confidence_ppm=item.get("confidence_ppm"),
+                    )
+                    # Reversion can reuse a previously superseded evidence ID.
+                    self.connection.execute(
+                        """UPDATE field_evidence
+                           SET entity_type='GRANT_CALL_VERSION'
+                           WHERE id=? AND entity_id=?
+                             AND entity_type='GRANT_CALL_VERSION_SUPERSEDED'""",
+                        (evidence_id, version_id),
                     )
                     try:
                         self.evidence.save(record, commit=False)

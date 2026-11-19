@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
+from uuid import uuid4
 
 
 _SOURCE_CODE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -121,6 +123,7 @@ class LocalRawSnapshotStore(RawSnapshotStore):
         url_metadata_path = self._url_metadata_path(object_path, source_url)
         if not url_metadata_path.exists():
             url_metadata_path.write_text(serialized, encoding="utf-8")
+        self._record_observation(object_path, source_url, snapshot.retrieved_at)
 
         return snapshot
 
@@ -176,7 +179,7 @@ class LocalRawSnapshotStore(RawSnapshotStore):
         if source_url is not None and snapshot.source_url != source_url:
             raise RuntimeError("RAW snapshot URL provenance mismatch")
         self.get_bytes(snapshot)
-        return snapshot
+        return self._with_observation(snapshot)
 
     @staticmethod
     def _validate_source_code(source_code: str) -> None:
@@ -219,7 +222,39 @@ class LocalRawSnapshotStore(RawSnapshotStore):
         ):
             raise RuntimeError("RAW snapshot metadata identity mismatch")
         self.get_bytes(snapshot)
-        return snapshot
+        return self._with_observation(snapshot)
+
+    @classmethod
+    def _observation_path(cls, object_path: Path, source_url: str) -> Path:
+        return object_path.with_name(
+            object_path.name + f".url-{cls._url_digest(source_url)}.seen"
+        )
+
+    def _record_observation(
+        self, object_path: Path, source_url: str, retrieved_at: str
+    ) -> None:
+        # Observation is mutable; content and identity sidecars remain immutable.
+        path = self._observation_path(object_path, source_url)
+        previous = path.read_text(encoding="utf-8") if path.exists() else None
+        if previous is not None and datetime.fromisoformat(previous) >= datetime.fromisoformat(retrieved_at):
+            return
+        temporary = path.with_name(path.name + f".{uuid4().hex}.tmp")
+        try:
+            temporary.write_text(retrieved_at, encoding="utf-8")
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _with_observation(self, snapshot: RawSnapshot) -> RawSnapshot:
+        object_path = self.root / snapshot.object_key
+        path = self._observation_path(object_path, snapshot.source_url)
+        if not path.exists():
+            return snapshot
+        observed = datetime.fromisoformat(path.read_text(encoding="utf-8"))
+        original = datetime.fromisoformat(snapshot.retrieved_at)
+        if observed.tzinfo is None or original.tzinfo is None:
+            raise ValueError("RAW observation must be timezone-aware")
+        return replace(snapshot, retrieved_at=max(observed, original).isoformat())
 
     @staticmethod
     def _url_digest(source_url: str) -> str:

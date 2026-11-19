@@ -54,18 +54,20 @@ async def collect(*, limit: int | None, raw_dir: Path):
         timeout_seconds=45,
         max_response_bytes=30 * 1024 * 1024,
     )
-    return list(result.grants), list(result.failures)
+    return list(result.grants), list(result.failures), result.discovered
 
 
 async def async_main(args: argparse.Namespace) -> None:
     raw_dir = Path(args.raw_dir).resolve()
-    grants, failures = await collect(limit=args.limit, raw_dir=raw_dir)
+    grants, failures, discovered = await collect(limit=args.limit, raw_dir=raw_dir)
     summary = publish_grants_to_local_d1(
         grants,
         raw_dir=raw_dir,
         persist_root=Path(args.db_root).resolve(),
         adapter_version=DotaceEuAdapter.descriptor.adapter_version,
         now=datetime.now(timezone.utc),
+        discovered_count=discovered,
+        collection_error_count=len(failures),
     )
 
     print(f"DB={summary.database_path}")

@@ -1,9 +1,15 @@
+import asyncio
 import hashlib
+import io
 import sqlite3
+from argparse import Namespace
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,6 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
 
 from dotacni_majak_ingestion.canonical_publisher import CanonicalPublicationError
+from dotacni_majak_ingestion.field_evidence import FieldEvidenceRecord, FieldEvidenceRepository
 from dotacni_majak_ingestion.local_publish import SearchableGrant
 from dotacni_majak_ingestion.snapshot import LocalRawSnapshotStore
 from local_trusted_publish import (
@@ -446,6 +453,175 @@ class TrustedLocalPublishTest(unittest.TestCase):
                 source_code="TEST",
                 sha256=self.snapshot.sha256,
             )
+
+    def test_hash_fallback_rejects_other_url_provenance(self):
+        wrong = replace(
+            self.grant(),
+            source_url="https://example.test/call/other",
+        )
+        with self.assertRaisesRegex((FileNotFoundError, ValueError), "RAW snapshot|URL"):
+            publish_grants_to_local_d1(
+                [wrong], raw_dir=self.raw_dir, persist_root=self.persist,
+                adapter_version="test-adapter-1.0", now=self.at,
+            )
+        with sqlite3.connect(self.database) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM grant_calls").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT status FROM source_runs").fetchone()[0], "FAILED")
+
+    def test_legacy_hash_sidecar_with_matching_url_remains_usable(self):
+        object_path = self.raw_dir / self.snapshot.object_key
+        object_path.with_name(object_path.name + ".url-" + self.snapshot.snapshot_id.split(":")[1] + ".json").unlink()
+        summary = publish_grants_to_local_d1(
+            [self.grant()], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+        )
+        self.assertEqual(summary.grants, 1)
+
+    def test_same_raw_correction_reconciles_only_trusted_evidence(self):
+        first = self.grant()
+        publish_grants_to_local_d1(
+            [first], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+        )
+        with sqlite3.connect(self.database) as connection:
+            version_id = connection.execute("SELECT current_version_id FROM grant_calls").fetchone()[0]
+            document_version_id = connection.execute("SELECT id FROM document_versions").fetchone()[0]
+            FieldEvidenceRepository(connection).save(FieldEvidenceRecord(
+                id="manual-evidence", entity_type="GRANT_CALL_VERSION",
+                entity_id=version_id, field_path="/status",
+                document_version_id=document_version_id,
+                verification_status="VERIFIED", created_at=self.at.isoformat(),
+                evidence_text="Verified by reviewer", extraction_method="MANUAL",
+            ))
+        corrected = replace(first, title="Corrected title", summary="")
+        publish_grants_to_local_d1(
+            [corrected], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at + timedelta(hours=1),
+        )
+        with sqlite3.connect(self.database) as connection:
+            evidence = connection.execute(
+                """SELECT field_path,evidence_text FROM field_evidence
+                   WHERE entity_type='GRANT_CALL_VERSION' ORDER BY field_path"""
+            ).fetchall()
+            archived = connection.execute(
+                """SELECT field_path,evidence_text FROM field_evidence
+                   WHERE entity_type='GRANT_CALL_VERSION_SUPERSEDED'"""
+            ).fetchall()
+            self.assertIn(("/title", first.title), archived)
+            self.assertIn(("/title", "Corrected title"), evidence)
+            self.assertIn(("/status", "Verified by reviewer"), evidence)
+            self.assertNotIn(("/title", first.title), evidence)
+            self.assertNotIn(("/summary", first.summary), evidence)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM document_versions").fetchone()[0], 1)
+        publish_grants_to_local_d1(
+            [first], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at + timedelta(hours=2),
+        )
+        with sqlite3.connect(self.database) as connection:
+            active = connection.execute(
+                """SELECT field_path,evidence_text FROM field_evidence
+                   WHERE entity_type='GRANT_CALL_VERSION'"""
+            ).fetchall()
+            self.assertIn(("/title", first.title), active)
+            self.assertIn(("/summary", first.summary), active)
+            self.assertNotIn(("/title", corrected.title), active)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM grant_call_versions").fetchone()[0], 1)
+
+    def test_unchanged_raw_refresh_advances_last_seen_without_rewriting_version(self):
+        publish_grants_to_local_d1(
+            [self.grant()], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+        )
+        later = self.at + timedelta(hours=2)
+        object_path = self.raw_dir / self.snapshot.object_key
+        sidecar = object_path.with_name(
+            object_path.name + ".url-" + self.snapshot.snapshot_id.split(":")[1] + ".json"
+        )
+        original_sidecar = sidecar.read_bytes()
+        again = self.store.put(
+            source_code="TEST", source_url=self.snapshot.source_url,
+            content=b'{"title":"Trusted local refresh"}',
+            mime_type="application/json", retrieved_at=later,
+        )
+        self.assertEqual(again.snapshot_id, self.snapshot.snapshot_id)
+        self.assertEqual(sidecar.read_bytes(), original_sidecar)
+        publish_grants_to_local_d1(
+            [self.grant()], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=later,
+        )
+        with sqlite3.connect(self.database) as connection:
+            seen = connection.execute("SELECT last_seen_at FROM source_documents").fetchone()[0]
+            first = connection.execute("SELECT retrieved_at FROM document_versions").fetchone()[0]
+            self.assertEqual(seen, later.isoformat())
+            self.assertEqual(first, self.at.isoformat())
+
+    def test_source_run_records_discovery_and_collection_failures(self):
+        summary = publish_grants_to_local_d1(
+            [self.grant()], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+            discovered_count=3, collection_error_count=2,
+        )
+        with sqlite3.connect(self.database) as connection:
+            row = connection.execute(
+                "SELECT status,records_seen,error_count FROM source_runs WHERE id=?",
+                (summary.source_run_id,),
+            ).fetchone()
+            self.assertEqual(row, ("PARTIAL_FAILED", 3, 2))
+
+    def test_eu_funding_catalogue_fallback_migrates_to_official_framework(self):
+        snapshot = self.store.put(
+            source_code="EU_FT", source_url=self.snapshot.source_url,
+            content=b'{"framework":"later"}', mime_type="application/json",
+            retrieved_at=self.at,
+        )
+        fallback = replace(
+            self.grant(), source_id="source:eu-ft", source_code="EU_FT",
+            content_hash=snapshot.sha256, adapter_key="eu-funding-tenders",
+            source_external_id="TOPIC-1", grant_call_id="grant:eu-ft:TOPIC-1",
+            canonical_slug="eu-ft-topic-1", programme_id="programme:eu-ft:catalogue",
+        )
+        publish_grants_to_local_d1(
+            [fallback], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+        )
+        official = replace(
+            fallback, programme_id="programme:eu-ft:43252368",
+            programme_name="Official framework",
+        )
+        publish_grants_to_local_d1(
+            [official], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at + timedelta(hours=1),
+        )
+        with sqlite3.connect(self.database) as connection:
+            programme = connection.execute(
+                "SELECT programme_id FROM grant_calls WHERE id=?",
+                (fallback.grant_call_id,),
+            ).fetchone()[0]
+            self.assertEqual(programme, official.programme_id)
+
+    def test_each_local_entrypoint_forwards_collection_counts(self):
+        args = Namespace(raw_dir=str(self.raw_dir), db_root=str(self.persist), limit=2)
+        for name, collected in (
+            ("local_ingest_nsa", ([self.grant()], ["failed"], 2)),
+            ("local_ingest_dotaceeu", ([self.grant()], ["failed"], 2)),
+            ("local_ingest_eu_funding", ([self.grant()], ["failed"], 1, 2)),
+        ):
+            with self.subTest(name=name):
+                module = __import__(name)
+                summary = SimpleNamespace(
+                    database_path=str(self.database), grants=1,
+                    search_events_delivered=1,
+                )
+                with (
+                    patch.object(module, "collect", new_callable=AsyncMock) as collect,
+                    patch.object(module, "publish_grants_to_local_d1", return_value=summary) as publish,
+                    redirect_stdout(io.StringIO()),
+                    redirect_stderr(io.StringIO()),
+                ):
+                    collect.return_value = collected
+                    asyncio.run(module.async_main(args))
+                self.assertEqual(publish.call_args.kwargs["discovered_count"], 2)
+                self.assertEqual(publish.call_args.kwargs["collection_error_count"], 1)
 
     def test_active_refresh_entrypoints_do_not_use_legacy_direct_sql_publisher(self):
         for relative in (

@@ -229,10 +229,17 @@ def publish_grants_to_local_d1(
     persist_root: str | Path,
     adapter_version: str,
     now: datetime | None = None,
+    discovered_count: int | None = None,
+    collection_error_count: int = 0,
 ) -> TrustedLocalPublishSummary:
     rows = list(grants)
     if not rows:
         raise ValueError("refusing to publish an empty source run")
+    if collection_error_count < 0 or (
+        discovered_count is not None
+        and discovered_count < len(rows) + collection_error_count
+    ):
+        raise ValueError("invalid source collection counts")
     source = _assert_single_source(rows)
 
     current = now or datetime.now(timezone.utc)
@@ -268,22 +275,17 @@ def publish_grants_to_local_d1(
         connection.execute("BEGIN IMMEDIATE")
         for grant in rows:
             if grant.raw_snapshot_id is not None:
+                # Some official API records have a separate public detail URL.
+                # The connector supplies the exact response snapshot identity.
                 snapshot = store.load_by_snapshot_id(grant.raw_snapshot_id)
             else:
-                try:
-                    snapshot = store.load_by_sha256(
-                        source_code=grant.source_code,
-                        sha256=grant.content_hash,
-                        source_url=grant.source_url,
-                    )
-                except FileNotFoundError:
-                    # Backward compatibility for pre-URL-qualified snapshots:
-                    # hash-only fallback is accepted only when provenance is
-                    # unambiguous; the store fails closed otherwise.
-                    snapshot = store.load_by_sha256(
-                        source_code=grant.source_code,
-                        sha256=grant.content_hash,
-                    )
+                # Hash-only grants must match the record URL; the store also
+                # supports a legacy sidecar if its URL matches exactly.
+                snapshot = store.load_by_sha256(
+                    source_code=grant.source_code,
+                    sha256=grant.content_hash,
+                    source_url=grant.source_url,
+                )
             result = ingestor.ingest(
                 grant,
                 record_snapshot=snapshot,
@@ -337,14 +339,16 @@ def publish_grants_to_local_d1(
 
         connection.execute(
             """UPDATE source_runs
-               SET finished_at=?, status='COMPLETED', records_seen=?,
-                   new_records=?, changed_records=?, error_count=0
+               SET finished_at=?, status=?, records_seen=?,
+                   new_records=?, changed_records=?, error_count=?
                WHERE id=?""",
             (
                 timestamp,
-                records_seen,
+                "PARTIAL_FAILED" if collection_error_count else "COMPLETED",
+                discovered_count if discovered_count is not None else records_seen,
                 new_records,
                 changed_records,
+                collection_error_count,
                 source_run_id,
             ),
         )
