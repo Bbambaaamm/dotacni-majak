@@ -76,6 +76,16 @@ describe("search cursor", () => {
     await expect(searchGrants(db, "koupaliště", 51)).rejects.toMatchObject({ code: "INVALID_LIMIT" });
   });
 
+  it("round-trips a cursor for the longest accepted multibyte intent", async () => {
+    const intent = `strankovani${"—".repeat(489)}`;
+    const db = database([row(1), row(2)], []);
+    const first = await searchGrants(db, intent, 1);
+    expect(first.nextCursor?.length).toBeGreaterThan(2048);
+    expect((await searchGrants(db, intent, 1, first.nextCursor)).results).toEqual([
+      expect.objectContaining({ grantCallVersionId: "v-002" }),
+    ]);
+  });
+
   it("reports empty index and propagates database errors", async () => {
     expect(await searchGrants(database([], [], true), "koupaliště")).toMatchObject({
       results: [], indexState: "EMPTY", nextCursor: null,

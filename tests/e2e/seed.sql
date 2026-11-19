@@ -169,5 +169,5 @@ WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
   eligible_costs,keywords,status,submission_close_at,updated_at)
 SELECT 'gcv-e2e-page-' || i,'E2E stránkování ' || i,'Testovací záznam stránkování.',
-  'strankovani','',CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení' ELSE '' END,
+  'strankovani','',CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení' WHEN 3 THEN 'plavecké zařízení' ELSE '' END,
   'OPEN',NULL,'2026-09-26T20:00:00Z' FROM n;

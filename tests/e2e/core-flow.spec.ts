@@ -35,7 +35,12 @@ test("real D1 cursor crosses from direct to ontology without replaying direct ma
   expect(secondResponse.status()).toBe(200);
   const second = await secondResponse.json() as { results: Array<{ grantCallVersionId: string; matchKind: string }>; nextCursor: string | null };
   expect(second.results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-page-2", matchKind: "ONTOLOGY" })]);
-  expect(second.nextCursor).toBeNull();
+  expect(second.nextCursor).toBeTruthy();
+  const thirdResponse = await request.get(`/api/search?intent=koupali%C5%A1t%C4%9B&limit=1&cursor=${encodeURIComponent(second.nextCursor!)}`);
+  expect(thirdResponse.status()).toBe(200);
+  const third = await thirdResponse.json() as { results: Array<{ grantCallVersionId: string; matchKind: string }>; nextCursor: string | null };
+  expect(third.results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-page-3", matchKind: "ONTOLOGY" })]);
+  expect(third.nextCursor).toBeNull();
 });
 
 test("non-sport intent -> real API results -> filters -> detail -> provenance", async ({ page }) => {

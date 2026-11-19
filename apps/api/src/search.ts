@@ -56,7 +56,7 @@ function encodeCursor(cursor: SearchCursor): string {
 function decodeCursor(raw: string | null, intent: string, limit: number): SearchCursor | null {
   if (raw === null) return null;
   try {
-    if (!raw || raw.length > 2048 || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error();
+    if (!raw || raw.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error();
     const bytes = Uint8Array.from(atob(raw.replaceAll("-", "+").replaceAll("_", "/")), (c) => c.charCodeAt(0));
     const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object") throw new Error();
