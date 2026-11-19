@@ -214,3 +214,29 @@ INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported
   eligible_costs,keywords,status,submission_close_at,updated_at)
 SELECT id,title,summary,'date-boundary','','date-boundary',status,submission_close_at,
   '2026-09-26T20:00:00Z' FROM grant_call_versions WHERE id LIKE 'gcv-e2e-date-%';
+
+-- Preserve the true UTC day at a sub-millisecond midnight boundary.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+SELECT 'grant:e2e:precision:' || kind,'e2e-programme-open','E2E-PRECISION-' || kind,
+  'e2e-precision-' || kind,NULL,'OPEN','E2E precision ' || kind,
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z'
+FROM (SELECT 'before' AS kind UNION ALL SELECT 'after');
+
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  submission_close_at,official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-precision-' || kind,'grant:e2e:precision:' || kind,1,'2026-09-26T20:00:00Z',
+  'E2E precision ' || kind,'precision-boundary fixture','OPEN',close_at,
+  'https://example.invalid/e2e/precision/' || kind,'CZK','e2e-v1',printf('%064d',200 + ordinal),
+  'VERIFIED','2026-09-26T20:00:00Z'
+FROM (SELECT 'before' AS kind,'2027-05-01T23:59:59.9995Z' AS close_at,1 AS ordinal
+  UNION ALL SELECT 'after','2027-05-02T00:00:00.0001Z',2);
+
+UPDATE grant_calls SET current_version_id = 'gcv-e2e-precision-' || substr(id, length('grant:e2e:precision:') + 1)
+WHERE id LIKE 'grant:e2e:precision:%';
+
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+SELECT id,title,summary,'precision-boundary','','precision-boundary',status,submission_close_at,
+  '2026-09-26T20:00:00Z' FROM grant_call_versions WHERE id LIKE 'gcv-e2e-precision-%';

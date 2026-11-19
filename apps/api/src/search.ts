@@ -124,8 +124,8 @@ const BOUNDED_DATE = `(d.submission_close_at GLOB '????-??-??' OR d.submission_c
 function dateFilters(closesFrom: string | null, closesBy: string | null): string {
   if (!closesFrom && !closesBy) return "";
   return `AND ${BOUNDED_DATE}
-    ${closesFrom ? "AND julianday(d.submission_close_at) >= julianday(? || 'T00:00:00Z')" : ""}
-    ${closesBy ? "AND julianday(d.submission_close_at) < julianday(? || 'T00:00:00Z') + 1" : ""}`;
+    ${closesFrom ? "AND date(d.submission_close_at) >= ?" : ""}
+    ${closesBy ? "AND date(d.submission_close_at) <= ?" : ""}`;
 }
 
 function parseSort(value: string | null): SearchSort {

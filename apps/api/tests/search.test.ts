@@ -28,8 +28,8 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
             sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
           const dateIndex = 4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider));
-          const closesFrom = sql.includes("julianday(d.submission_close_at) >=") ? String(values[dateIndex]) : null;
-          const closesBy = sql.includes("julianday(d.submission_close_at) <") ?
+          const closesFrom = sql.includes("AND date(d.submission_close_at) >= ?") ? String(values[dateIndex]) : null;
+          const closesBy = sql.includes("AND date(d.submission_close_at) <= ?") ?
             String(values[dateIndex + Number(Boolean(closesFrom))]) : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
             .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
@@ -37,10 +37,9 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
               (!provider || r.provider_name === provider) &&
               (!deadline || (r.submission_close_at === null) === (deadline === "UNKNOWN")) &&
               (!(closesFrom || closesBy) || (r.submission_close_at !== null &&
-                /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(r.submission_close_at) &&
                 Number.isFinite(Date.parse(r.submission_close_at)) &&
-                (!closesFrom || r.submission_close_at >= `${closesFrom}T00:00:00Z`) &&
-                (!closesBy || r.submission_close_at < new Date(Date.parse(`${closesBy}T00:00:00Z`) + 86400000).toISOString()))))
+                (!closesFrom || new Date(r.submission_close_at).toISOString().slice(0, 10) >= closesFrom) &&
+                (!closesBy || new Date(r.submission_close_at).toISOString().slice(0, 10) <= closesBy))))
             .slice().sort((a, b) => a.rank - b.rank || a.grant_call_version_id.localeCompare(b.grant_call_version_id));
           const after = sql.includes("WHERE rank > ?") ? values.slice(-4, -1) : null;
           const filtered = after ? candidates.filter((r) => r.rank > Number(after[0]) ||
@@ -226,8 +225,8 @@ describe("search cursor", () => {
             async first<T>() { return { count: 1 } as T; },
             async all<T>() {
               expect(sql).toContain("WITH matches AS");
-              expect(sql.match(/julianday\(d\.submission_close_at\) >=/g)).toHaveLength(2);
-              expect(sql.match(/julianday\(d\.submission_close_at\) </g)).toHaveLength(2);
+              expect(sql.match(/AND date\(d\.submission_close_at\) >= \?/g)).toHaveLength(2);
+              expect(sql.match(/AND date\(d\.submission_close_at\) <= \?/g)).toHaveLength(2);
               expect(values.filter((v) => v === "2027-05-01")).toHaveLength(2);
               expect(values.filter((v) => v === "2027-05-31")).toHaveLength(2);
               expect(sql.indexOf("WITH matches AS")).toBeLessThan(sql.indexOf("ORDER BY (close_sort IS NULL)"));

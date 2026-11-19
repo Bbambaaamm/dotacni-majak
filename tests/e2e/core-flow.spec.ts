@@ -196,6 +196,21 @@ test("bounded API search includes date-only source values and excludes invalid s
   }
 });
 
+test("UTC date bounds keep sub-millisecond deadlines on their actual source day", async ({ request }) => {
+  for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
+    for (const [bounds, expected] of [
+      ["closesBy=2027-05-01", "gcv-e2e-precision-before"],
+      ["closesFrom=2027-05-02", "gcv-e2e-precision-after"],
+      ["closesFrom=2027-05-01&closesBy=2027-05-01", "gcv-e2e-precision-before"],
+    ]) {
+      const response = await request.get(`/api/search?intent=precision-boundary&${bounds}&sort=${sort}`);
+      expect(response.status()).toBe(200);
+      const body = await response.json() as { results: Array<{ grantCallVersionId: string }> };
+      expect(body.results.map((row) => row.grantCallVersionId)).toEqual([expected]);
+    }
+  }
+});
+
 test("date form constraints use applied bounds while the other form has an unsent draft", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (request) => {
