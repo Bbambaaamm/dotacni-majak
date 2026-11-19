@@ -32,7 +32,7 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav, dostupnost termínu a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
@@ -107,6 +107,34 @@ test("provider absent from first page is found by exact name across real D1 and 
   const duplicate = await request.get("/api/search?intent=strankovani&provider=A&provider=B");
   expect(duplicate.status()).toBe(400);
   expect(await duplicate.json()).toEqual({ error: "INVALID_PROVIDER" });
+});
+
+test("inclusive cutoff filters real D1 beyond first page without declaring missing dates expired", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)").fill("2027-05-01");
+  await page.getByRole("button", { name: "Použít datum uzávěrky" }).click();
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejpozději: 2027-05-01" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByLabel("Termín podání").selectOption("UNKNOWN");
+  await expect(page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)")).toHaveValue("");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(24);
+
+  const first = await request.get("/api/search?intent=digitalizace%20obce&limit=1&closesBy=2027-12-31");
+  expect(first.status()).toBe(200);
+  const { nextCursor } = await first.json() as { nextCursor: string | null };
+  expect(nextCursor).toBeTruthy();
+  const changed = await request.get(`/api/search?intent=digitalizace%20obce&limit=1&closesBy=2027-10-31&cursor=${encodeURIComponent(nextCursor!)}`);
+  expect(changed.status()).toBe(400);
+  expect(await changed.json()).toEqual({ error: "INVALID_CURSOR" });
+  const boundary = await request.get("/api/search?intent=digitalizace%20obce&closesBy=2027-10-31");
+  expect(boundary.status()).toBe(200);
+  expect((await boundary.json()).results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-planned" })]);
 });
 
 test("real D1 cursor crosses from direct to ontology without replaying direct matches", async ({ request }) => {
@@ -224,7 +252,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav, dostupnost termínu a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
