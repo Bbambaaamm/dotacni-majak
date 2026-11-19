@@ -121,6 +121,8 @@ test("provider absent from first page is found by exact name across real D1 and 
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(page.locator("#search-providers option[value='E2E test provider B']")).toHaveCount(1);
+  await expect(page.getByText("E2E test provider B (1)")).toBeHidden();
+  await page.locator(".filter-panel summary").click();
   await expect(page.getByText("E2E test provider B (1)")).toBeVisible();
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider B");
   await page.getByLabel("Přesný název poskytovatele").press("Enter");
@@ -174,6 +176,7 @@ test("inclusive cutoff filters real D1 beyond first page without declaring missi
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.locator(".filter-panel summary").click();
   await page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)").fill("2027-05-01");
   await page.getByRole("button", { name: "Použít datum uzávěrky" }).click();
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
@@ -202,6 +205,7 @@ test("inclusive start and end find a later-page D1 result on mobile and reset st
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.locator(".filter-panel summary").click();
   await page.getByLabel("Uzávěrka nejdříve (včetně dne, UTC)").fill("2027-05-01");
   await page.getByRole("button", { name: "Použít datum od" }).click();
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
@@ -314,6 +318,7 @@ test("global date ordering moves a later-page deadline first and paginates missi
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toHaveCount(0);
+  await page.locator(".filter-panel summary").click();
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(page.locator(".grant-card h3").first()).toHaveText("E2E pozdější plánovaná výzva");
@@ -618,6 +623,22 @@ test("mobile result filters, deadline order and chips use the real API without i
   const open = page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" });
   await expect(planned).toBeVisible();
   await expect(open).toBeVisible();
+  const filterToggle = page.locator(".filter-panel summary");
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await filterToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+  await page.getByLabel("Stav výzvy").focus();
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await expect(filterToggle).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+  await page.setViewportSize({ width: 1024, height: 844 });
+  await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await filterToggle.click();
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE_LATEST");
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E otevřená výzva");
@@ -632,7 +653,6 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(open).toHaveCount(0);
   await page.getByRole("button", { name: "Zrušit všechny filtry" }).click();
   await expect(open).toBeVisible();
-  const filterToggle = page.getByText("Upravit filtry a řazení");
   await filterToggle.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
