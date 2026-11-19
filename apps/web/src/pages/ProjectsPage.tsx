@@ -370,7 +370,7 @@ export function ProjectsPage() {
                   <li key={`${change.field}-${index}`}><strong>{change.field}</strong>: {change.before ?? "neuvedeno"} → {change.after ?? "neuvedeno"}{change.evidenceId && ` · evidence ${change.evidenceId}`}</li>
                 ))}</ul>
                 {workspace.versionReview.diff.length === 0 && <p>Nová verze byla publikována; strukturovaný rozdíl není dostupný. Ověřte celé znění.</p>}
-                <p>Verze zaznamenána {workspace.versionReview.sourceCheckedAt}. {workspace.versionReview.sourceUrl && <a href={workspace.versionReview.sourceUrl} target="_blank" rel="noreferrer">Zkontrolovat zdroj ↗</a>}</p>
+                <p>Aktuální verze zachycena {workspace.versionReview.currentCapturedAt}. Poslední pozorování záznamu u zdroje: {workspace.versionReview.sourceCheckedAt ?? "Není doloženo"}. Pozorování není ověření podmínek verze. {workspace.versionReview.sourceUrl && <a href={workspace.versionReview.sourceUrl} target="_blank" rel="noreferrer">Zkontrolovat zdroj ↗</a>}</p>
               </div>
             )}
             {workspace.versionReview.alerts.length > 0 && <p role="status">Upozornění na změny verzí: {workspace.versionReview.alerts.length}</p>}

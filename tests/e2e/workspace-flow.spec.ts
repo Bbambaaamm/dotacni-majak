@@ -27,6 +27,9 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
   const first = await page.request.get(`${base}/${id}`, { headers });
   const initial = await first.json();
   expect(initial.workspace.baselineGrantVersionId).toBe("gcv-e2e-open");
+  expect(initial.versionReview).toMatchObject({
+    currentCapturedAt: "2026-09-26T20:00:00Z", sourceCheckedAt: "2026-10-01T09:00:00Z",
+  });
   const required = initial.tasks.find((task: {title: string}) => task.title === "Připravit rozpočet projektu");
   const conditional = initial.tasks.find((task: {title: string}) => task.title === "Ověřit potřebu stavebního povolení");
   expect(conditional.status).toBe("BLOCKED");
@@ -75,6 +78,10 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
   await expect(eligibility).toContainText(refreshed.workspace.currentGrantVersionId);
   await expect(eligibility.getByRole("heading", { name: "Jaký typ žadatele bude žádost podávat?" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Podmínky výzvy se od zahájení přípravy změnily" })).toBeVisible();
+  expect(refreshed.versionReview.sourceCheckedAt).toBeTruthy();
+  await expect(page.getByText(/Poslední pozorování záznamu u zdroje:/)).toContainText(refreshed.versionReview.sourceCheckedAt);
+  await expect(page.getByText(/Poslední pozorování záznamu u zdroje:/)).toContainText(refreshed.versionReview.currentCapturedAt);
+  await expect(page.getByText(/Pozorování není ověření podmínek verze/)).toBeVisible();
   await expect(page.getByLabel("Změny výzvy")).toContainText("2028-01-31T23:59:59Z");
   await expect(page.getByLabel("Změny výzvy")).toContainText("2027-12-31T23:59:59Z");
   await expect(page.getByText("Zkontrolujte změny podmínek výzvy vůči původní verzi")).toBeVisible();

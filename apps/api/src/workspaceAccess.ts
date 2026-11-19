@@ -184,7 +184,8 @@ export async function readWorkspace(projectId: string, token: string | null, wor
       blockingOpenCount: blockingOpen.length + (changed ? 1 : 0), nextAction: next },
     versionReview: { required: changed, diff, baselineCapturedAt: base.captured_at, currentCapturedAt: current.captured_at,
       sourceUrl: safeSourceUrl(current.official_detail_url) ?? safeSourceUrl(sourceRows.results?.[0]?.canonical_url),
-      sourceCheckedAt: sourceRows.results?.[0]?.last_seen_at ?? current.captured_at,
+      // A missing source observation is unknown, not the capture time of a version.
+      sourceCheckedAt: sourceRows.results?.[0]?.last_seen_at ?? null,
       alerts: ((alerts.results ?? []) as Array<{grant_call_version_id: string; created_at: string}>).map((a) => ({ versionId: a.grant_call_version_id, createdAt: a.created_at })) },
   };
 }

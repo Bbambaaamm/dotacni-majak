@@ -4,7 +4,7 @@ export interface WorkspaceResult {
   workspace: { id: string; grantCallId: string; baselineGrantVersionId: string; currentGrantVersionId: string; status: string };
   tasks: Array<{ id: string; title: string; source: string; necessity: string; status: string; blocking: number; reason_code: string | null }>;
   readiness: { state: string; completedCount: number; totalCount: number; completionPercent: number; nextAction: { title: string } | null };
-  versionReview: { required: boolean; diff: Array<{ field: string; before: string | null; after: string | null; evidenceId: string | null }>; sourceUrl: string | null; sourceCheckedAt: string; alerts: Array<{ versionId: string; createdAt: string }> };
+  versionReview: { required: boolean; diff: Array<{ field: string; before: string | null; after: string | null; evidenceId: string | null }>; currentCapturedAt: string; sourceUrl: string | null; sourceCheckedAt: string | null; alerts: Array<{ versionId: string; createdAt: string }> };
 }
 
 async function request(path: string, token: string, method = "GET", body?: unknown): Promise<unknown> {
