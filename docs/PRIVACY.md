@@ -10,6 +10,10 @@ Výzvy, poskytovatelé, dokumenty a provenance.
 ### Applicant profile
 U organizací preferovat veřejné registry. U fyzických osob minimalizovat osobní údaje a nikdy automaticky nedoplňovat citlivé atributy.
 
+Profil je volitelně ukládán lokálně (local-first) bez registrace přes stránku `/profil`. Na zařízení uživatele se ukládají pouze údaje, které uživatel výslovně zadal nebo importoval; aplikace sama nespouští ARES/ČSÚ ani nedoplňuje osobní identifikační údaje (rodné číslo, kontakt, e-mail). Místní údaje nejsou automaticky odesílány na server a samy o sobě neznamenají rozhodnutí o způsobilosti.
+
+Profil má `schemaVersion` a provenance po poli (uživatelem uvedeno, automaticky získáno z oficiálního zdroje, potřeba ověřit). UI umožňuje uložit typ žadatele, kód obce a počet obyvatel, zobrazit export JSON, importovat platný JSON a profil výslovně smazat. Neznámá verze či neplatný záznam se nepoužije ani automaticky nevymaže; před novým uložením musí uživatel rozhodnout o smazání. Selhání úložiště není zaměněno za prázdný profil. Budoucí serverová synchronizace vyžaduje samostatný opt-in a správně ověřenou identitu; není součástí této stránky.
+
 ### Project data
 Záměr, rozpočet, lokalita, readiness a eligibility odpovědi jsou private-by-default.
 
