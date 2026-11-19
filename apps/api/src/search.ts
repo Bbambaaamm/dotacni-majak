@@ -22,7 +22,18 @@ export interface GrantSearchResponse {
   expandedTerms: string[];
   indexState: "READY" | "EMPTY";
   nextCursor: string | null;
+  facets: SearchFacets | null;
 }
+
+export interface SearchFacets {
+  status: Record<"OPEN" | "PLANNED" | "ANNOUNCED", number>;
+  deadline: Record<"KNOWN" | "UNKNOWN", number>;
+  providers: { name: string; count: number }[];
+  providersTruncated: boolean;
+}
+
+const PROVIDER_FACET_LIMIT = 20;
+export const FACET_MATCH_LIMIT = 500;
 
 type Phase = "DIRECT" | "ONTOLOGY";
 type SearchSort = "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST";
@@ -283,6 +294,64 @@ function toResult(row: SearchRow, matchKind: "DIRECT" | "ONTOLOGY"): GrantSearch
   };
 }
 
+// Bound each FTS phase before any metadata join. A phase over budget, or a union
+// over budget after removing overlap, makes all counts unavailable.
+async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
+  status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null,
+  closesFrom: string | null, closesBy: string | null): Promise<SearchFacets | null> {
+  const facets: SearchFacets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+    deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };
+  if (!direct && !expanded) return facets;
+  const ids = new Set<string>();
+  for (const query of [direct, expanded]) {
+    if (!query) continue;
+    const matches = await db.prepare(`SELECT grant_call_version_id FROM grant_search_fts
+      WHERE grant_search_fts MATCH ? LIMIT ?`).bind(query, FACET_MATCH_LIMIT + 1)
+      .all<{ grant_call_version_id: string }>();
+    const phase = matches.results ?? [];
+    if (phase.length > FACET_MATCH_LIMIT) return null;
+    for (const match of phase) ids.add(match.grant_call_version_id);
+    if (ids.size > FACET_MATCH_LIMIT) return null;
+  }
+  if (!ids.size) return facets;
+  const shared = `WITH matched AS MATERIALIZED (
+    SELECT value AS grant_call_version_id FROM json_each(?)
+  ), eligible AS MATERIALIZED (
+    SELECT d.status, d.submission_close_at, p.name AS provider_name
+    FROM matched m JOIN grant_search_documents d ON d.grant_call_version_id = m.grant_call_version_id
+    JOIN grant_call_versions v ON v.id = d.grant_call_version_id
+    JOIN grant_calls g ON g.id = v.grant_call_id
+    JOIN programmes pr ON pr.id = g.programme_id
+    JOIN providers p ON p.id = pr.provider_id
+    WHERE d.status IN (?, ?, ?) ${dateFilters(closesFrom, closesBy)}
+  )`;
+  const bindings = [JSON.stringify([...ids]), ...ACTIVE_STATUSES,
+    ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []) ];
+  const aggregate = `${shared} SELECT 'status' AS kind, status AS value, COUNT(*) AS count FROM eligible
+      WHERE 1=1 ${provider ? "AND provider_name = ?" : ""}
+      ${deadline ? `AND submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
+      GROUP BY status
+    UNION ALL SELECT 'deadline', CASE WHEN submission_close_at IS NULL THEN 'UNKNOWN' ELSE 'KNOWN' END, COUNT(*)
+      FROM eligible WHERE 1=1 ${status ? "AND status = ?" : ""} ${provider ? "AND provider_name = ?" : ""}
+      GROUP BY CASE WHEN submission_close_at IS NULL THEN 'UNKNOWN' ELSE 'KNOWN' END`;
+  const rows = await db.prepare(aggregate).bind(...bindings, ...(provider ? [provider] : []),
+    ...(status ? [status] : []), ...(provider ? [provider] : [])).all<{ kind: string; value: string; count: number }>();
+  for (const row of rows.results ?? []) {
+    if (row.kind === "status" && row.value in facets.status) facets.status[row.value as SearchStatus] = row.count;
+    if (row.kind === "deadline" && row.value in facets.deadline) facets.deadline[row.value as SearchDeadline] = row.count;
+  }
+  const providerSql = `${shared} SELECT provider_name AS name, COUNT(*) AS count FROM eligible
+    WHERE 1=1 ${status ? "AND status = ?" : ""}
+    ${deadline ? `AND submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
+    GROUP BY provider_name ORDER BY count DESC, provider_name ASC LIMIT ?`;
+  const providerRows = await db.prepare(providerSql).bind(...bindings, ...(status ? [status] : []),
+    PROVIDER_FACET_LIMIT + 1).all<{ name: string; count: number }>();
+  const allProviders = providerRows.results ?? [];
+  facets.providersTruncated = allProviders.length > PROVIDER_FACET_LIMIT;
+  facets.providers = allProviders.slice(0, PROVIDER_FACET_LIMIT) as { name: string; count: number }[];
+  return facets;
+}
+
 export async function searchGrants(
   db: D1DatabaseLike,
   rawIntent: string | null,
@@ -317,26 +386,30 @@ export async function searchGrants(
       expandedTerms: expandIntentTerms(intent),
       indexState,
       nextCursor: null,
+      facets: cursor ? null : { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false },
     };
   }
 
   const expandedTerms = expandIntentTerms(intent);
+  const directQuery = buildDirectFtsQuery(intent);
+  const expandedQuery = buildExpandedFtsQuery(expandedTerms);
+  const facets = cursor ? null : await queryFacets(db, directQuery, expandedQuery,
+    status, deadline, provider, closesFrom, closesBy);
   if (sort !== "RELEVANCE") {
-    const directQuery = buildDirectFtsQuery(intent);
-    const rows = await queryDateSorted(db, directQuery, buildExpandedFtsQuery(expandedTerms), limit + 1,
+    const rows = await queryDateSorted(db, directQuery, expandedQuery, limit + 1,
       cursor as DateCursor | null, status, deadline, provider, closesFrom, closesBy, sort);
     const selected = rows.slice(0, limit);
     const last = selected.at(-1);
     return { intent, results: selected.map((row) => toResult(row,
       row.match_phase === 0 ? "DIRECT" : "ONTOLOGY")),
-      expandedTerms, indexState,
+      expandedTerms, indexState, facets,
       nextCursor: rows.length > limit && last ? encodeCursor({ v: 2, intent, limit, status, deadline,
         provider, closesBy, closesFrom, sort, closeAt: last.close_sort,
         phase: last.match_phase === 0 ? "DIRECT" : "ONTOLOGY", rank: last.rank,
         id: last.grant_call_version_id }) : null };
   }
 
-  const directQuery = buildDirectFtsQuery(intent);
   const relevanceCursor = cursor as SearchCursor | null;
   const directRows = relevanceCursor?.phase === "ONTOLOGY" ? [] :
     await queryFts(db, directQuery, limit + 1, relevanceCursor, status, deadline, provider, closesFrom, closesBy);
@@ -347,7 +420,6 @@ export async function searchGrants(
   let hasMore = directRows.length > limit;
 
   if (!hasMore && expandedTerms.length) {
-    const expandedQuery = buildExpandedFtsQuery(expandedTerms);
     const remaining = limit - results.length;
     const expandedRows = await queryFts(db, expandedQuery, remaining + 1,
       relevanceCursor?.phase === "ONTOLOGY" ? relevanceCursor : null, status, deadline, provider, closesFrom, closesBy, directQuery || undefined);
@@ -361,7 +433,7 @@ export async function searchGrants(
     if (remaining === 0 && hasMore) lastPhase = "DIRECT";
   }
 
-  return { intent, results, expandedTerms, indexState,
+  return { intent, results, expandedTerms, indexState, facets,
     nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, status, deadline, provider, closesBy, closesFrom, phase: lastPhase,
       rank: lastRow.rank, id: lastRow.grant_call_version_id }) : null };
 }

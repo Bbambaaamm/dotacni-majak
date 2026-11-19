@@ -7,6 +7,7 @@
 .result-filters form button{padding:10px 12px;border:1px solid #087f8c;border-radius:10px;background:#fff;color:#0b2d48;font:inherit;cursor:pointer}
 .result-filters input:focus-visible,.result-filters form button:focus-visible{outline:3px solid #087f8c;outline-offset:2px}
 .result-filters .fine-print{flex-basis:100%;margin:0}
+.provider-facet-note{max-width:100%;overflow-wrap:anywhere}
 .filter-empty{margin:0 0 20px;padding:14px 16px;border-radius:12px;background:#f6f8fa;color:#52606d}
 @media(max-width:800px){.result-filters{display:grid}.result-filters select,.result-filters input,.result-filters form{width:100%;min-width:0}}
 .filter-panel{margin-bottom:16px;border:1px solid #dce4ea;border-radius:14px;background:#f8fafb}

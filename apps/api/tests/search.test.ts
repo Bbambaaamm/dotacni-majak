@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/env";
-import { searchGrants } from "../src/search";
+import { FACET_MATCH_LIMIT, searchGrants } from "../src/search";
 
 type Row = { grant_call_version_id: string; grant_call_id: string; title: string;
   summary: string; status: string; submission_close_at: string | null; provider_name: string;
@@ -20,6 +20,9 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
         bind(...args) { values = args; return statement; },
         async first<T>() { return { count: empty ? 0 : 1 } as T; },
         async all<T>() {
+          if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts"))
+            return { success: true, results: [] as T[] };
+          if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
           const ontology = sql.includes("NOT IN");
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
           expect(sql).toContain("d.status IN (?, ?, ?)");
@@ -55,12 +58,107 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
 }
 
 describe("search cursor", () => {
+  it("fails closed before metadata joins when either FTS phase or their union exceeds the cap", async () => {
+    for (const [directCount, expandedCount, overlap] of [
+      [FACET_MATCH_LIMIT + 1, 0, 0], [1, FACET_MATCH_LIMIT + 1, 0],
+      [300, 301, 100], [300, 300, 100],
+    ]) {
+      let phase = 0;
+      let joins = 0;
+      const db: D1DatabaseLike = {
+        prepare(sql) {
+          let values: unknown[] = [];
+          const statement: D1PreparedStatementLike = {
+            bind(...args) { values = args; return statement; },
+            async first<T>() { return { count: 1 } as T; },
+            async all<T>() {
+              if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts")) {
+                expect(sql).toContain("LIMIT ?");
+                expect(values.at(-1)).toBe(FACET_MATCH_LIMIT + 1);
+                const isDirect = phase++ === 0;
+                const start = isDirect ? 0 : directCount - overlap;
+                const count = isDirect ? directCount : expandedCount;
+                return { success: true, results: Array.from({ length: count }, (_, i) =>
+                  ({ grant_call_version_id: `v-${start + i}` })) as T[] };
+              }
+              if (sql.startsWith("WITH matched AS MATERIALIZED")) {
+                joins++;
+                expect(JSON.parse(String(values[0]))).toHaveLength(FACET_MATCH_LIMIT);
+                return { success: true, results: [] as T[] };
+              }
+              return { success: true, results: [] as T[] };
+            },
+            async run<T>() { return { success: true, results: [] as T[] }; },
+          };
+          return statement;
+        },
+        async batch() { return []; },
+      };
+      const first = await searchGrants(db, "koupaliště");
+      if (directCount + expandedCount - overlap > FACET_MATCH_LIMIT) {
+        expect(first.facets).toBeNull();
+        expect(joins).toBe(0);
+      } else {
+        expect(first.facets).not.toBeNull();
+        expect(joins).toBe(2);
+      }
+    }
+  });
+  it("binds facet inputs and reports a bounded provider list without a total", async () => {
+    const statements: { sql: string; values: unknown[] }[] = [];
+    const db: D1DatabaseLike = {
+      prepare(sql) {
+        const entry = { sql, values: [] as unknown[] };
+        statements.push(entry);
+        const statement: D1PreparedStatementLike = {
+          bind(...values) { entry.values = values; return statement; },
+          async first<T>() { return { count: 1 } as T; },
+          async all<T>() {
+            if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts")) return { success: true,
+              results: [{ grant_call_version_id: "v-001" }] as T[] };
+            if (sql.includes("SELECT provider_name AS name")) return { success: true,
+              results: Array.from({ length: 21 }, (_, i) => ({ name: `Provider ${i}`, count: 1 })) as T[] };
+            if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true,
+              results: [{ kind: "status", value: "OPEN", count: 3 },
+                { kind: "deadline", value: "UNKNOWN", count: 2 }] as T[] };
+            return { success: true, results: [] as T[] };
+          },
+          async run<T>() { return { success: true, results: [] as T[] }; },
+        };
+        return statement;
+      },
+      async batch() { return []; },
+    };
+    const provider = "Provider ' OR 1=1 --";
+    const result = await searchGrants(db, "koupaliště", 1, null, "OPEN", "UNKNOWN", provider);
+    expect(result.facets).toMatchObject({ status: { OPEN: 3 }, deadline: { UNKNOWN: 2 },
+      providersTruncated: true });
+    expect(result.facets?.providers).toHaveLength(20);
+    const facetStatements = statements.filter(({ sql }) => sql.startsWith("WITH matched AS MATERIALIZED"));
+    expect(facetStatements).toHaveLength(2);
+    expect(facetStatements.every(({ sql }) => !sql.includes(provider))).toBe(true);
+    expect(facetStatements[0].values).toContain(provider);
+    expect(facetStatements[1].values.at(-1)).toBe(21);
+    expect(statements.filter(({ sql }) => sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts"))
+      .every(({ sql, values }) => sql.includes("LIMIT ?") && values.at(-1) === 501)).toBe(true);
+  });
   it("walks over 20 direct rows with stable rank/id ties and repeatable cursors", async () => {
     const db = database(Array.from({ length: 27 }, (_, i) => row(i + 1, Math.floor(i / 3))), []);
+    const prepare = db.prepare.bind(db);
+    let facetQueries = 0;
+    db.prepare = (sql) => {
+      if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts") ||
+          sql.startsWith("WITH matched AS MATERIALIZED")) facetQueries++;
+      return prepare(sql);
+    };
     const first = await searchGrants(db, "  arbitrary   intent ");
+    expect(facetQueries).toBeGreaterThan(0);
+    facetQueries = 0;
     expect(first.results).toHaveLength(20);
     expect(first.nextCursor).toBeTruthy();
     const second = await searchGrants(db, "arbitrary intent", 20, first.nextCursor);
+    expect(second.facets).toBeNull();
+    expect(facetQueries).toBe(0);
     expect(second.results).toHaveLength(7);
     expect(second.nextCursor).toBeNull();
     expect(new Set([...first.results, ...second.results].map((r) => r.grantCallVersionId)).size).toBe(27);
@@ -224,6 +322,9 @@ describe("search cursor", () => {
             bind(...args) { values = args; return statement; },
             async first<T>() { return { count: 1 } as T; },
             async all<T>() {
+              if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts"))
+                return { success: true, results: [] as T[] };
+              if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
               expect(sql).toContain("WITH matches AS");
               expect(sql.match(/AND date\(d\.submission_close_at\) >= \?/g)).toHaveLength(2);
               expect(sql.match(/AND date\(d\.submission_close_at\) <= \?/g)).toHaveLength(2);
@@ -262,6 +363,9 @@ describe("search cursor", () => {
           bind() { return statement; },
           async first<T>() { return { count: 1 } as T; },
           async all<T>() {
+            if (sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts"))
+              return { success: true, results: [] as T[] };
+            if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
             expect(sql).toContain("julianday(d.submission_close_at) AS close_sort");
             return { success: true, results: [invalid] as T[] };
           },
