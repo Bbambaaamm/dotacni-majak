@@ -31,6 +31,7 @@ import {
 import { SearchInputError, searchGrants } from "./search";
 import { notificationsProjectId, projectNotifications } from "./notifications";
 import { authorizeProjectWorkspace, createWorkspace, listWorkspaces, readWorkspace, updateWorkspaceTask, workspacePath } from "./workspaceAccess";
+import { eligibilityPath, evaluateGrant } from "./eligibility";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
@@ -134,6 +135,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           { status: 503 },
         );
       }
+    }
+
+    const eligibilityGrantId = eligibilityPath(url.pathname);
+    if (eligibilityGrantId !== null && (request.method === "GET" || request.method === "HEAD")) {
+      const token = bearerToken(request);
+      if (!token) return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      const result = await evaluateGrant(env, token, eligibilityGrantId);
+      if (!result) return json({ error: "GRANT_NOT_FOUND" }, { status: 404 });
+      return json(result, { headers: { "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow" } });
     }
 
     const grantCallId = grantCallIdFromPath(url.pathname);
