@@ -114,6 +114,12 @@ INSERT INTO field_evidence(
    1,1,'Deterministický nesportovní E2E záznam pro ověření celé UI/API cesty.',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z');
 
+INSERT INTO grant_requirements(id,grant_call_version_id,requirement_type,title,necessity,evidence_id)
+VALUES
+  ('e2e-req-budget','gcv-e2e-open','DOCUMENT','Připravit rozpočet projektu','REQUIRED','e2e-fe-summary'),
+  ('e2e-req-permit','gcv-e2e-open','PERMIT','Ověřit potřebu stavebního povolení','CONDITIONAL',NULL),
+  ('e2e-req-consult','gcv-e2e-open','ACTION','Konzultovat žádost s poskytovatelem','RECOMMENDED',NULL);
+
 INSERT INTO grant_search_documents(
   grant_call_version_id,title,summary,supported_activities,eligible_costs,
   keywords,status,submission_close_at,updated_at

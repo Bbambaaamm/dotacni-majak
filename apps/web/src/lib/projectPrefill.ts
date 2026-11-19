@@ -1,6 +1,7 @@
 export interface ProjectPrefill {
   intent: string;
   autoWatch: boolean;
+  grantCallId: string | null;
 }
 
 export function projectPrefillFromSearch(search: string): ProjectPrefill {
@@ -10,5 +11,7 @@ export function projectPrefillFromSearch(search: string): ProjectPrefill {
   return {
     intent,
     autoWatch: params.get("watch") === "1" && intent.length > 0,
+    grantCallId: (params.get("grantCallId") ?? "").length > 0 && (params.get("grantCallId") ?? "").length <= 256
+      ? params.get("grantCallId") : null,
   };
 }
