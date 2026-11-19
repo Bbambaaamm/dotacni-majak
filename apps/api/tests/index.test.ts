@@ -156,6 +156,11 @@ describe("api worker", () => {
       ["intent=test&closesBy=", "INVALID_CLOSES_BY"],
       ["intent=test&closesBy=2027-02-29", "INVALID_CLOSES_BY"],
       ["intent=test&closesBy=2027-04-01&closesBy=2027-05-01", "INVALID_CLOSES_BY"],
+      ["intent=test&closesFrom=", "INVALID_CLOSES_FROM"],
+      ["intent=test&closesFrom=2027-02-29", "INVALID_CLOSES_FROM"],
+      ["intent=test&closesFrom=2027-05-01T00%3A00%3A00Z", "INVALID_CLOSES_FROM"],
+      ["intent=test&closesFrom=2027-04-01&closesFrom=2027-05-01", "INVALID_CLOSES_FROM"],
+      ["intent=test&closesFrom=2027-05-01&closesBy=2027-04-30", "INVALID_DEADLINE_RANGE"],
     ]) {
       const response = await handleRequest(new Request(`https://example.test/search?${query}`), env());
       expect(response.status).toBe(400);

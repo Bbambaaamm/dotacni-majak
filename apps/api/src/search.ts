@@ -26,8 +26,8 @@ export interface GrantSearchResponse {
 
 type Phase = "DIRECT" | "ONTOLOGY";
 type SearchSort = "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST";
-interface SearchCursor { v: 1; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; phase: Phase; rank: number; id: string }
-interface DateCursor { v: 2; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; sort: Exclude<SearchSort, "RELEVANCE">; closeAt: number | null; phase: Phase; rank: number; id: string }
+interface SearchCursor { v: 1; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; phase: Phase; rank: number; id: string }
+interface DateCursor { v: 2; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; sort: Exclude<SearchSort, "RELEVANCE">; closeAt: number | null; phase: Phase; rank: number; id: string }
 type SearchStatus = typeof ACTIVE_STATUSES[number];
 type SearchDeadline = "KNOWN" | "UNKNOWN";
 
@@ -45,7 +45,7 @@ interface SearchRow {
 
 export class SearchInputError extends Error {
   constructor(
-    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG" | "INVALID_LIMIT" | "INVALID_CURSOR" | "INVALID_STATUS" | "INVALID_DEADLINE" | "INVALID_PROVIDER" | "INVALID_CLOSES_BY" | "INVALID_SORT",
+    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG" | "INVALID_LIMIT" | "INVALID_CURSOR" | "INVALID_STATUS" | "INVALID_DEADLINE" | "INVALID_PROVIDER" | "INVALID_CLOSES_BY" | "INVALID_CLOSES_FROM" | "INVALID_DEADLINE_RANGE" | "INVALID_SORT",
     public readonly status: number,
   ) {
     super(code);
@@ -57,7 +57,7 @@ function encodeCursor(cursor: SearchCursor | DateCursor): string {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-function decodeCursor(raw: string | null, intent: string, limit: number, status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null, closesBy: string | null, sort: SearchSort): SearchCursor | DateCursor | null {
+function decodeCursor(raw: string | null, intent: string, limit: number, status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null, closesBy: string | null, closesFrom: string | null, sort: SearchSort): SearchCursor | DateCursor | null {
   if (raw === null) return null;
   try {
     if (!raw || raw.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error();
@@ -65,7 +65,7 @@ function decodeCursor(raw: string | null, intent: string, limit: number, status:
     const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object") throw new Error();
     const c = value as SearchCursor | DateCursor;
-    if (c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || (c.closesBy ?? null) !== closesBy ||
+    if (c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || (c.closesBy ?? null) !== closesBy || (c.closesFrom ?? null) !== closesFrom ||
       (c.phase !== "DIRECT" && c.phase !== "ONTOLOGY") ||
       typeof c.rank !== "number" || !Number.isFinite(c.rank) ||
       typeof c.id !== "string" || !c.id || c.id.length > 512 || encodeCursor(c) !== raw) throw new Error();
@@ -108,14 +108,23 @@ function parseProvider(value: string | null): string | null {
   return value;
 }
 
-function parseClosesBy(value: string | null): string | null {
+function parseDate(value: string | null, code: "INVALID_CLOSES_BY" | "INVALID_CLOSES_FROM"): string | null {
   if (value === null) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
       !Number.isFinite(Date.parse(`${value}T00:00:00Z`)) ||
       new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) {
-    throw new SearchInputError("INVALID_CLOSES_BY", 400);
+    throw new SearchInputError(code, 400);
   }
   return value;
+}
+
+// Only well-formed source calendar dates can participate in a bounded UTC interval.
+const BOUNDED_DATE = "d.submission_close_at GLOB '????-??-??T??:??:??*' AND date(substr(d.submission_close_at, 1, 10)) = substr(d.submission_close_at, 1, 10)";
+function dateFilters(closesFrom: string | null, closesBy: string | null): string {
+  if (!closesFrom && !closesBy) return "";
+  return `AND ${BOUNDED_DATE}
+    ${closesFrom ? "AND julianday(d.submission_close_at) >= julianday(? || 'T00:00:00Z')" : ""}
+    ${closesBy ? "AND julianday(d.submission_close_at) < julianday(? || 'T00:00:00Z') + 1" : ""}`;
 }
 
 function parseSort(value: string | null): SearchSort {
@@ -156,6 +165,7 @@ async function queryFts(
   status: SearchStatus | null,
   deadline: SearchDeadline | null,
   provider: string | null,
+  closesFrom: string | null,
   closesBy: string | null,
   excludeDirectQuery?: string,
 ): Promise<SearchRow[]> {
@@ -187,7 +197,7 @@ async function queryFts(
       ${status ? "AND d.status = ?" : ""}
       ${provider ? "AND p.name = ?" : ""}
       ${deadline ? `AND d.submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
-      ${closesBy ? "AND date(d.submission_close_at) <= ?" : ""}
+      ${dateFilters(closesFrom, closesBy)}
       ${excludeDirectQuery ? "AND d.grant_call_version_id NOT IN (SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?)" : ""}
     ) SELECT * FROM ranked
     ${after ? "WHERE rank > ? OR (rank = ? AND grant_call_version_id > ?)" : ""}
@@ -197,7 +207,7 @@ async function queryFts(
 
   const result = await db
     .prepare(sql)
-    .bind(query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []), ...(closesBy ? [closesBy] : []), ...(excludeDirectQuery ? [excludeDirectQuery] : []),
+    .bind(query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []), ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []), ...(excludeDirectQuery ? [excludeDirectQuery] : []),
       ...(after ? [after.rank, after.rank, after.id] : []), limit)
     .all<SearchRow>();
 
@@ -207,14 +217,14 @@ async function queryFts(
 async function queryDateSorted(
   db: D1DatabaseLike, directQuery: string, expandedQuery: string, limit: number,
   after: DateCursor | null, status: SearchStatus | null, deadline: SearchDeadline | null,
-  provider: string | null, closesBy: string | null, sort: DateCursor["sort"],
+  provider: string | null, closesFrom: string | null, closesBy: string | null, sort: DateCursor["sort"],
 ): Promise<(SearchRow & { match_phase: number; close_sort: number | null })[]> {
   if (!directQuery && !expandedQuery) return [];
   const filters = `AND d.status IN (?, ?, ?)
     ${status ? "AND d.status = ?" : ""}
     ${provider ? "AND p.name = ?" : ""}
     ${deadline ? `AND d.submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
-    ${closesBy ? "AND date(d.submission_close_at) <= ?" : ""}`;
+    ${dateFilters(closesFrom, closesBy)}`;
   const select = (phase: number, exclude: boolean) => `SELECT
       d.grant_call_version_id, g.id AS grant_call_id, d.title, d.summary, d.status,
       d.submission_close_at, julianday(d.submission_close_at) AS close_sort,
@@ -231,7 +241,7 @@ async function queryDateSorted(
     ${exclude ? "AND d.grant_call_version_id NOT IN (SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?)" : ""}`;
   const binding = (query: string, exclude: boolean): unknown[] => [
     query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []),
-    ...(closesBy ? [closesBy] : []), ...(exclude ? [directQuery] : []),
+    ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []), ...(exclude ? [directQuery] : []),
   ];
   const clauses = [directQuery && select(0, false),
     expandedQuery && select(1, Boolean(directQuery))].filter(Boolean);
@@ -282,15 +292,18 @@ export async function searchGrants(
   rawProvider: string | null = null,
   rawClosesBy: string | null = null,
   rawSort: string | null = null,
+  rawClosesFrom: string | null = null,
 ): Promise<GrantSearchResponse> {
   const intent = normalizeSearchIntent(rawIntent);
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new SearchInputError("INVALID_LIMIT", 400);
   const status = parseStatus(rawStatus);
   const deadline = parseDeadline(rawDeadline);
   const provider = parseProvider(rawProvider);
-  const closesBy = parseClosesBy(rawClosesBy);
+  const closesBy = parseDate(rawClosesBy, "INVALID_CLOSES_BY");
+  const closesFrom = parseDate(rawClosesFrom, "INVALID_CLOSES_FROM");
+  if (closesFrom && closesBy && closesFrom > closesBy) throw new SearchInputError("INVALID_DEADLINE_RANGE", 400);
   const sort = parseSort(rawSort);
-  const cursor = decodeCursor(rawCursor, intent, limit, status, deadline, provider, closesBy, sort);
+  const cursor = decodeCursor(rawCursor, intent, limit, status, deadline, provider, closesBy, closesFrom, sort);
 
   const countRow = await db
     .prepare("SELECT COUNT(*) AS count FROM grant_search_documents")
@@ -310,14 +323,14 @@ export async function searchGrants(
   if (sort !== "RELEVANCE") {
     const directQuery = buildDirectFtsQuery(intent);
     const rows = await queryDateSorted(db, directQuery, buildExpandedFtsQuery(expandedTerms), limit + 1,
-      cursor as DateCursor | null, status, deadline, provider, closesBy, sort);
+      cursor as DateCursor | null, status, deadline, provider, closesFrom, closesBy, sort);
     const selected = rows.slice(0, limit);
     const last = selected.at(-1);
     return { intent, results: selected.map((row) => toResult(row,
       row.match_phase === 0 ? "DIRECT" : "ONTOLOGY")),
       expandedTerms, indexState,
       nextCursor: rows.length > limit && last ? encodeCursor({ v: 2, intent, limit, status, deadline,
-        provider, closesBy, sort, closeAt: last.close_sort,
+        provider, closesBy, closesFrom, sort, closeAt: last.close_sort,
         phase: last.match_phase === 0 ? "DIRECT" : "ONTOLOGY", rank: last.rank,
         id: last.grant_call_version_id }) : null };
   }
@@ -325,7 +338,7 @@ export async function searchGrants(
   const directQuery = buildDirectFtsQuery(intent);
   const relevanceCursor = cursor as SearchCursor | null;
   const directRows = relevanceCursor?.phase === "ONTOLOGY" ? [] :
-    await queryFts(db, directQuery, limit + 1, relevanceCursor, status, deadline, provider, closesBy);
+    await queryFts(db, directQuery, limit + 1, relevanceCursor, status, deadline, provider, closesFrom, closesBy);
   const selectedDirect = directRows.slice(0, limit);
   const results = selectedDirect.map((row) => toResult(row, "DIRECT"));
   let lastRow = selectedDirect.at(-1);
@@ -336,7 +349,7 @@ export async function searchGrants(
     const expandedQuery = buildExpandedFtsQuery(expandedTerms);
     const remaining = limit - results.length;
     const expandedRows = await queryFts(db, expandedQuery, remaining + 1,
-      relevanceCursor?.phase === "ONTOLOGY" ? relevanceCursor : null, status, deadline, provider, closesBy, directQuery || undefined);
+      relevanceCursor?.phase === "ONTOLOGY" ? relevanceCursor : null, status, deadline, provider, closesFrom, closesBy, directQuery || undefined);
     for (const row of expandedRows.slice(0, remaining)) {
       results.push(toResult(row, "ONTOLOGY"));
       lastRow = row;
@@ -348,6 +361,6 @@ export async function searchGrants(
   }
 
   return { intent, results, expandedTerms, indexState,
-    nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, status, deadline, provider, closesBy, phase: lastPhase,
+    nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, status, deadline, provider, closesBy, closesFrom, phase: lastPhase,
       rank: lastRow.rank, id: lastRow.grant_call_version_id }) : null };
 }
