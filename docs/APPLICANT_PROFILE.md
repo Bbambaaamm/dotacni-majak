@@ -38,3 +38,44 @@ Core applicant package definuje `MunicipalityPopulationResolver`. Konkrétní Da
 - source_reference
 
 Tím se starší populační údaj nikdy netváří jako aktuální bez data platnosti.
+
+## API (CRUD + refresh timestamp)
+
+### Endpoints
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/applicant-profile` | Bearer owner capability | Returns the caller's profile (keyed by `projects.owner_user_id`) or `404 { profile: null }` when none exists. UNKNOWN ≠ FAIL. |
+| `PUT` | `/applicant-profile` | Bearer owner capability | Atomic create/update. `applicantType` is required; omitted optional fields retain their stored values except dependent municipality fields described below. Explicit `null`/`[]`/`{}` clears them. Body size ≤ 16 KB. |
+| `POST` | `/applicant-profile` | Bearer owner capability | Alias of `PUT` — same upsert semantics. |
+| `DELETE` | `/applicant-profile` | Bearer owner capability | Deletes the profile. Idempotent (returns `200 { deleted: true }` even if no profile exists). |
+| `GET` | `/applicant-profile/last-resolved` | Bearer owner capability | Read-only. Returns `{ lastResolvedAt: "ISO-8601" | null }` — the most recent `observedAt` from ARES, CZSO, or OTHER_OFFICIAL provenance. Exposes only the timestamp, never PII. |
+
+### Authorization
+- Bearer token = anonymous project owner capability (same capability used by `/projects/{id}/watch`).
+- Server-side: `hashOwnerToken(token)` → SHA-256 of `dotacni-majak-project-owner-v1\0` + token → live `project_owner_capabilities` row → `projects.owner_user_id` → `applicant_profiles.user_id`.
+- Raw token is never stored. Missing/invalid token returns `404 OWNER_CAPABILITY_INVALID` (non-disclosing).
+
+### Error semantics
+| Code | HTTP | Meaning |
+|---|---|---|
+| `OWNER_CAPABILITY_INVALID` | 404 | Token missing/malformed/incorrect |
+| `INVALID_JSON` | 400 | Body is not valid JSON |
+| `EMPTY_BODY` | 400 | Body is empty |
+| `REQUEST_TOO_LARGE` | 413 | Body exceeds 16 KB |
+| `INVALID_PROFILE_INPUT` | 400 | Top-level body is not an object |
+| `INVALID_APPLICANT_TYPE` | 400 | `applicantType` missing or outside the canonical enum |
+| `INVALID_ICO` | 400 | IČO not exactly 8 digits |
+| `INVALID_VAT_STATUS` | 400 | Not one of UNKNOWN/PAYER/NON_PAYER |
+| `INVALID_CZNACE_CODE` / `DUPLICATE_CZNACE_CODE` | 400 | CZ-NACE array validation |
+| `INVALID_FIELD_SOURCE` / `INVALID_SOURCE_KIND` / `INVALID_OBSERVED_AT` / `INVALID_VERIFIED_AT` / `INVALID_VERIFICATION_STATUS` | 400 | Provenance field validation |
+| `UNTRUSTED_FIELD_SOURCE` | 400 | Public payload claims a non-USER source or a status other than USER_DECLARED |
+| `PROFILE_UNAVAILABLE` | 503 | DB error during read/write (no internal details, no PII) |
+
+### Provenance & refresh timestamp
+- `field_sources_json` column stores per-field provenance: `sourceKind` (USER/ARES/CZSO/OTHER_OFFICIAL/DERIVED), `sourceReference`, `observedAt`, `verifiedAt`, `verificationStatus`, `evidenceId`. GET/PUT responses return the complete stored `fieldSources`, plus canonical `schemaVersion`, `applicantTypeId` and `seatGeographyId` for lossless sync. `lastResolvedAt` is a derived API field; omit it when importing into the strictly shaped local profile store.
+- Public owner-token PUT/POST accepts only `sourceKind: USER` with `verificationStatus: USER_DECLARED` in incoming `fieldSources`. ARES, CZSO, OTHER_OFFICIAL, DERIVED, and non-user verification statuses return `400 UNTRUSTED_FIELD_SOURCE`, including when a client replays a source returned by GET. Owner capability proves profile ownership, not official evidence. The canonical schema still describes stored and returned official provenance; it does not grant clients permission to write it.
+- A sparse PUT without `fieldSources` keeps persisted sources for unchanged values and removes sources for changed values, including `applicantType`; comparisons and source removal occur in the atomic upsert. Supplying a user-only `fieldSources` map replaces the map after validation. If a changed value is paired with exactly the same source metadata previously stored for that field, that stale entry is removed. Changing `applicantType` without `applicantTypeId` clears the old normalized ID; an unchanged type retains it. Clients should omit `fieldSources` on unrelated sparse updates when they want persisted official sources retained.
+- Changing `municipalityPopulation` clears an omitted `municipalityPopulationAsOf` and its source. Changing `municipalityCode` clears omitted `municipalityName`, `regionCode`, `seatGeographyId`, `municipalityPopulation`, and `municipalityPopulationAsOf`, plus their old sources. Explicit replacement values remain, but old official provenance for those dependent fields is removed; clients may provide fresh USER provenance. Unrelated values and sources remain intact. The comparison, invalidation, and source pruning happen in the same SQL upsert, including under concurrent sparse writes.
+- A live project owner capability resolves to `projects.owner_user_id`. Profile identity survives capability rotation; revoked or unknown capabilities return 404. One profile belongs to each owner ID; separate owners may use the same IČO.
+- `lastResolvedAt` = `max(observedAt)` across official field sources only. `null` when no official-source facts exist → caller knows a resolver refresh is due.
+- A trusted server resolver and `POST /applicant-profile/resolve` endpoint are pending. Neither is implemented here; official provenance currently comes only from previously persisted trusted rows.
