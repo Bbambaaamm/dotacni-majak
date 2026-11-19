@@ -55,6 +55,11 @@ export function SearchPage() {
   const filterPanel = useRef<HTMLDetailsElement | null>(null);
   const mobileFiltersOpen = useRef(false);
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
+    // A filter change unmounts the panel before its asynchronous toggle event
+    // necessarily fires. Keep the actual DOM state for the replacement panel.
+    if (!node && filterPanel.current && !window.matchMedia("(min-width: 801px)").matches) {
+      mobileFiltersOpen.current = filterPanel.current.open;
+    }
     filterPanel.current = node;
     if (node) node.open = window.matchMedia("(min-width: 801px)").matches || mobileFiltersOpen.current;
   }, []);
@@ -230,7 +235,7 @@ export function SearchPage() {
     return (
       <div className="results-page">
         <header className="results-head">
-          <p className="eyebrow">Najít dotaci</p>
+          <p className="eyebrow">Najít veřejnou podporu</p>
           <h1>Co chcete uskutečnit?</h1>
           <p className="results-lead">
             Začněte popisem záměru. Nemusíte znát název programu ani dotační
@@ -250,8 +255,8 @@ export function SearchPage() {
         <p className="eyebrow">Výsledky pro váš záměr</p>
         <h1>{intent}</h1>
         <p className="results-lead">
-          Hledáme v indexovaných dotačních výzvách a používáme také širší pojmy
-          z dotační ontologie. Relevance není totéž co způsobilost.
+          Hledáme v indexovaných výzvách veřejné podpory a používáme také širší pojmy
+          z oborové ontologie. Relevance není totéž co způsobilost.
         </p>
       </header>
 
@@ -287,7 +292,7 @@ export function SearchPage() {
             <p className="eyebrow">Lokální index je prázdný</p>
             <h2>Vyhledávání je zapojené, ale databáze zatím nemá dotační data.</h2>
             <p>
-              To není skutečný výsledek „žádná dotace“. Nejdřív musí proběhnout
+              To není skutečný výsledek „žádná podpora“. Nejdřív musí proběhnout
               ingestion oficiálních zdrojů do lokálního D1 indexu.
             </p>
           </div>

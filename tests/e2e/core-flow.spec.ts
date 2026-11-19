@@ -14,6 +14,7 @@ test("mobile instrument selector filters real API and D1 before pagination", asy
   await expect(selector.locator("option")).toHaveCount(7);
   await selector.selectOption("LOAN");
   await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByText(/Hledáme v indexovaných výzvách veřejné podpory/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Zrušit filtr Typ financování: LOAN" })).toBeVisible();
   await selector.focus();

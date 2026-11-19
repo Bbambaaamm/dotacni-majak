@@ -8,13 +8,13 @@ describe("route foundation", () => {
   });
 
   it("resolves known route", () => {
-    expect(resolveRoute("/hledat").id).toBe("search");
+    expect(resolveRoute("/hledat")).toMatchObject({ id: "search", label: "Najít podporu" });
     expect(resolveRoute("/profil").id).toBe("profile");
   });
 
   it("resolves dynamic grant detail route and decodes canonical id", () => {
     const path = "/dotace/grant%3Ansa%3A16-2026";
-    expect(resolveRoute(path).id).toBe("grant-detail");
+    expect(resolveRoute(path)).toMatchObject({ id: "grant-detail", label: "Detail podpory" });
     expect(grantCallIdFromWebPath(path)).toBe("grant:nsa:16-2026");
     expect(grantCallIdFromWebPath("/dotace/%E0%A4%A")).toBeNull();
   });
