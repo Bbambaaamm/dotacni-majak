@@ -147,7 +147,8 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
               id: existing?.id ?? String(values[0]),
               user_id: String(values[1]),
               applicant_type: String(values[2]),
-              applicant_type_id: keep(3, 1, existing?.applicant_type_id),
+              applicant_type_id: existing && (mask & 1) === 0 && existing.applicant_type !== values[2]
+                ? null : keep(3, 1, existing?.applicant_type_id),
               ico: keep(4, 2, existing?.ico),
               organisation_name: keep(5, 4, existing?.organisation_name),
               legal_form_code: keep(6, 8, existing?.legal_form_code),
@@ -166,6 +167,26 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
               created_at: existing?.created_at ?? String(values[19]),
               updated_at: String(values[20]),
             };
+            if (existing) {
+              const oldSources = JSON.parse(existing.field_sources_json) as Record<string, unknown>;
+              const sources = (mask & 32768) !== 0
+                ? JSON.parse(String(values[18])) as Record<string, unknown>
+                : { ...oldSources };
+              for (const [key, column, bit] of [
+                ["applicantType", "applicant_type", 0], ["applicantTypeId", "applicant_type_id", 1],
+                ["ico", "ico", 2], ["organisationName", "organisation_name", 4],
+                ["legalFormCode", "legal_form_code", 8], ["municipalityCode", "municipality_code", 16],
+                ["municipalityName", "municipality_name", 32], ["regionCode", "region_code", 64],
+                ["seatGeographyId", "seat_geography_id", 128], ["municipalityPopulation", "municipality_population", 256],
+                ["municipalityPopulationAsOf", "municipality_population_as_of", 512], ["vatStatus", "vat_status", 1024],
+                ["organisationSize", "organisation_size", 2048], ["publicPrivateStatus", "public_private_status", 4096],
+                ["nonprofitStatus", "nonprofit_status", 8192], ["czNaceCodes", "cz_nace_json", 16384],
+              ] as const) {
+                if (existing[column] === row[column] || (bit !== 0 && (mask & bit) === 0 && key !== "applicantTypeId")) continue;
+                if ((mask & 32768) === 0 || JSON.stringify(sources[key]) === JSON.stringify(oldSources[key])) delete sources[key];
+              }
+              row.field_sources_json = JSON.stringify(sources);
+            }
             profiles.set(row.user_id, row);
             return result;
           }
@@ -429,6 +450,7 @@ describe("applicant profile CRUD", () => {
   it("preserves omitted fields and clears explicit null, arrays, and objects", async () => {
     const env = fakeEnv();
     const original = makeValidProfileInput({
+      applicantType: "BUSINESS",
       schemaVersion: "1.0.0",
       applicantTypeId: "type-1",
       seatGeographyId: "geo-1",

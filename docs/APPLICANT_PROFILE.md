@@ -72,6 +72,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 
 ### Provenance & refresh timestamp
 - `field_sources_json` column stores per-field provenance: `sourceKind` (USER/ARES/CZSO/OTHER_OFFICIAL/DERIVED), `sourceReference`, `observedAt`, `verifiedAt`, `verificationStatus`, `evidenceId`. GET/PUT responses return the complete stored `fieldSources`, plus canonical `schemaVersion`, `applicantTypeId` and `seatGeographyId` for lossless sync. `lastResolvedAt` is a derived API field; omit it when importing into the strictly shaped local profile store.
+- A sparse PUT without `fieldSources` keeps sources for unchanged values and removes sources for changed values, including `applicantType`; comparisons and source removal occur in the atomic upsert. Supplying `fieldSources` replaces the map after validation. If a changed value is paired with exactly the same source metadata previously stored for that field, that stale entry is removed. Changing `applicantType` without `applicantTypeId` clears the old normalized ID; an unchanged type retains it.
 - A live project owner capability resolves to `projects.owner_user_id`. Profile identity survives capability rotation; revoked or unknown capabilities return 404. One profile belongs to each owner ID; separate owners may use the same IČO.
 - `lastResolvedAt` = `max(observedAt)` across official field sources only. `null` when no official-source facts exist → caller knows a resolver refresh is due.
 - Future slice: `POST /applicant-profile/resolve` will trigger an async ARES/ČSÚ refresh background job.

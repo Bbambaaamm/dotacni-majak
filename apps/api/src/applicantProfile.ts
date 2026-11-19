@@ -498,6 +498,38 @@ export async function upsertApplicantProfile(
     input.czNaceCodes !== undefined ? 16384 : 0,
     input.fieldSources !== undefined ? 32768 : 0,
   ].reduce((mask, bit) => mask | bit, 0);
+  // Keep provenance for untouched values. Both branches run inside the upsert,
+  // so concurrent sparse writes cannot restore a source for a changed value.
+  const sourcedFields = [
+    ["applicantType", "applicant_type", 0],
+    ["applicantTypeId", "applicant_type_id", 1],
+    ["ico", "ico", 2],
+    ["organisationName", "organisation_name", 4],
+    ["legalFormCode", "legal_form_code", 8],
+    ["municipalityCode", "municipality_code", 16],
+    ["municipalityName", "municipality_name", 32],
+    ["regionCode", "region_code", 64],
+    ["seatGeographyId", "seat_geography_id", 128],
+    ["municipalityPopulation", "municipality_population", 256],
+    ["municipalityPopulationAsOf", "municipality_population_as_of", 512],
+    ["vatStatus", "vat_status", 1024],
+    ["organisationSize", "organisation_size", 2048],
+    ["publicPrivateStatus", "public_private_status", 4096],
+    ["nonprofitStatus", "nonprofit_status", 8192],
+    ["czNaceCodes", "cz_nace_json", 16384],
+  ] as const;
+  const changed = (column: string, bit: number) => column === "applicant_type_id"
+    ? `(((?22 & 1) != 0 AND applicant_profiles.applicant_type_id IS NOT excluded.applicant_type_id) OR ((?22 & 1) = 0 AND applicant_profiles.applicant_type IS NOT excluded.applicant_type AND applicant_profiles.applicant_type_id IS NOT NULL))`
+    : `${bit ? `(?22 & ${bit}) != 0 AND ` : ""}applicant_profiles.${column} IS NOT excluded.${column}`;
+  const pruneSources = (base: string, explicit: boolean) => `json_remove(${base}, ${sourcedFields.map(([key, column, bit]) => {
+    const path = `$.${key}`;
+    // A replacement source is accepted unless it is identical to the old
+    // source for a value that changed (stale verification carried by a client).
+    const stale = explicit
+      ? ` AND json_extract(applicant_profiles.field_sources_json, '${path}') IS json_extract(excluded.field_sources_json, '${path}')`
+      : "";
+    return `CASE WHEN (${changed(column, bit)})${stale} THEN '${path}' ELSE '$.__unchanged' END`;
+  }).join(", ")})`;
   const profileId = "app_" + randomId();
   await env.DB.prepare(
     `INSERT INTO applicant_profiles(
@@ -507,7 +539,7 @@ export async function upsertApplicantProfile(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) WHERE user_id IS NOT NULL DO UPDATE SET
          applicant_type = excluded.applicant_type,
-         applicant_type_id = CASE WHEN (?22 & 1) != 0 THEN excluded.applicant_type_id ELSE applicant_profiles.applicant_type_id END,
+         applicant_type_id = CASE WHEN (?22 & 1) != 0 THEN excluded.applicant_type_id WHEN applicant_profiles.applicant_type IS NOT excluded.applicant_type THEN NULL ELSE applicant_profiles.applicant_type_id END,
          ico = CASE WHEN (?22 & 2) != 0 THEN excluded.ico ELSE applicant_profiles.ico END,
          organisation_name = CASE WHEN (?22 & 4) != 0 THEN excluded.organisation_name ELSE applicant_profiles.organisation_name END,
          legal_form_code = CASE WHEN (?22 & 8) != 0 THEN excluded.legal_form_code ELSE applicant_profiles.legal_form_code END,
@@ -522,7 +554,7 @@ export async function upsertApplicantProfile(
          public_private_status = CASE WHEN (?22 & 4096) != 0 THEN excluded.public_private_status ELSE applicant_profiles.public_private_status END,
          nonprofit_status = CASE WHEN (?22 & 8192) != 0 THEN excluded.nonprofit_status ELSE applicant_profiles.nonprofit_status END,
          cz_nace_json = CASE WHEN (?22 & 16384) != 0 THEN excluded.cz_nace_json ELSE applicant_profiles.cz_nace_json END,
-         field_sources_json = CASE WHEN (?22 & 32768) != 0 THEN excluded.field_sources_json ELSE applicant_profiles.field_sources_json END,
+         field_sources_json = CASE WHEN (?22 & 32768) != 0 THEN ${pruneSources("excluded.field_sources_json", true)} ELSE ${pruneSources("applicant_profiles.field_sources_json", false)} END,
          updated_at = excluded.updated_at
     `).bind(
       profileId, userId, input.applicantType,

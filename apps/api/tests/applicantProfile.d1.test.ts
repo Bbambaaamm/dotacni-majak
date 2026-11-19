@@ -151,4 +151,72 @@ describe("applicant profile with real D1", () => {
       organisationName: "Updated", czNaceCodes: [], fieldSources: {}, lastResolvedAt: null,
     });
   });
+
+  it("removes only changed IČO provenance on a sparse PUT in workerd D1", async () => {
+    const env = await setup();
+    const icoSource = { sourceKind: "ARES", observedAt: "2026-09-25T12:00:00Z", verificationStatus: "VERIFIED" };
+    const municipalitySource = { sourceKind: "CZSO", observedAt: "2026-09-23T00:00:00Z", verificationStatus: "VERIFIED" };
+    const initial = await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "12345678", municipalityCode: "123456",
+      fieldSources: { ico: icoSource, municipalityCode: municipalitySource },
+    }), env);
+    expect(initial.status).toBe(200);
+
+    const changed = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", ico: "87654321", municipalityCode: "123456" }), env);
+    expect(changed.status).toBe(200);
+    expect((await changed.json() as { profile: Record<string, unknown> }).profile).toMatchObject({
+      ico: "87654321", municipalityCode: "123456",
+      fieldSources: { municipalityCode: municipalitySource }, lastResolvedAt: municipalitySource.observedAt,
+    });
+    const get = await handleRequest(request("GET", token), env);
+    expect((await get.json() as { profile: { fieldSources: Record<string, unknown> } }).profile.fieldSources.ico).toBeUndefined();
+
+    const freshSource = { ...icoSource, observedAt: "2026-10-02T09:00:00Z" };
+    const fresh = await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "22222222",
+      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
+    }), env);
+    expect(fresh.status).toBe(200);
+    expect((await fresh.json() as { profile: { fieldSources: Record<string, unknown>; lastResolvedAt: string } }).profile)
+      .toMatchObject({ fieldSources: { ico: freshSource, municipalityCode: municipalitySource }, lastResolvedAt: freshSource.observedAt });
+
+    // An identical old verification cannot be carried across another value change.
+    const stale = await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "11111111",
+      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
+    }), env);
+    expect(stale.status).toBe(200);
+    expect((await stale.json() as { profile: { fieldSources: Record<string, unknown> } }).profile.fieldSources).toEqual({ municipalityCode: municipalitySource });
+
+    expect((await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", ico: "22222222",
+      fieldSources: { ico: freshSource, municipalityCode: municipalitySource },
+    }), env)).status).toBe(200);
+
+    const cleared = await handleRequest(request("PUT", token, { applicantType: "BUSINESS", ico: null }), env);
+    expect(cleared.status).toBe(200);
+    expect((await cleared.json() as { profile: { ico: string | null; fieldSources: Record<string, unknown>; lastResolvedAt: string } }).profile)
+      .toMatchObject({ ico: null, fieldSources: { municipalityCode: municipalitySource }, lastResolvedAt: municipalitySource.observedAt });
+  });
+
+  it("clears normalized type ID and stale type provenance when applicantType changes", async () => {
+    const env = await setup();
+    const typeSource = { sourceKind: "ARES", observedAt: "2026-10-01T09:00:00Z", verificationStatus: "VERIFIED" };
+    const municipalitySource = { sourceKind: "CZSO", observedAt: "2026-09-23T00:00:00Z", verificationStatus: "VERIFIED" };
+    expect((await handleRequest(request("PUT", token, {
+      applicantType: "BUSINESS", applicantTypeId: "type-1", municipalityCode: "123456",
+      fieldSources: { applicantType: typeSource, applicantTypeId: typeSource, municipalityCode: municipalitySource },
+    }), env)).status).toBe(200);
+    const sameType = await handleRequest(request("PUT", token, { applicantType: "BUSINESS" }), env);
+    expect((await sameType.json() as { profile: { applicantTypeId: string } }).profile.applicantTypeId).toBe("type-1");
+
+    const changed = await handleRequest(request("PUT", token, { applicantType: "MUNICIPALITY" }), env);
+    expect(changed.status).toBe(200);
+    const profile = (await changed.json() as { profile: Record<string, unknown> }).profile;
+    expect(profile).toMatchObject({
+      applicantType: "MUNICIPALITY", applicantTypeId: null,
+      fieldSources: { municipalityCode: municipalitySource }, lastResolvedAt: municipalitySource.observedAt,
+    });
+    expect(profile.fieldSources).toEqual({ municipalityCode: municipalitySource });
+  });
 });
