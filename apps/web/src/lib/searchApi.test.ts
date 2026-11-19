@@ -123,6 +123,23 @@ describe("search API client", () => {
     ]);
   });
 
+  it("sends date sort on first and continuation requests without changing default relevance", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, undefined, "RELEVANCE");
+    await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, undefined, "DEADLINE");
+    await searchGrants("strankovani", undefined, "next-page", undefined, undefined, undefined, undefined, "DEADLINE");
+    expect(urls).toEqual([
+      "/api/search?intent=strankovani",
+      "/api/search?intent=strankovani&sort=DEADLINE",
+      "/api/search?intent=strankovani&cursor=next-page&sort=DEADLINE",
+    ]);
+  });
+
   it("explains local search backend unavailability", () => {
     expect(
       searchErrorMessage(

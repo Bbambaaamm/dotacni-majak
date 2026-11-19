@@ -178,6 +178,17 @@ describe("search cursor", () => {
     }
   });
 
+  it("rejects invalid sort values and cannot reuse a relevance cursor for date order", async () => {
+    const db = database([row(1), row(2)], []);
+    const first = await searchGrants(db, "strankovani", 1);
+    for (const invalid of ["", "UNKNOWN", "DEADLINE ", "deadline", "ASC"]) {
+      await expect(searchGrants(db, "strankovani", 1, null, null, null, null, null, invalid))
+        .rejects.toMatchObject({ code: "INVALID_SORT" });
+    }
+    await expect(searchGrants(db, "strankovani", 1, first.nextCursor, null, null, null, null, "DEADLINE"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+  });
+
   it("continues a pre-cutoff cursor when no cutoff is selected, but never under a cutoff", async () => {
     const db = database([row(1), row(2)], []);
     const first = await searchGrants(db, "strankovani", 1);
