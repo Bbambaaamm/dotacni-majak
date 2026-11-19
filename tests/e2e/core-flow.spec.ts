@@ -426,7 +426,16 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
     .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
   await expect(deadlines).toContainText("nikoli potvrzení, že lze právě podat žádost");
 
-  const evidence = page.getByText("Konkrétní evidence (4)");
+  const finance = page.getByRole("region", { name: "Finance" });
+  await expect(finance.getByRole("link", { name: /Doklad financování: E2E oficiální podmínky, str. 3/ }))
+    .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
+  await expect(finance).toContainText("Ověřeno");
+  await expect(finance.getByText("Samostatný doklad financování není připojen")).toBeVisible();
+  const requirements = page.getByRole("region", { name: "Požadavky a přílohy" });
+  await expect(requirements.getByRole("link", { name: /Doklad požadavku: E2E oficiální podmínky, str. 1/ }))
+    .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
+  await expect(requirements.getByText("Samostatný doklad požadavku není připojen").first()).toBeVisible();
+  const evidence = page.getByText("Konkrétní evidence (5)");
   await expect(evidence).toBeVisible();
   await evidence.click();
   await expect(page.getByRole("link", { name: /E2E oficiální podmínky/ }).first()).toHaveAttribute(
@@ -434,6 +443,11 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
     "https://example.invalid/e2e/open-source",
   );
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(finance.getByRole("link", { name: /Doklad financování/ })).toBeVisible();
+  await expect(requirements.getByRole("link", { name: /Doklad požadavku/ })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-definitive", async ({ page }) => {
@@ -639,11 +653,12 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await filterToggle.click();
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E plánovaná výzva");
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE_LATEST");
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E otevřená výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E otevřená výzva");
+  await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toBeVisible();
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
-  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();

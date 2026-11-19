@@ -118,7 +118,14 @@ INSERT INTO field_evidence(
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-applicant-type','GRANT_CALL_VERSION','gcv-e2e-open','/eligibility/applicant.type','e2e-dv-open',
    1,1,'Pouze syntetický E2E test: žadatel je obec.',
+   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
+  ('e2e-fe-funding','GRANT_CALL_VERSION','gcv-e2e-open','/funding_scenarios/e2e-funding-open','e2e-dv-open',
+   3,3,'Pouze syntetický E2E test: max. dotace 100 000 Kč.',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z');
+
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_max_minor,evidence_id)
+VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,10000000,'e2e-fe-funding'),
+       ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL);
 
 -- Synthetic rule for the browser UNKNOWN -> declared answer -> fresh evaluation proof.
 -- It is test data only; it must never imply actual conditions of an official call.
