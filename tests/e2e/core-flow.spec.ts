@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { execFileSync } from "node:child_process";
 
 test("non-sport intent -> real API results -> filters -> detail -> provenance", async ({ page }) => {
   await page.goto("/");
@@ -85,4 +87,56 @@ test("search API failure is fail-closed and shows no invented results", async ({
   await expect(
     page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }),
   ).toHaveCount(0);
+});
+
+test("no result → saved watch → published source → notification → detail; failure keeps last good", async ({ page }) => {
+  await page.goto("/hledat?intent=rekonstrukce%20tenisov%C3%BDch%20kurt%C5%AF");
+  await expect(page.getByRole("heading", { name: "Maják může hledat dál." })).toBeVisible();
+  await page.getByRole("link", { name: "Pohlídat tento záměr" }).click();
+  await expect(page.getByLabel("Co chcete uskutečnit?")).toHaveValue("rekonstrukce tenisových kurtů");
+  const created = page.waitForResponse((response) => response.url().endsWith("/api/projects") && response.request().method() === "POST");
+  await page.getByRole("button", { name: "Vytvořit projekt" }).click();
+  expect((await created).status()).toBe(201);
+  await expect(page.getByText("Maják tento projekt hlídá", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Zatím nemáte žádná upozornění/)).toBeVisible();
+
+  const project = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dotacni-majak:active-project") || "null",
+  ) as { projectId: string; ownerCapability: string });
+  const path = `/api/projects/${project.projectId}/notifications`;
+  expect((await page.request.get(path)).status()).toBe(404);
+  expect((await page.request.get(path, {
+    headers: { authorization: `Bearer ${"x".repeat(43)}` },
+  })).status()).toBe(404);
+  const run = (action: string) => execFileSync("python3", ["scripts/e2e_watch_flow.py", action], {
+    encoding: "utf8", cwd: process.cwd(),
+  });
+  expect(run("publish")).toContain("PUBLISHED");
+  expect(run("drain")).toContain('["DELIVERED", "DELIVERED", "DELIVERED"]');
+  expect(run("drain")).toContain("[]");
+  await page.getByRole("button", { name: "Obnovit upozornění" }).click();
+  await expect(page.getByText("Nová možnost potřebuje doplnit údaj")).toBeVisible();
+  await expect(page.getByText(/Výzva tematicky odpovídá projektu, ale/)).toBeVisible();
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+  const link = page.getByRole("link", { name: "Otevřít detail výzvy a ověřit podmínky" });
+  await expect(link).toHaveAttribute("href", "/dotace/grant%3Ae2e%3Atennis-new");
+  await link.click();
+  await expect(page.getByRole("heading", { level: 1, name: /E2E nová výzva/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Simulovaný oficiální zdroj E2E/ })).toHaveAttribute(
+    "href", "https://example.invalid/e2e/tennis-official-simulation",
+  );
+
+  expect(run("fail")).toContain("SIMULATED_SOURCE_FAILURE_LAST_GOOD_PRESERVED");
+  expect(run("drain")).toContain("[]");
+  await page.goto("/projekty");
+  await expect(page.getByText("Nová možnost potřebuje doplnit údaj")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Otevřít detail výzvy a ověřit podmínky" })).toHaveCount(1);
+  const authorized = await page.request.get(path, {
+    headers: { authorization: `Bearer ${project.ownerCapability}` },
+  });
+  expect(authorized.ok()).toBeTruthy();
+  expect((await authorized.json()).notifications).toHaveLength(1);
 });

@@ -21,6 +21,7 @@ import {
   setProjectWatchEnabled,
 } from "./watchAccess";
 import { SearchInputError, searchGrants } from "./search";
+import { notificationsProjectId, projectNotifications } from "./notifications";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
@@ -143,6 +144,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     const watchProjectId = projectWatchPath(url.pathname);
+    const notificationProjectId = notificationsProjectId(url.pathname);
+    if (notificationProjectId && (request.method === "GET" || request.method === "HEAD")) {
+      const owner = bearerToken(request);
+      if (!owner) return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      return json(await projectNotifications(notificationProjectId, owner, env));
+    }
     if (watchProjectId) {
       const owner = bearerToken(request);
       if (!owner) {
