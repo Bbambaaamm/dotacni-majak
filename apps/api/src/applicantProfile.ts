@@ -1,7 +1,6 @@
 import type { Env } from "./env";
 import {
   ApiInputError,
-  bearerToken,
   hashOwnerToken,
 } from "./projectAccess";
 
@@ -13,18 +12,15 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
 const ICO_RE = /^[0-9]{8}$/;
 const MAX_BODY_BYTES = 16 * 1024;
 
-const APPLICANT_TYPE_RE = /^[A-Z][A-Z0-9_]*$/;
+const APPLICANT_TYPES = new Set([
+  "UNKNOWN", "NATURAL_PERSON", "SELF_EMPLOYED", "BUSINESS", "MUNICIPALITY",
+  "REGION", "ASSOCIATION", "SPORTS_CLUB", "NONPROFIT", "SCHOOL",
+  "CONTRIBUTORY_ORGANISATION", "HOA", "COOPERATIVE", "AGRICULTURAL_ENTITY",
+  "RESEARCH_ORGANISATION", "OTHER",
+]);
 
 const MAX_STRING_LENGTH = 200;
 const MAX_CZNACE_CODES = 50;
-
-/** Owner-user_id prefix for anonymous callers (consistent with
- *  projectAccess.ts principal pattern: `anonymous:${projectId}`).
- *  Authenticated users would use `auth:${userId}` in a future slice;
- *  the hash-based anonymous prefix keeps profiles portable from the
- *  local-first web store without registration.
- */
-const ANONYMOUS_OWN_PREFIX = "anonymous:";
 
 // ---------------------------------------------------------------------------
 // Input / response types
@@ -71,7 +67,7 @@ export interface ApplicantProfileResponse {
   publicPrivateStatus: string | null;
   nonprofitStatus: string | null;
   czNaceCodes: readonly string[];
-  /** Max observedAt across all field_sources entries.
+  /** Latest observedAt across official field_sources entries.
    *  null when no public-source facts have been recorded yet.
    *  This is the ARES/ČSÚ refresh timestamp the client uses to
    *  decide whether a resolver refresh is stale.
@@ -116,16 +112,21 @@ export function assertOwnerTokenFormat(token: string): void {
   }
 }
 
-/** Hash an owner capability token into the user_id used as the profile key.
- *  For anonymous callers the user_id is `anonymous:<sha256-of-token>`.
- *  The raw token is never stored or echoed.
- */
+/** Resolve a live project capability to its stable owner principal. */
 export async function ownerUserId(
   ownerToken: string,
+  env: Env,
 ): Promise<string> {
   assertOwnerTokenFormat(ownerToken);
   const hash = await hashOwnerToken(ownerToken);
-  return ANONYMOUS_OWN_PREFIX + hash;
+  const row = await env.DB.prepare(
+    `SELECT p.owner_user_id FROM project_owner_capabilities AS c
+     JOIN projects AS p ON p.id = c.project_id
+     WHERE c.token_hash = ? AND c.revoked_at IS NULL
+       AND p.owner_user_id IS NOT NULL LIMIT 1`,
+  ).bind(hash).first<{ owner_user_id: string }>();
+  if (!row) throw new ApiInputError("OWNER_CAPABILITY_INVALID", 404);
+  return row.owner_user_id;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +167,7 @@ function validateInputShape(body: unknown): ApplicantProfileInput {
   const value = body as Record<string, unknown>;
 
   const applicantType = value.applicantType;
-  if (typeof applicantType !== "string" || !APPLICANT_TYPE_RE.test(applicantType)) {
+  if (typeof applicantType !== "string" || !APPLICANT_TYPES.has(applicantType)) {
     throw new ApiInputError("INVALID_APPLICANT_TYPE");
   }
 
@@ -255,6 +256,10 @@ function validateFieldSources(value: unknown): Record<string, unknown> {
       throw new ApiInputError("INVALID_FIELD_SOURCE");
     }
     const s = source as Record<string, unknown>;
+    if (Object.keys(s).some((field) => ![
+      "sourceKind", "sourceReference", "observedAt", "verifiedAt",
+      "verificationStatus", "evidenceId",
+    ].includes(field))) throw new ApiInputError("INVALID_FIELD_SOURCE");
     if (
       typeof s.sourceKind !== "string" ||
       !["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"].includes(s.sourceKind)
@@ -262,16 +267,43 @@ function validateFieldSources(value: unknown): Record<string, unknown> {
       throw new ApiInputError("INVALID_SOURCE_KIND");
     }
     if (
-      s.sourceReference !== null &&
+      s.sourceReference !== undefined && s.sourceReference !== null &&
       typeof s.sourceReference !== "string"
     ) {
       throw new ApiInputError("INVALID_SOURCE_REFERENCE");
     }
-    if (typeof s.observedAt !== "string" || Number.isNaN(Date.parse(s.observedAt))) {
+    if (!isDateTime(s.observedAt)) {
       throw new ApiInputError("INVALID_OBSERVED_AT");
+    }
+    if (s.verifiedAt !== undefined && s.verifiedAt !== null && !isDateTime(s.verifiedAt)) {
+      throw new ApiInputError("INVALID_VERIFIED_AT");
+    }
+    if (!["USER_DECLARED", "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"].includes(s.verificationStatus as string)) {
+      throw new ApiInputError("INVALID_VERIFICATION_STATUS");
+    }
+    if (s.evidenceId !== undefined && s.evidenceId !== null &&
+      (typeof s.evidenceId !== "string" || s.evidenceId.length === 0)) {
+      throw new ApiInputError("INVALID_EVIDENCE_ID");
     }
   }
   return map;
+}
+
+function isDateTime(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return false;
+  const parts = /^\d{4}-\d{2}-\d{2}/.exec(value);
+  const date = parts?.[0];
+  return date !== undefined && validCalendarDate(date) &&
+    Number(value.slice(11, 13)) <= 23 && Number(value.slice(14, 16)) <= 59 &&
+    Number(value.slice(17, 19)) <= 59;
+}
+
+function validCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 /** Semantic validation of cross-field / pattern constraints. */
@@ -281,7 +313,7 @@ function validateFieldValues(profile: ApplicantProfileInput): void {
   }
   if (
     profile.municipalityPopulationAsOf !== null &&
-    !/^\d{4}-\d{2}-\d{2}$/.test(profile.municipalityPopulationAsOf)
+    !validCalendarDate(profile.municipalityPopulationAsOf)
   ) {
     throw new ApiInputError("INVALID_POPULATION_AS_OF");
   }
@@ -328,11 +360,10 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
     }
   }
 
-  let fieldSources: Record<string, unknown> = {};
   let lastResolvedAt: string | null = null;
   if (row.field_sources_json) {
     try {
-      fieldSources = JSON.parse(row.field_sources_json);
+      const fieldSources: unknown = JSON.parse(row.field_sources_json);
       if (typeof fieldSources === "object" && fieldSources !== null) {
         const sources = fieldSources as Record<string, unknown>;
         for (const s of Object.values(sources)) {
@@ -340,12 +371,13 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
             s &&
             typeof s === "object" &&
             !Array.isArray(s) &&
-            typeof (s as { observedAt?: unknown }).observedAt === "string"
+            ["ARES", "CZSO", "OTHER_OFFICIAL"].includes((s as { sourceKind?: string }).sourceKind ?? "") &&
+            isDateTime((s as { observedAt?: unknown }).observedAt)
           ) {
             const observed = (s as { observedAt: string }).observedAt;
             if (
               lastResolvedAt === null ||
-              observed > lastResolvedAt
+              Date.parse(observed) > Date.parse(lastResolvedAt)
             ) {
               lastResolvedAt = observed;
             }
@@ -353,7 +385,7 @@ function rowToResponse(row: ProfileRow): ApplicantProfileResponse {
         }
       }
     } catch {
-        fieldSources = {};
+        lastResolvedAt = null;
     }
   }
 
@@ -394,7 +426,7 @@ export async function getApplicantProfile(
   env: Env,
   ownerToken: string,
 ): Promise<ApplicantProfileResponse | null> {
-  const userId = await ownerUserId(ownerToken);
+  const userId = await ownerUserId(ownerToken, env);
   const row = await env.DB.prepare(
     `SELECT
        id, applicant_type, ico, organisation_name, legal_form_code,
@@ -421,38 +453,13 @@ export async function upsertApplicantProfile(
   ownerToken: string,
   now: Date = new Date(),
 ): Promise<ApplicantProfileResponse> {
-  const userId = await ownerUserId(ownerToken);
+  const userId = await ownerUserId(ownerToken, env);
   const timestamp = now.toISOString();
   const czNaceJson = JSON.stringify([...input.czNaceCodes]);
   const fieldSourcesJson = JSON.stringify(input.fieldSources);
 
-  // Select-then-write: this schema has no unique index on user_id, so we
-  // look up first, then INSERT or UPDATE.
-  const existing = await env.DB.prepare(
-    `SELECT id FROM applicant_profiles WHERE user_id = ? LIMIT 1`,
-  ).bind(userId).first<{ id: string }>();
-
-  if (existing) {
-    await env.DB.prepare(
-      `UPDATE applicant_profiles SET
-         applicant_type = ?, ico = ?, organisation_name = ?, legal_form_code = ?,
-         municipality_code = ?, municipality_name = ?, region_code = ?,
-         municipality_population = ?, municipality_population_as_of = ?,
-         vat_status = ?, organisation_size = ?, public_private_status = ?,
-         nonprofit_status = ?, cz_nace_json = ?, field_sources_json = ?,
-         updated_at = ?
-       WHERE id = ?`,
-    ).bind(
-      input.applicantType, input.ico, input.organisationName, input.legalFormCode,
-      input.municipalityCode, input.municipalityName, input.regionCode,
-      input.municipalityPopulation, input.municipalityPopulationAsOf,
-      input.vatStatus, input.organisationSize, input.publicPrivateStatus,
-      input.nonprofitStatus, czNaceJson, fieldSourcesJson,
-      timestamp, existing.id,
-    ).run();
-  } else {
-    const profileId = "app_" + randomId();
-    await env.DB.prepare(
+  const profileId = "app_" + randomId();
+  await env.DB.prepare(
       `INSERT INTO applicant_profiles(
          id, user_id, applicant_type, ico, organisation_name, legal_form_code,
          municipality_code, municipality_name, region_code,
@@ -460,7 +467,23 @@ export async function upsertApplicantProfile(
          vat_status, organisation_size, public_private_status,
          nonprofit_status, cz_nace_json, field_sources_json,
          created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id) WHERE user_id IS NOT NULL DO UPDATE SET
+         applicant_type = excluded.applicant_type, ico = excluded.ico,
+         organisation_name = excluded.organisation_name,
+         legal_form_code = excluded.legal_form_code,
+         municipality_code = excluded.municipality_code,
+         municipality_name = excluded.municipality_name,
+         region_code = excluded.region_code,
+         municipality_population = excluded.municipality_population,
+         municipality_population_as_of = excluded.municipality_population_as_of,
+         vat_status = excluded.vat_status,
+         organisation_size = excluded.organisation_size,
+         public_private_status = excluded.public_private_status,
+         nonprofit_status = excluded.nonprofit_status,
+         cz_nace_json = excluded.cz_nace_json,
+         field_sources_json = excluded.field_sources_json,
+         updated_at = excluded.updated_at`,
     ).bind(
       profileId, userId, input.applicantType, input.ico, input.organisationName,
       input.legalFormCode, input.municipalityCode, input.municipalityName,
@@ -469,7 +492,6 @@ export async function upsertApplicantProfile(
       input.nonprofitStatus, czNaceJson, fieldSourcesJson,
       timestamp, timestamp,
     ).run();
-  }
 
   // Read back so the response reflects DB defaults/CONSTRAINTS and the
   // computed lastResolvedAt is fresh.
@@ -487,7 +509,7 @@ export async function deleteApplicantProfile(
   env: Env,
   ownerToken: string,
 ): Promise<void> {
-  const userId = await ownerUserId(ownerToken);
+  const userId = await ownerUserId(ownerToken, env);
   await env.DB.prepare(
     `DELETE FROM applicant_profiles WHERE user_id = ?`,
   ).bind(userId).run();

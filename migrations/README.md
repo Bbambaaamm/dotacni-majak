@@ -37,3 +37,15 @@ data/mapping (#227) is available.
 Dynamic attribute migration preserves existing rows. Invalid legacy JSON is
 quoted rather than discarded; such values remain reviewable instead of causing
 silent data loss.
+
+## Applicant profile ownership (0029)
+
+`0029_applicant_profile_owner_identity.sql` makes `user_id` unique for non-null
+owners and changes the IČO index to non-unique. Existing profile rows and their
+IDs are preserved. Legacy token-hash keys are mapped to `projects.owner_user_id`
+when a live capability still links them to a project. Null keys and keys whose
+token was already rotated or revoked remain unchanged for manual reconciliation.
+If two existing rows have the same non-null `user_id`, the unique-index statement
+fails. If two legacy records map to one owner, the update fails atomically.
+Inspect and reconcile those records manually before retrying; do not choose one
+arbitrarily, since both may hold applicant data.

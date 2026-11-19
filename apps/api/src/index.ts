@@ -312,7 +312,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             { lastResolvedAt: profile?.lastResolvedAt ?? null },
             { status: 200, headers: { "cache-control": "private, no-store" } },
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof ApiInputError) return json({ error: error.code }, { status: error.status });
           return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
         }
       }
@@ -329,7 +330,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             return json({ profile: null }, { status: 404 });
           }
           return json({ profile }, { status: 200, headers: { "cache-control": "private, no-store" } });
-        } catch {
+        } catch (error) {
+          if (error instanceof ApiInputError) return json({ error: error.code }, { status: error.status });
           return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
         }
       }
@@ -349,7 +351,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         try {
           await deleteApplicantProfile(env, token);
           return json({ deleted: true }, { status: 200 });
-        } catch {
+        } catch (error) {
+          if (error instanceof ApiInputError) return json({ error: error.code }, { status: error.status });
           return json({ error: "PROFILE_UNAVAILABLE" }, { status: 503 });
         }
       }

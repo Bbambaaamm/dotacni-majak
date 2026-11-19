@@ -76,6 +76,7 @@ class MigrationTest(unittest.TestCase):
             "idx_grant_geographies_version",
             "idx_applicant_types_parent",
             "idx_applicant_profiles_type_id",
+            "idx_applicant_profiles_user_id",
             "idx_applicant_attribute_definition",
             "idx_eval_criteria_version",
             "idx_source_run_baselines_version",
@@ -135,6 +136,63 @@ class MigrationTest(unittest.TestCase):
                 "INSERT INTO project_share_links(id,project_id,owner_user_id,token_hash,created_at) "
                 "VALUES ('s2','p1','u1','hash','2026-09-23T00:00:00Z')"
             )
+
+    def test_profile_owner_unique_but_ico_shared(self):
+        connection = self.migrate()
+        timestamp = "2026-01-01T00:00:00Z"
+        for profile_id, owner in (("a", "owner-a"), ("b", "owner-b")):
+            connection.execute(
+                "INSERT INTO applicant_profiles(id,user_id,applicant_type,ico,created_at,updated_at) "
+                "VALUES (?,?, 'BUSINESS','12345678',?,?)",
+                (profile_id, owner, timestamp, timestamp),
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) "
+                "VALUES ('c','owner-a','BUSINESS',?,?)", (timestamp, timestamp),
+            )
+
+    def test_duplicate_legacy_owner_blocks_migration_without_deletion(self):
+        connection = sqlite3.connect(":memory:")
+        for path in self.paths:
+            if path.name.startswith("0029_"):
+                break
+            connection.executescript(path.read_text(encoding="utf-8"))
+        timestamp = "2026-01-01T00:00:00Z"
+        for profile_id in ("a", "b"):
+            connection.execute(
+                "INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) "
+                "VALUES (?, 'same-owner','UNKNOWN',?,?)", (profile_id, timestamp, timestamp),
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.executescript((self.root / "migrations/0029_applicant_profile_owner_identity.sql").read_text())
+        self.assertEqual(connection.execute("SELECT count(*) FROM applicant_profiles").fetchone()[0], 2)
+
+    def test_current_capability_profile_key_migrates_to_stable_owner(self):
+        connection = sqlite3.connect(":memory:")
+        connection.execute("PRAGMA foreign_keys = ON")
+        for path in self.paths:
+            if path.name.startswith("0029_"):
+                break
+            connection.executescript(path.read_text(encoding="utf-8"))
+        timestamp = "2026-01-01T00:00:00Z"
+        connection.execute(
+            "INSERT INTO projects(id,owner_user_id,natural_language_intent,currency_code,created_at,updated_at) "
+            "VALUES ('p1','stable-owner','test','CZK',?,?)", (timestamp, timestamp),
+        )
+        connection.execute(
+            "INSERT INTO project_owner_capabilities(project_id,token_hash,created_at) VALUES ('p1','hash',?)",
+            (timestamp,),
+        )
+        connection.execute(
+            "INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) "
+            "VALUES ('profile','anonymous:hash','UNKNOWN',?,?)", (timestamp, timestamp),
+        )
+        connection.executescript((self.root / "migrations/0029_applicant_profile_owner_identity.sql").read_text())
+        self.assertEqual(
+            connection.execute("SELECT id,user_id FROM applicant_profiles").fetchone(),
+            ("profile", "stable-owner"),
+        )
 
     def test_only_one_project_watch_per_project(self):
         connection = self.migrate()

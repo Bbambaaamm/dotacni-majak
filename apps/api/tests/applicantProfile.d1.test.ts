@@ -1,0 +1,115 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import type { Env } from "../src/env";
+import { handleRequest } from "../src/index";
+import { hashOwnerToken } from "../src/projectAccess";
+
+const token = "A".repeat(43);
+const rotated = "B".repeat(43);
+const other = "C".repeat(43);
+const invalid = "X".repeat(43);
+const now = "2026-01-01T00:00:00Z";
+const projectA = "prj_" + "a".repeat(32);
+const projectB = "prj_" + "b".repeat(32);
+
+let mf: Miniflare | undefined;
+afterEach(async () => { await mf?.dispose(); mf = undefined; });
+
+async function setup(): Promise<Env> {
+  mf = new Miniflare(convertV4MiniflareOptions({
+    name: "profile-review-test",
+    modules: true,
+    script: "export default { fetch() { return new Response('ok'); } }",
+    d1Databases: { DB: "profile-review-test" },
+  }));
+  const db = await mf.getD1Database("DB");
+  const migrations = resolve(import.meta.dirname, "../../../migrations");
+  // Apply the relevant real migrations against workerd D1, one SQL
+  // statement at a time (including the ownership migration under test).
+  for (const file of [
+    "0001_core_identity.sql", "0002_documents_provenance.sql",
+    "0003_funding_projects_changes.sql",
+    "0006_eligibility_rules.sql", "0007_applicant_profiles.sql",
+    "0017_project_sharing.sql", "0018_project_owner_capabilities.sql",
+    "0023_geography_applicant_rules.sql",
+    "0029_applicant_profile_owner_identity.sql",
+  ]) {
+    const sql = readFileSync(resolve(migrations, file), "utf8")
+      .replace(/^\s*--[^\n]*$/gm, "")
+      .replace(/^PRAGMA foreign_keys = ON;\s*/gm, "")
+      .replace(/\r?\n/g, " ");
+    for (const statement of sql.split(";").map((part) => part.trim()).filter(Boolean)) {
+      await db.prepare(statement).run();
+    }
+  }
+  for (const [id, principal, capability] of [
+    [projectA, "anonymous:" + projectA, token],
+    [projectB, "anonymous:" + projectB, other],
+  ]) {
+    await db.prepare(
+      `INSERT INTO projects(id,owner_user_id,natural_language_intent,currency_code,created_at,updated_at)
+       VALUES (?,?,?,?,?,?)`,
+    ).bind(id, principal, "test", "CZK", now, now).run();
+    await db.prepare(
+      `INSERT INTO project_owner_capabilities(project_id,token_hash,created_at) VALUES (?,?,?)`,
+    ).bind(id, await hashOwnerToken(capability), now).run();
+  }
+  return {
+    DB: db as unknown as Env["DB"],
+    RAW: { async head() { return null; } },
+    SEARCH: { async describe() { return {}; } },
+    ENVIRONMENT: "local",
+  };
+}
+
+function request(method: string, capability: string, body?: unknown): Request {
+  return new Request("https://example.test/applicant-profile", {
+    method,
+    headers: { authorization: `Bearer ${capability}` },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+const input = { applicantType: "BUSINESS", ico: "12345678", fieldSources: {} };
+
+describe("applicant profile with real D1", () => {
+  it("rejects unknown and revoked tokens and keeps the profile through rotation", async () => {
+    const env = await setup();
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      const response = await handleRequest(request(method, invalid, method === "PUT" ? input : undefined), env);
+      expect(response.status).toBe(404);
+      expect((await response.json() as { error: string }).error).toBe("OWNER_CAPABILITY_INVALID");
+    }
+    const saved = await handleRequest(request("PUT", token, input), env);
+    expect(saved.status).toBe(200);
+    const id = ((await saved.json()) as { profile: { id: string } }).profile.id;
+    await env.DB.prepare("UPDATE project_owner_capabilities SET token_hash = ?, generation = 2, rotated_at = ? WHERE project_id = ?")
+      .bind(await hashOwnerToken(rotated), now, projectA).run();
+    expect((await handleRequest(request("GET", token), env)).status).toBe(404);
+    const afterRotation = await handleRequest(request("GET", rotated), env);
+    expect(afterRotation.status).toBe(200);
+    expect(((await afterRotation.json()) as { profile: { id: string } }).profile.id).toBe(id);
+    await env.DB.prepare("UPDATE project_owner_capabilities SET revoked_at = ? WHERE project_id = ?")
+      .bind(now, projectA).run();
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      const response = await handleRequest(request(method, rotated, method === "PUT" ? input : undefined), env);
+      expect(response.status).toBe(404);
+      expect((await response.json() as { error: string }).error).toBe("OWNER_CAPABILITY_INVALID");
+    }
+  });
+
+  it("atomically upserts one row under concurrent requests and allows shared IČO", async () => {
+    const env = await setup();
+    const writes = await Promise.all(Array.from({ length: 8 }, (_, i) =>
+      handleRequest(request("PUT", token, { ...input, organisationName: `Owner A ${i}` }), env)));
+    expect(writes.every((response) => response.status === 200)).toBe(true);
+    const otherWrite = await handleRequest(request("PUT", other, { ...input, organisationName: "Owner B" }), env);
+    expect(otherWrite.status).toBe(200);
+    const rows = await env.DB.prepare("SELECT user_id, ico FROM applicant_profiles WHERE ico = ?")
+      .bind(input.ico).all<{ user_id: string; ico: string }>();
+    expect(rows.results).toHaveLength(2);
+    expect(new Set((rows.results as { user_id: string }[]).map((row) => row.user_id)).size).toBe(2);
+  });
+});

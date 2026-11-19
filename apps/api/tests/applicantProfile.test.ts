@@ -92,7 +92,7 @@ function makeValidProfileInput(
 /** Creates a stateful fake Env whose DB remembers profiles across calls. */
 function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
   const profiles = new Map<string, StoredProfile>();
-  const byId = new Map<string, string>(); // profile.id → user_id
+  const owners = new Map([[VALID_OWNER, "anonymous:" + PROJECT], ["B".repeat(43), "anonymous:other"]]);
 
   const db: D1DatabaseLike = {
     prepare(query: string): D1PreparedStatementLike {
@@ -104,6 +104,12 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
           return statement;
         },
         async first<T = unknown>() {
+          if (q.includes("FROM project_owner_capabilities AS c")) {
+            for (const [token, owner_user_id] of owners) {
+              if (await hashOwnerToken(token) === values[0]) return { owner_user_id } as T;
+            }
+            return null;
+          }
           // SELECT id ... WHERE user_id = ?
           if (
             q.startsWith("SELECT id FROM applicant_profiles") &&
@@ -131,8 +137,9 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
           const result: D1ResultLike & { results: T[] } = { success: true, meta: { changes: 1 }, results: [] };
 
           if (q.startsWith("INSERT INTO applicant_profiles")) {
+            const existing = profiles.get(String(values[1]));
             const row: StoredProfile = {
-              id: String(values[0]),
+              id: existing?.id ?? String(values[0]),
               user_id: String(values[1]),
               applicant_type: String(values[2]),
               ico: values[3] as string | null,
@@ -149,45 +156,15 @@ function fakeEnv(): Env & { profiles: Map<string, StoredProfile> } {
               nonprofit_status: values[14] as string | null,
               cz_nace_json: String(values[15]),
               field_sources_json: String(values[16]),
-              created_at: String(values[17]),
+              created_at: existing?.created_at ?? String(values[17]),
               updated_at: String(values[18]),
             };
             profiles.set(row.user_id, row);
-            byId.set(row.id, row.user_id);
-            return result;
-          }
-
-          if (q.startsWith("UPDATE applicant_profiles")) {
-            const userId = byId.get(String(values[16])); // values[16] = WHERE id = ?
-            if (userId) {
-              const row = profiles.get(userId)!;
-              row.applicant_type = String(values[0]);
-              row.ico = values[1] as string | null;
-              row.organisation_name = values[2] as string | null;
-              row.legal_form_code = values[3] as string | null;
-              row.municipality_code = values[4] as string | null;
-              row.municipality_name = values[5] as string | null;
-              row.region_code = values[6] as string | null;
-              row.municipality_population = values[7] as number | null;
-              row.municipality_population_as_of = values[8] as string | null;
-              row.vat_status = values[9] as string | null;
-              row.organisation_size = values[10] as string | null;
-              row.public_private_status = values[11] as string | null;
-              row.nonprofit_status = values[12] as string | null;
-              row.cz_nace_json = String(values[13]);
-              row.field_sources_json = String(values[14]);
-              row.updated_at = String(values[15]);
-              // values[16] is the WHERE id = ?
-            }
             return result;
           }
 
           if (q.startsWith("DELETE FROM applicant_profiles")) {
             profiles.delete(String(values[0]));
-            // Also clean up byId
-            for (const [id, uid] of byId) {
-              if (uid === String(values[0])) byId.delete(id);
-            }
             return result;
           }
 
@@ -228,10 +205,9 @@ describe("applicant profile authorization", () => {
     expect(() => assertOwnerTokenFormat(VALID_OWNER)).not.toThrow();
   });
 
-  it("derives user_id from owner token hash", async () => {
-    const userId = await ownerUserId(VALID_OWNER);
-    const expectedHash = await hashOwnerToken(VALID_OWNER);
-    expect(userId).toBe("anonymous:" + expectedHash);
+  it("resolves user_id from the project owner capability", async () => {
+    const userId = await ownerUserId(VALID_OWNER, fakeEnv());
+    expect(userId).toBe("anonymous:" + PROJECT);
   });
 });
 
@@ -259,6 +235,42 @@ describe("applicant profile input validation", () => {
     await expect(parseApplicantProfileInput(req)).rejects.toMatchObject({
       code: "INVALID_APPLICANT_TYPE",
     });
+  });
+
+  it("rejects applicant types outside the canonical enum", async () => {
+    const req = new Request("https://example.test/applicant-profile", {
+      method: "PUT", body: JSON.stringify(makeValidProfileInput({ applicantType: "MADE_UP" })),
+    });
+    await expect(parseApplicantProfileInput(req)).rejects.toMatchObject({ code: "INVALID_APPLICANT_TYPE" });
+  });
+
+  it("accepts optional sourceReference and rejects invalid canonical provenance", async () => {
+    const source = {
+      sourceKind: "USER", observedAt: "2026-09-25T12:00:00Z",
+      verificationStatus: "USER_DECLARED",
+    };
+    const valid = new Request("https://example.test/applicant-profile", {
+      method: "PUT", body: JSON.stringify(makeValidProfileInput({ fieldSources: { ico: source } })),
+    });
+    await expect(parseApplicantProfileInput(valid)).resolves.toMatchObject({ fieldSources: { ico: source } });
+    for (const invalid of [
+      { ...source, verificationStatus: "WRONG" },
+      { ...source, verifiedAt: "yesterday" },
+      { ...source, observedAt: "2026-02-30T12:00:00Z" },
+      { ...source, extra: true },
+    ]) {
+      const req = new Request("https://example.test/applicant-profile", {
+        method: "PUT", body: JSON.stringify(makeValidProfileInput({ fieldSources: { ico: invalid } })),
+      });
+      await expect(parseApplicantProfileInput(req)).rejects.toBeInstanceOf(ApiInputError);
+    }
+  });
+
+  it("rejects impossible population calendar dates", async () => {
+    const req = new Request("https://example.test/applicant-profile", {
+      method: "PUT", body: JSON.stringify(makeValidProfileInput({ municipalityPopulationAsOf: "2026-02-30" })),
+    });
+    await expect(parseApplicantProfileInput(req)).rejects.toMatchObject({ code: "INVALID_POPULATION_AS_OF" });
   });
 
   it("rejects invalid IČO", async () => {
@@ -433,6 +445,15 @@ describe("applicant profile CRUD", () => {
     );
     const retrieved = await getApplicantProfile(env, VALID_OWNER);
     expect(retrieved?.lastResolvedAt).toBeNull();
+  });
+
+  it("ignores user and derived sources for lastResolvedAt", async () => {
+    const env = fakeEnv();
+    await upsertApplicantProfile(makeValidProfileInput({ fieldSources: {
+      ico: { sourceKind: "USER", observedAt: "2026-12-01T00:00:00Z", verificationStatus: "USER_DECLARED" },
+      municipalityCode: { sourceKind: "DERIVED", observedAt: "2026-12-02T00:00:00Z", verificationStatus: "AUTO_EXTRACTED" },
+    } }), env, VALID_OWNER);
+    expect((await getApplicantProfile(env, VALID_OWNER))?.lastResolvedAt).toBeNull();
   });
 
   it("updates the lastResolvedAt when a newer ARES observation is stored", async () => {
@@ -748,7 +769,7 @@ describe("applicant profile HTTP routes", () => {
     );
     expect(getRes.status).toBe(404);
     const body = await getRes.json() as Record<string, unknown>;
-    expect(body.profile).toBeNull();
+    expect(body.error).toBe("OWNER_CAPABILITY_INVALID");
   });
 });
 

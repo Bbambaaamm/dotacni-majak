@@ -44,15 +44,15 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 ### Endpoints
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/applicant-profile` | Bearer owner capability | Returns the caller's profile (keyed by hashed token) or `404 { profile: null }` when none exists. UNKNOWN ≠ FAIL. |
+| `GET` | `/applicant-profile` | Bearer owner capability | Returns the caller's profile (keyed by `projects.owner_user_id`) or `404 { profile: null }` when none exists. UNKNOWN ≠ FAIL. |
 | `PUT` | `/applicant-profile` | Bearer owner capability | Creates or updates (upsert) the caller's profile. Body size ≤ 16 KB. |
 | `POST` | `/applicant-profile` | Bearer owner capability | Alias of `PUT` — same upsert semantics. |
 | `DELETE` | `/applicant-profile` | Bearer owner capability | Deletes the profile. Idempotent (returns `200 { deleted: true }` even if no profile exists). |
-| `GET` | `/applicant-profile/last-resolved` | Bearer owner capability | Read-only. Returns `{ lastResolvedAt: "ISO-8601" | null }` — the most recent `observedAt` across all per-field provenance entries. Exposes only the timestamp, never PII. |
+| `GET` | `/applicant-profile/last-resolved` | Bearer owner capability | Read-only. Returns `{ lastResolvedAt: "ISO-8601" | null }` — the most recent `observedAt` from ARES, CZSO, or OTHER_OFFICIAL provenance. Exposes only the timestamp, never PII. |
 
 ### Authorization
 - Bearer token = anonymous project owner capability (same capability used by `/projects/{id}/watch`).
-- Server-side: `hashOwnerToken(token)` → SHA-256 of `dotacni-majak-project-owner-v1\0` + token → used as `user_id` in `applicant_profiles`.
+- Server-side: `hashOwnerToken(token)` → SHA-256 of `dotacni-majak-project-owner-v1\0` + token → live `project_owner_capabilities` row → `projects.owner_user_id` → `applicant_profiles.user_id`.
 - Raw token is never stored. Missing/invalid token returns `404 OWNER_CAPABILITY_INVALID` (non-disclosing).
 
 ### Error semantics
@@ -63,14 +63,15 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 | `EMPTY_BODY` | 400 | Body is empty |
 | `REQUEST_TOO_LARGE` | 413 | Body exceeds 16 KB |
 | `INVALID_PROFILE_INPUT` | 400 | Top-level body is not an object |
-| `INVALID_APPLICANT_TYPE` | 400 | `applicantType` missing or malformed |
+| `INVALID_APPLICANT_TYPE` | 400 | `applicantType` missing or outside the canonical enum |
 | `INVALID_ICO` | 400 | IČO not exactly 8 digits |
 | `INVALID_VAT_STATUS` | 400 | Not one of UNKNOWN/PAYER/NON_PAYER |
 | `INVALID_CZNACE_CODE` / `DUPLICATE_CZNACE_CODE` | 400 | CZ-NACE array validation |
-| `INVALID_FIELD_SOURCE` / `INVALID_SOURCE_KIND` / `INVALID_OBSERVED_AT` | 400 | Provenance field validation |
+| `INVALID_FIELD_SOURCE` / `INVALID_SOURCE_KIND` / `INVALID_OBSERVED_AT` / `INVALID_VERIFIED_AT` / `INVALID_VERIFICATION_STATUS` | 400 | Provenance field validation |
 | `PROFILE_UNAVAILABLE` | 503 | DB error during read/write (no internal details, no PII) |
 
 ### Provenance & refresh timestamp
 - `field_sources_json` column stores per-field provenance: `sourceKind` (USER/ARES/CZSO/OTHER_OFFICIAL/DERIVED), `sourceReference`, `observedAt`, `verifiedAt`, `verificationStatus`, `evidenceId`.
-- `lastResolvedAt` = `max(observedAt)` across all field sources. `null` when no official-source facts exist → caller knows a resolver refresh is due.
+- A live project owner capability resolves to `projects.owner_user_id`. Profile identity survives capability rotation; revoked or unknown capabilities return 404. One profile belongs to each owner ID; separate owners may use the same IČO.
+- `lastResolvedAt` = `max(observedAt)` across official field sources only. `null` when no official-source facts exist → caller knows a resolver refresh is due.
 - Future slice: `POST /applicant-profile/resolve` will trigger an async ARES/ČSÚ refresh background job.

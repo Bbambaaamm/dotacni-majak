@@ -11,6 +11,7 @@
     "dev:e2e": "wrangler dev --local --port 8787 --persist-to ../../.wrangler/e2e"
   },
   "devDependencies": {
+    "miniflare": "5.20261118.0-beta",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1",
     "wrangler": "^4.0.0"
