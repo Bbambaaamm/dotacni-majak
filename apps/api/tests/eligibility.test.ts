@@ -33,7 +33,7 @@ describe("eligibility evaluator parity subset", () => {
       data_type: "INTEGER", condition_operator: "LTE", expected_value_json: "5000" };
     const value = { attribute_definition_id: "a", attribute_key: population.attribute_key, data_type: "INTEGER",
       value_type: "INTEGER", value_json: "3200", source_kind: "CZSO", verification_status: "VERIFIED",
-      evidence_id: "input-evidence" };
+      evidence_id: "input-evidence", evidence_trusted: 1 };
     const result = evaluateRules(base, set, groups, [population], profile, [value]);
     expect(result).toMatchObject({ status: "ELIGIBLE", conditions: [{ inputSource: "ATTRIBUTE_VALUE",
       inputEvidenceId: "input-evidence", inputVerification: "VERIFIED", result: "PASS" }] });
@@ -48,7 +48,7 @@ describe("eligibility evaluator parity subset", () => {
       data_type: "STRING", expected_value_json: '"GOOD"', unknown_policy: "NOT_APPLICABLE" };
     const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
       data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
-      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+      verification_status: "VERIFIED", evidence_id: "input-evidence", evidence_trusted: 1 };
     const failed = evaluateRules(base, set, groups, [condition, legal], profile, [sparse]);
     expect(failed).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"],
       conditions: [{ result: "PASS" }, { result: "FAIL", inputSource: "ATTRIBUTE_VALUE",
@@ -66,8 +66,9 @@ describe("eligibility evaluator parity subset", () => {
       expected_value_json: '"GOOD"' };
     const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
       data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
-      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+      verification_status: "VERIFIED", evidence_id: "input-evidence", evidence_trusted: 1 };
     for (const altered of [{ value_type: "INTEGER" }, { value_json: "42" }, { evidence_id: null },
+      { evidence_trusted: 0 },
       { value_json: "{bad" }, { source_kind: "USER", verification_status: "VERIFIED" },
       { source_kind: "ARES", verification_status: "USER_DECLARED" }]) {
       expect(evaluateRules(base, set, groups, [legal], profile, [{ ...sparse, ...altered }]))
@@ -84,7 +85,7 @@ describe("eligibility evaluator parity subset", () => {
       expected_value_json: '"GOOD"' };
     const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
       data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
-      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+      verification_status: "VERIFIED", evidence_id: "input-evidence", evidence_trusted: 1 };
     expect(evaluateRules(base, set, groups, [legal], profile, [sparse]).status).toBe("INELIGIBLE");
     expect(evaluateRules(base, set, groups, [legal], profile,
       [{ ...sparse, verification_status: "NEEDS_REVIEW" }]))
@@ -140,7 +141,7 @@ describe("eligibility evaluator parity subset", () => {
       .toMatchObject({ rootResult: "FAIL", status: "NEEDS_REVIEW", blockers: ["first"] });
     const official = { attribute_definition_id: "attr-applicant-type", attribute_key: "applicant.type",
       data_type: "ENUM", value_type: "ENUM", value_json: '"MUNICIPALITY"', source_kind: "ARES",
-      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+      verification_status: "VERIFIED", evidence_id: "input-evidence", evidence_trusted: 1 };
     expect(evaluateRules(base, set, nested, [{ ...first, verification_status: "VERIFIED" }, second],
       { ...profile, applicant_type: "UNKNOWN" }, [official]))
       .toMatchObject({ rootResult: "FAIL", status: "INELIGIBLE", blockers: ["first"] });

@@ -9,7 +9,8 @@ type Condition = { id: string; rule_group_id: string; attribute_key: string; sco
   condition_operator: string; expected_value_json: string; blocking: number; unknown_policy: string;
   verification_status: string; evidence_id: string | null; sort_order: number };
 type Value = { attribute_definition_id: string; attribute_key: string; data_type: string; value_type: string;
-  value_json: string; source_kind: string; verification_status: string; evidence_id: string | null };
+  value_json: string; source_kind: string; verification_status: string; evidence_id: string | null;
+  evidence_trusted: number };
 type Profile = { id: string; applicant_type: string; ico: string | null; legal_form_code: string | null;
   municipality_code: string | null; municipality_population: number | null; vat_status: string | null;
   organisation_size: string | null; cz_nace_json: string };
@@ -117,7 +118,8 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
           if (!["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"].includes(v.source_kind)
             || !["USER_DECLARED", "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"].includes(v.verification_status)
             || (v.source_kind === "USER") !== (v.verification_status === "USER_DECLARED")
-            || (v.verification_status === "VERIFIED" && !v.evidence_id)) throw new Error("INVALID_INPUT_PROVENANCE");
+            || (v.verification_status === "VERIFIED" && (!v.evidence_id || v.evidence_trusted !== 1)))
+            throw new Error("INVALID_INPUT_PROVENANCE");
           actual = parsed(v.value_json);
           if (actual === "UNKNOWN" && !["STRING", "ENUM", "GEO_ID"].includes(c.data_type)) throw new Error("INVALID_INPUT_TYPE");
           if (actual !== null && actual !== "UNKNOWN") {
@@ -216,7 +218,18 @@ export async function evaluateGrant(env: Env, token: string, grantCallId: string
     env.DB.prepare(`SELECT id, applicant_type, ico, legal_form_code, municipality_code, municipality_population,
       vat_status, organisation_size, cz_nace_json FROM applicant_profiles WHERE user_id = ? LIMIT 1`).bind(principal),
     env.DB.prepare(`SELECT av.attribute_definition_id, a.attribute_key, a.data_type, av.value_type,
-      av.value_json, av.source_kind, av.verification_status, av.evidence_id FROM applicant_attribute_values av
+      av.value_json, av.source_kind, av.verification_status, av.evidence_id,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM field_evidence e
+        JOIN document_versions dv ON dv.id = e.document_version_id
+        JOIN source_documents sd ON sd.id = dv.source_document_id
+        JOIN source_registry sr ON sr.id = sd.source_id
+        WHERE e.id = av.evidence_id AND e.entity_type = 'APPLICANT_ATTRIBUTE_VALUE'
+          AND e.entity_id = av.id AND e.field_path = a.attribute_key
+          AND e.verification_status = 'VERIFIED' AND sr.authority IN ('OFFICIAL','OFFICIAL_OPEN_DATA')
+          AND dv.extraction_status = 'EXTRACTED'
+      ) THEN 1 ELSE 0 END AS evidence_trusted
+      FROM applicant_attribute_values av
       JOIN attribute_definitions a ON a.id = av.attribute_definition_id
       WHERE av.applicant_profile_id = (SELECT id FROM applicant_profiles WHERE user_id = ? LIMIT 1) LIMIT 129`).bind(principal),
   ]);

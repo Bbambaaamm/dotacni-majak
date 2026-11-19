@@ -62,6 +62,12 @@ async function seedRule(env: Env, version = "v1", op = "EQ", expected = '"MUNICI
   await env.DB.prepare(`INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,expected_value_json,verification_status,evidence_id)
     VALUES (?,?,?,?,?,?,?)`).bind(`type-${version}`, `root-${version}`, "attr-applicant-type", op, expected, "VERIFIED", "evidence-rule").run();
 }
+async function seedApplicantEvidence(env: Env, evidenceId: string, valueId: string, key: string): Promise<void> {
+  await env.DB.prepare(`INSERT INTO field_evidence
+    (id,entity_type,entity_id,field_path,document_version_id,verification_status,created_at)
+    VALUES (?,'APPLICANT_ATTRIBUTE_VALUE',?,?,'document-version','VERIFIED',?)`)
+    .bind(evidenceId, valueId, key, now).run();
+}
 function req(capability?: string): Request {
   return new Request(`https://example.test/grants/${grant}/eligibility`,
     { headers: capability ? { authorization: `Bearer ${capability}` } : {} });
@@ -136,13 +142,14 @@ describe("eligibility endpoint with real D1", () => {
     await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,legal_form_code,created_at,updated_at)
       VALUES ('profile-a',?,'MUNICIPALITY',NULL,?,?)`)
       .bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await seedApplicantEvidence(env, "evidence-legal", "legal-value", "applicant.legal_form");
     await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
       value_type,value_json,source_kind,observed_at,verification_status,evidence_id)
-      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,'VERIFIED','evidence-rule')`)
+      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,'VERIFIED','evidence-legal')`)
       .bind(now).run();
     expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"],
       conditions: [{ conditionId: "type-v1", result: "PASS" }, { conditionId: "legal", result: "FAIL",
-        inputSource: "ATTRIBUTE_VALUE", inputVerification: "VERIFIED", inputEvidenceId: "evidence-rule" }] });
+        inputSource: "ATTRIBUTE_VALUE", inputVerification: "VERIFIED", inputEvidenceId: "evidence-legal" }] });
     await env.DB.prepare("UPDATE applicant_profiles SET legal_form_code = 'GOOD' WHERE id = 'profile-a'").run();
     expect(await result(env)).toMatchObject({ status: "LIKELY_ELIGIBLE", rootResult: "PASS",
       conditions: [{ result: "PASS" }, { result: "PASS", inputSource: "PROFILE" }] });
@@ -159,9 +166,10 @@ describe("eligibility endpoint with real D1", () => {
     await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,ico,created_at,updated_at)
       VALUES ('profile-a',?,'MUNICIPALITY','12345678',?,?)`)
       .bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await seedApplicantEvidence(env, "evidence-legal", "legal-value", "applicant.legal_form");
     await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
       value_type,value_json,source_kind,observed_at,verified_at,verification_status,evidence_id)
-      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,?,'VERIFIED','evidence-rule')`)
+      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,?,'VERIFIED','evidence-legal')`)
       .bind(now, now).run();
     expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"] });
     const response = await handleRequest(new Request("https://example.test/applicant-profile", {
@@ -176,5 +184,61 @@ describe("eligibility endpoint with real D1", () => {
     const otherProject = await env.DB.prepare("SELECT natural_language_intent FROM projects WHERE id = ?")
       .bind("prj_" + "b".repeat(32)).first();
     expect(otherProject?.natural_language_intent).toBe("test");
+  });
+
+  it("rejects unrelated or unverified sparse evidence before a definitive result", async () => {
+    const env = await setup(); await seedRule(env);
+    await env.DB.prepare(`INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,
+      expected_value_json,verification_status,evidence_id,sort_order)
+      VALUES ('legal','root-v1','attr-applicant-legal-form','EQ','"GOOD"','VERIFIED','evidence-rule',1)`).run();
+    await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at)
+      VALUES ('profile-a',?,'MUNICIPALITY',?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
+      value_type,value_json,source_kind,observed_at,verification_status,evidence_id)
+      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,'VERIFIED','evidence-rule')`)
+      .bind(now).run();
+    expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW", rootResult: "ERROR" });
+    await seedApplicantEvidence(env, "evidence-legal", "legal-value", "applicant.legal_form");
+    await env.DB.prepare("UPDATE applicant_attribute_values SET evidence_id = 'evidence-legal' WHERE id = 'legal-value'").run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL" });
+    for (const [column, wrong, correct] of [
+      ["entity_type", "GRANT_CALL_VERSION", "APPLICANT_ATTRIBUTE_VALUE"],
+      ["entity_id", "another-value", "legal-value"],
+      ["field_path", "applicant.type", "applicant.legal_form"],
+      ["verification_status", "NEEDS_REVIEW", "VERIFIED"],
+    ]) {
+      await env.DB.prepare(`UPDATE field_evidence SET ${column} = ? WHERE id = 'evidence-legal'`).bind(wrong).run();
+      expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW", rootResult: "ERROR" });
+      await env.DB.prepare(`UPDATE field_evidence SET ${column} = ? WHERE id = 'evidence-legal'`).bind(correct).run();
+    }
+    await env.DB.prepare("UPDATE source_registry SET authority = 'SECONDARY' WHERE id = 'source'").run();
+    expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW" });
+    await env.DB.prepare("UPDATE source_registry SET authority = 'OFFICIAL_OPEN_DATA' WHERE id = 'source'").run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE" });
+    await env.DB.prepare("UPDATE document_versions SET extraction_status = 'QUARANTINED' WHERE id = 'document-version'").run();
+    expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW" });
+  });
+
+  it("invalidates municipality population without an IČO change", async () => {
+    const env = await setup(); await seedRule(env);
+    await env.DB.prepare(`INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,
+      expected_value_json,verification_status,evidence_id,sort_order)
+      VALUES ('population','root-v1','attr-applicant-population','LTE','5000','VERIFIED','evidence-rule',1)`).run();
+    await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,municipality_code,created_at,updated_at)
+      VALUES ('profile-a',?,'MUNICIPALITY','111111',?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await seedApplicantEvidence(env, "evidence-population", "population-value", "applicant.municipality.population");
+    await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
+      value_type,value_json,source_kind,observed_at,verified_at,verification_status,evidence_id)
+      VALUES ('population-value','profile-a','attr-applicant-population','INTEGER','9000','CZSO',?,?,'VERIFIED','evidence-population')`)
+      .bind(now, now).run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE", blockers: ["population"] });
+    const response = await handleRequest(new Request("https://example.test/applicant-profile", {
+      method: "PUT", headers: { authorization: ["Bearer", token].join(" ") },
+      body: JSON.stringify({ applicantType: "MUNICIPALITY", municipalityCode: "222222" }),
+    }), env);
+    expect(response.status).toBe(200);
+    expect(await result(env)).toMatchObject({ status: "NEEDS_REVIEW", rootResult: "FAIL", blockers: ["population"] });
+    expect(await env.DB.prepare(`SELECT verification_status, verified_at FROM applicant_attribute_values
+      WHERE id = 'population-value'`).first()).toMatchObject({ verification_status: "NEEDS_REVIEW", verified_at: null });
   });
 });
