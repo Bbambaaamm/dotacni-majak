@@ -11,6 +11,7 @@ import {
   type ShareLink,
 } from "../lib/projectSharing";
 import { projectPrefillFromSearch } from "../lib/projectPrefill";
+import { getProjectNotifications, type ProjectNotification } from "../lib/projectNotifications";
 import {
   enableProjectWatch,
   getProjectWatch,
@@ -54,6 +55,8 @@ export function ProjectsPage() {
   const [project, setProject] = useState<ManagedProject | null>(() => loadSessionProject());
   const [watch, setWatch] = useState<ProjectWatchRecord | null>(null);
   const [watchLoaded, setWatchLoaded] = useState(false);
+  const [notifications, setNotifications] = useState<ProjectNotification[]>([]);
+  const [notificationError, setNotificationError] = useState(false);
   const [share, setShare] = useState<ShareLink | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,6 +91,25 @@ export function ProjectsPage() {
       cancelled = true;
     };
   }, [project]);
+
+  useEffect(() => {
+    if (!project) return;
+    let cancelled = false;
+    getProjectNotifications(project.projectId, project.ownerCapability)
+      .then((items) => { if (!cancelled) setNotifications(items); })
+      .catch(() => { if (!cancelled) setNotificationError(true); });
+    return () => { cancelled = true; };
+  }, [project]);
+
+  async function refreshNotifications() {
+    if (!project) return;
+    setNotificationError(false);
+    try {
+      setNotifications(await getProjectNotifications(project.projectId, project.ownerCapability));
+    } catch {
+      setNotificationError(true);
+    }
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -325,6 +347,31 @@ export function ProjectsPage() {
             </Button>
           )}
         </div>
+      </section>
+
+      <section className="share-card" aria-labelledby="notifications-title">
+        <h2 id="notifications-title">Upozornění projektu</h2>
+        <p>Nové tematické možnosti ověřte podle oficiálních podmínek. Shoda neznamená způsobilost.</p>
+        <Button variant="secondary" onClick={() => void refreshNotifications()}>
+          Obnovit upozornění
+        </Button>
+        {notificationError ? (
+          <p role="alert">Upozornění se teď nepodařilo načíst. Zkuste to znovu.</p>
+        ) : notifications.length === 0 ? (
+          <p role="status">Zatím nemáte žádná upozornění. Maják bude hledat dál.</p>
+        ) : (
+          <ul aria-label="Upozornění projektu">
+            {notifications.map((item) => (
+              <li key={item.id}>
+                <strong>{item.title}</strong>
+                <p>{item.body}</p>
+                <a href={`/dotace/${encodeURIComponent(item.grantCallId)}`}>
+                  Otevřít detail výzvy a ověřit podmínky
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="share-card" aria-labelledby="share-title">

@@ -29,7 +29,7 @@ export function apiUrl(
     throw new Error("API path must be absolute");
   }
   const trimmed = base.trim();
-  if (!trimmed) return path;
+  if (!trimmed) return `/api${path}`;
 
   const root = new URL(trimmed.endsWith("/") ? trimmed : trimmed + "/");
   const local = root.hostname === "localhost" || root.hostname === "127.0.0.1";
