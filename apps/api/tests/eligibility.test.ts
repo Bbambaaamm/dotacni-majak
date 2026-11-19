@@ -43,6 +43,42 @@ describe("eligibility evaluator parity subset", () => {
       expected_value_json: '["MUNICIPALITY","REGION"]' }], profile, []).status).toBe("ELIGIBLE");
   });
 
+  it("falls back from missing mapped values while keeping present columns authoritative", () => {
+    const legal = { ...condition, id: "legal", attribute_key: "applicant.legal_form",
+      data_type: "STRING", expected_value_json: '"GOOD"', unknown_policy: "NOT_APPLICABLE" };
+    const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
+      data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
+      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+    const failed = evaluateRules(base, set, groups, [condition, legal], profile, [sparse]);
+    expect(failed).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"],
+      conditions: [{ result: "PASS" }, { result: "FAIL", inputSource: "ATTRIBUTE_VALUE",
+        inputVerification: "VERIFIED", inputEvidenceId: "input-evidence" }] });
+    expect(evaluateRules(base, set, groups, [legal], { ...profile, legal_form_code: "GOOD" }, [sparse]))
+      .toMatchObject({ rootResult: "PASS", conditions: [{ inputSource: "PROFILE", result: "PASS" }] });
+    expect(evaluateRules(base, set, groups, [legal], { ...profile, legal_form_code: "UNKNOWN" }, [sparse]))
+      .toMatchObject({ rootResult: "FAIL", conditions: [{ inputSource: "ATTRIBUTE_VALUE" }] });
+    expect(evaluateRules(base, set, groups, [legal], profile, [])).toMatchObject({
+      rootResult: "NOT_APPLICABLE", status: "NEEDS_REVIEW", conditions: [{ result: "NOT_APPLICABLE" }] });
+  });
+
+  it("fails closed for conflicting or invalid sparse fallbacks", () => {
+    const legal = { ...condition, attribute_key: "applicant.legal_form", data_type: "STRING",
+      expected_value_json: '"GOOD"' };
+    const sparse = { attribute_definition_id: "attr-applicant-legal-form", attribute_key: legal.attribute_key,
+      data_type: "STRING", value_type: "STRING", value_json: '"BAD"', source_kind: "ARES",
+      verification_status: "VERIFIED", evidence_id: "input-evidence" };
+    for (const altered of [{ value_type: "INTEGER" }, { value_json: "42" },
+      { value_json: "{bad" }, { source_kind: "USER", verification_status: "VERIFIED" },
+      { source_kind: "ARES", verification_status: "USER_DECLARED" }]) {
+      expect(evaluateRules(base, set, groups, [legal], profile, [{ ...sparse, ...altered }]))
+        .toMatchObject({ status: "NEEDS_REVIEW", rootResult: "ERROR" });
+    }
+    expect(evaluateRules(base, set, groups, [legal], profile, [sparse, { ...sparse, value_json: '"GOOD"' }]))
+      .toMatchObject({ status: "NEEDS_REVIEW", rootResult: "ERROR" });
+    expect(evaluateRules(base, set, groups, [{ ...legal, condition_operator: "EXISTS" }], profile,
+      [{ ...sparse, value_json: "null" }])).toMatchObject({ rootResult: "UNKNOWN", status: "NEEDS_INFORMATION" });
+  });
+
   it("fails closed for malformed, unsupported, and disconnected rules", () => {
     for (const altered of [
       { condition_operator: "GEO_WITHIN" }, { expected_value_json: "{bad" },

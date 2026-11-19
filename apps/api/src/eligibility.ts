@@ -68,7 +68,11 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
     || !["VERIFIED", "PARTIALLY_VERIFIED", "AUTO_EXTRACTED", "NEEDS_REVIEW"].includes(ruleSet.verification_status)) return review(base, "INVALID_RULE_DEFINITION");
   const groupIds = new Set(groups.map((g) => g.id));
   if (groupIds.size !== groups.length || conditions.some((c) => !groupIds.has(c.rule_group_id))) return review(base, "INVALID_RULE_DEFINITION");
-  const byKey = new Map(values.map((v) => [v.attribute_key, v]));
+  const byKey = new Map<string, Value>();
+  for (const value of values) {
+    if (byKey.has(value.attribute_key)) return review(base, "INVALID_INPUT_VALUE");
+    byKey.set(value.attribute_key, value);
+  }
   const out: PublicCondition[] = [];
   const visited = new Set<string>();
   type Outcome = { result: Result; causes: string[] };
@@ -100,17 +104,27 @@ export function evaluateRules(base: Pick<EligibilityResponse, "grantCallId" | "v
       if (column && profile) {
         actual = column === "cz_nace_json" ? parsed(profile.cz_nace_json) : profile[column];
         if (actual === "UNKNOWN") actual = undefined;
-        source = "PROFILE";
-        // Client profile provenance cannot turn a condition into a verified rule.
-        verification = "USER_DECLARED";
-      } else if (profile) {
+        if (actual !== undefined && actual !== null) {
+          source = "PROFILE";
+          // Client profile provenance cannot turn a condition into a verified rule.
+          verification = "USER_DECLARED";
+        }
+      }
+      if (profile && (actual === undefined || actual === null)) {
         const v = byKey.get(c.attribute_key);
         if (v) {
           if (v.data_type !== c.data_type || v.value_type !== c.data_type) throw new Error("INVALID_INPUT_TYPE");
+          if (!["USER", "ARES", "CZSO", "OTHER_OFFICIAL", "DERIVED"].includes(v.source_kind)
+            || !["USER_DECLARED", "AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"].includes(v.verification_status)
+            || (v.source_kind === "USER") !== (v.verification_status === "USER_DECLARED")) throw new Error("INVALID_INPUT_PROVENANCE");
           actual = parsed(v.value_json);
-          source = "ATTRIBUTE_VALUE";
-          verification = v.verification_status;
-          inputEvidenceId = v.evidence_id;
+          if (actual === "UNKNOWN" && !["STRING", "ENUM", "GEO_ID"].includes(c.data_type)) throw new Error("INVALID_INPUT_TYPE");
+          if (actual !== null && actual !== "UNKNOWN") {
+            if (!valid(actual, c.data_type)) throw new Error("INVALID_INPUT_TYPE");
+            source = "ATTRIBUTE_VALUE";
+            verification = v.verification_status;
+            inputEvidenceId = v.evidence_id;
+          } else actual = undefined;
         }
       }
       let result: Result;

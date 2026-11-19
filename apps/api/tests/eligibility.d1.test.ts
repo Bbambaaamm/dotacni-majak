@@ -125,4 +125,27 @@ describe("eligibility endpoint with real D1", () => {
       VALUES ('profile-a',?,?,?,?)`).bind(`anonymous:prj_${"a".repeat(32)}`, "MUNICIPALITY", now, now).run();
     expect(await result(env)).toMatchObject({ versionId: "v1", status: "ELIGIBLE" });
   });
+
+  it("uses verified sparse legal form when the mapped column is null, with column precedence when present", async () => {
+    const env = await setup(); await seedRule(env);
+    await env.DB.prepare(`INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,
+      expected_value_json,unknown_policy,verification_status,evidence_id,sort_order)
+      VALUES ('legal','root-v1','attr-applicant-legal-form','EQ','"GOOD"','NOT_APPLICABLE','VERIFIED','evidence-rule',1)`).run();
+    await env.DB.prepare(`INSERT INTO applicant_profiles(id,user_id,applicant_type,legal_form_code,created_at,updated_at)
+      VALUES ('profile-a',?,'MUNICIPALITY',NULL,?,?)`)
+      .bind(`anonymous:prj_${"a".repeat(32)}`, now, now).run();
+    await env.DB.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,
+      value_type,value_json,source_kind,observed_at,verification_status,evidence_id)
+      VALUES ('legal-value','profile-a','attr-applicant-legal-form','STRING','"BAD"','ARES',?,'VERIFIED','evidence-rule')`)
+      .bind(now).run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL", blockers: ["legal"],
+      conditions: [{ conditionId: "type-v1", result: "PASS" }, { conditionId: "legal", result: "FAIL",
+        inputSource: "ATTRIBUTE_VALUE", inputVerification: "VERIFIED", inputEvidenceId: "evidence-rule" }] });
+    await env.DB.prepare("UPDATE applicant_profiles SET legal_form_code = 'GOOD' WHERE id = 'profile-a'").run();
+    expect(await result(env)).toMatchObject({ status: "ELIGIBLE", rootResult: "PASS",
+      conditions: [{ result: "PASS" }, { result: "PASS", inputSource: "PROFILE" }] });
+    await env.DB.prepare("UPDATE applicant_profiles SET legal_form_code = 'UNKNOWN' WHERE id = 'profile-a'").run();
+    expect(await result(env)).toMatchObject({ status: "INELIGIBLE", rootResult: "FAIL",
+      conditions: [{ result: "PASS" }, { result: "FAIL", inputSource: "ATTRIBUTE_VALUE" }] });
+  });
 });
