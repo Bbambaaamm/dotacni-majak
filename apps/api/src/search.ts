@@ -313,8 +313,7 @@ export async function searchGrants(
       cursor as DateCursor | null, status, deadline, provider, closesBy, sort);
     const selected = rows.slice(0, limit);
     const last = selected.at(-1);
-    return { intent, results: selected.map((row) => toResult({ ...row,
-      submission_close_at: row.close_sort === null ? null : row.submission_close_at },
+    return { intent, results: selected.map((row) => toResult(row,
       row.match_phase === 0 ? "DIRECT" : "ONTOLOGY")),
       expandedTerms, indexState,
       nextCursor: rows.length > limit && last ? encodeCursor({ v: 2, intent, limit, status, deadline,
