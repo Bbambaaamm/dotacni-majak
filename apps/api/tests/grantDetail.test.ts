@@ -86,6 +86,7 @@ describe("grant detail query", () => {
             application_url: null,
             official_detail_url: "https://nsa.gov.cz/dotace/regiony-2026/",
             currency_code: "CZK",
+            funding_instrument_type: "LOAN",
             programme_id: "programme:nsa:investment",
             programme_name: "NSA — Investiční výzvy",
             funding_origin: "CZ_NATIONAL",
@@ -106,7 +107,16 @@ describe("grant detail query", () => {
           }];
         }
         if (mode === "all" && query.includes("FROM grant_deadlines")) return [];
-        if (mode === "all" && query.includes("FROM funding_scenarios")) return [];
+        if (mode === "all" && query.includes("FROM funding_scenarios")) {
+          expect(query).toContain("instrument_type");
+          return [{
+            id: "scenario-loan", name: "Zvýhodněný úvěr", instrument_type: "LOAN",
+            currency_code: "CZK", support_rate_min_bps: null, support_rate_max_bps: 7000,
+            grant_amount_min_minor: null, grant_amount_max_minor: 10000000,
+            project_cost_min_minor: null, project_cost_max_minor: null,
+            payment_mode: null, vat_rule: null, advance_payment_allowed: null, evidence_id: null,
+          }];
+        }
         if (mode === "all" && query.includes("FROM grant_requirements")) return [];
         if (mode === "all" && query.includes("FROM field_evidence")) return [];
         if (mode === "all" && query.includes("FROM change_events")) return [];
@@ -127,6 +137,10 @@ describe("grant detail query", () => {
 
     expect(detail).not.toBeNull();
     expect(detail?.provider.name).toBe("Národní sportovní agentura");
+    expect(detail?.fundingInstrumentType).toBe("LOAN");
+    expect(detail?.fundingScenarios[0]).toMatchObject({
+      id: "scenario-loan", instrumentType: "LOAN", grantAmountMaxMinor: 10000000,
+    });
     expect(detail?.deadlines).toEqual([
       expect.objectContaining({
         type: "APPLICATION_WINDOW",
@@ -135,7 +149,7 @@ describe("grant detail query", () => {
       }),
     ]);
     expect(detail?.availability).toEqual({
-      funding: "UNKNOWN",
+      funding: "AVAILABLE",
       requirements: "UNKNOWN",
       evidence: "SOURCE_ONLY",
     });

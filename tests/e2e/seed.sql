@@ -127,6 +127,12 @@ INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,suppor
 VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,10000000,'e2e-fe-funding'),
        ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL);
 
+-- Non-grant sentinel: grant-shaped legacy fields must not become a claimed loan amount or grant.
+UPDATE grant_call_versions SET funding_instrument_type='LOAN' WHERE id='gcv-e2e-planned';
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,instrument_type,currency_code,support_rate_max_bps,grant_amount_max_minor)
+VALUES ('e2e-funding-loan','gcv-e2e-planned','E2E syntetický úvěr','LOAN','CZK',7000,1234500),
+       ('e2e-funding-mismatch','gcv-e2e-planned','E2E rozpor typu výzvy a scénáře','GRANT','CZK',8000,9876500);
+
 -- Synthetic rule for the browser UNKNOWN -> declared answer -> fresh evaluation proof.
 -- It is test data only; it must never imply actual conditions of an official call.
 INSERT INTO eligibility_rule_sets(id,grant_call_version_id,name,completeness_status,verification_status)
