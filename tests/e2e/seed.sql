@@ -150,10 +150,11 @@ SELECT 'grant:e2e:page:' || i,'e2e-programme-open','E2E-PAGE-' || i,
 
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
-  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+  submission_close_at,official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
 SELECT 'gcv-e2e-page-' || i,'grant:e2e:page:' || i,1,'2026-09-26T20:00:00Z',
   CASE WHEN i = 25 THEN 'E2E pozdější plánovaná výzva' ELSE 'E2E stránkování ' || i END,
   'Testovací záznam stránkování.',CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,
+  CASE WHEN i = 25 THEN '2027-05-01T00:00:00Z' ELSE NULL END,
   'https://example.invalid/e2e/page/' || i,'CZK','e2e-v1',
   printf('%064d',i),'VERIFIED','2026-09-26T20:00:00Z' FROM n;
 
@@ -175,4 +176,6 @@ SELECT 'gcv-e2e-page-' || i,
   'Testovací záznam stránkování.',CASE WHEN i = 25 THEN '' ELSE 'strankovani' END,'',
   CASE i WHEN 1 THEN 'koupaliště' WHEN 2 THEN 'plavecké zařízení'
     WHEN 3 THEN 'plavecké zařízení' WHEN 25 THEN 'strankovani' ELSE '' END,
-  CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,NULL,'2026-09-26T20:00:00Z' FROM n;
+  CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,
+  CASE WHEN i = 25 THEN '2027-05-01T00:00:00Z' ELSE NULL END,
+  '2026-09-26T20:00:00Z' FROM n;

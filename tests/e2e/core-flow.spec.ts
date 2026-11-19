@@ -32,7 +32,7 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav se filtruje napříč všemi odpovídajícími aktivními výzvami/)).toBeVisible();
+  await expect(page.getByText(/Stav a dostupnost termínu se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
   await page.getByLabel("Poskytovatel").selectOption("E2E test provider A");
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
@@ -51,6 +51,36 @@ test("global status finds a later-page planned result and rejects a changed curs
   expect(await closed.json()).toEqual({ error: "INVALID_STATUS" });
   const defaultSearch = await request.get("/api/search?intent=rekonstrukce%20tenisov%C3%BDch%20kurt%C5%AF");
   expect((await defaultSearch.json()).results).toEqual([]);
+});
+
+test("global deadline availability finds a later-page call and remains bound to the cursor", async ({ page, request }) => {
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toHaveCount(0);
+  await page.getByLabel("Termín podání").selectOption("KNOWN");
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await page.getByLabel("Stav výzvy").selectOption("OPEN");
+  await expect(page.getByText("Zvolenému stavu a dostupnosti termínu neodpovídá žádná aktivní výzva pro váš záměr.")).toBeVisible();
+  await page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" }).click();
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await page.getByLabel("Termín podání").selectOption("UNKNOWN");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(24);
+  await expect(page.getByRole("heading", { name: "E2E stránkování 24" })).toBeVisible();
+
+  const response = await request.get("/api/search?intent=strankovani&limit=1&deadline=UNKNOWN");
+  expect(response.status()).toBe(200);
+  const { nextCursor } = await response.json() as { nextCursor: string | null };
+  expect(nextCursor).toBeTruthy();
+  const changed = await request.get(`/api/search?intent=strankovani&limit=1&deadline=KNOWN&cursor=${encodeURIComponent(nextCursor!)}`);
+  expect(changed.status()).toBe(400);
+  expect(await changed.json()).toEqual({ error: "INVALID_CURSOR" });
+  const invalid = await request.get("/api/search?intent=strankovani&deadline=KNOWN&deadline=UNKNOWN");
+  expect(invalid.status()).toBe(400);
+  expect(await invalid.json()).toEqual({ error: "INVALID_DEADLINE" });
 });
 
 test("real D1 cursor crosses from direct to ontology without replaying direct matches", async ({ request }) => {
@@ -133,7 +163,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE");
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
-  await expect(page.getByText("Tomuto filtru neodpovídá žádný z načtených výsledků.")).toBeVisible();
+  await expect(page.getByText("Zvolenému stavu a dostupnosti termínu neodpovídá žádná aktivní výzva pro váš záměr.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();
   await page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" }).click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
@@ -147,7 +177,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav se filtruje napříč všemi odpovídajícími aktivními výzvami/)).toBeVisible();
+  await expect(page.getByText(/Stav a dostupnost termínu se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
