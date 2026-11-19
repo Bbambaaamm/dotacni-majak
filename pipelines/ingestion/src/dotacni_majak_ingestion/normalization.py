@@ -129,6 +129,9 @@ class NsaGrantNormalizer:
             status=canonical_status(record.native_status),
             verification_status="PARTIALLY_VERIFIED",
             captured_at=captured_at.isoformat(),
+            raw_snapshot_id=(
+                record.snapshot_ids[-1] if record.snapshot_ids else None
+            ),
             currency_code="CZK",
             published_at=record.published_at.isoformat() if record.published_at else None,
             submission_open_at=record.raw_fields.get("submissionOpenAt"),
@@ -143,11 +146,23 @@ class NsaGrantNormalizer:
 
 @dataclass(frozen=True, slots=True)
 class DotaceEuGrantNormalizer:
-    def programme_identity(self, record: NativeRecord) -> tuple[str, str]:
-        return stable_programme_identity(
-            "dotaceeu",
-            str(record.raw_fields.get("programme") or ""),
-            "DotaceEU — program neuveden",
+    def programme_identity(
+        self,
+        item: DiscoveryItem,
+        record: NativeRecord,
+    ) -> tuple[str, str]:
+        programme_name = (
+            " ".join(str(record.raw_fields.get("programme") or "").split())
+            or "DotaceEU — program neuveden"
+        )
+        period = slugify(
+            str(record.raw_fields.get("programmingPeriod") or "period-unspecified")
+        )
+        match = re.search(r"/(\d{2,3})-[^/]+/", str(item.detail_url))
+        programme_code = match.group(1) if match else "catalogue"
+        return (
+            stable_id("programme", "dotaceeu", period, programme_code),
+            programme_name,
         )
 
     def normalize(
@@ -156,8 +171,7 @@ class DotaceEuGrantNormalizer:
         record: NativeRecord,
         captured_at: datetime,
     ) -> SearchableGrant:
-        del item
-        programme_id, programme_name = self.programme_identity(record)
+        programme_id, programme_name = self.programme_identity(item, record)
         content_hash = record_content_hash(record)
         external_id = record.external_id
         grant_call_id = stable_id("grant", "dotaceeu", external_id)
@@ -215,6 +229,9 @@ class DotaceEuGrantNormalizer:
             status=canonical_status(record.native_status),
             verification_status="PARTIALLY_VERIFIED",
             captured_at=captured_at.isoformat(),
+            raw_snapshot_id=(
+                record.snapshot_ids[-1] if record.snapshot_ids else None
+            ),
             currency_code="CZK",
             submission_open_at=record.raw_fields.get("submissionOpenAt"),
             submission_close_at=record.raw_fields.get("submissionCloseAt"),
@@ -238,12 +255,21 @@ class EuFundingGrantNormalizer:
         metadata = meta if isinstance(meta, dict) else {}
 
         framework = _first(metadata.get("frameworkProgramme"))
-        framework_name = str(framework or item.metadata.get("framework_programme") or "EU Funding & Tenders")
-        programme_id, programme_name = stable_programme_identity(
-            "eu-ft",
-            framework_name,
-            "EU Funding & Tenders",
+        framework_key = str(
+            framework or item.metadata.get("framework_programme") or ""
+        ).strip()
+        framework_name = str(
+            _first(metadata.get("frameworkProgrammeName"))
+            or framework_key
+            or "EU Funding & Tenders"
+        ).strip()
+        stable_framework_key = (
+            framework_key
+            if re.fullmatch(r"[A-Za-z0-9_.:-]{2,64}", framework_key)
+            else "catalogue"
         )
+        programme_id = stable_id("programme", "eu-ft", stable_framework_key)
+        programme_name = framework_name or "EU Funding & Tenders"
 
         content_hash = record_content_hash(record)
         external_id = record.external_id
@@ -288,6 +314,9 @@ class EuFundingGrantNormalizer:
             status=canonical_status(record.native_status, mapping=EU_STATUS_MAP),
             verification_status="PARTIALLY_VERIFIED",
             captured_at=captured_at.isoformat(),
+            raw_snapshot_id=(
+                record.snapshot_ids[-1] if record.snapshot_ids else None
+            ),
             currency_code="EUR",
             submission_open_at=str(start) if start else None,
             submission_close_at=str(deadline or item.metadata.get("deadline") or "") or None,

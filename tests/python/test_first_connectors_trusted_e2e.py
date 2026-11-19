@@ -223,10 +223,8 @@ class FirstConnectorsTrustedE2ETest(unittest.IsolatedAsyncioTestCase):
 
             self.assertIsNotNone(record)
             grant = EuFundingGrantNormalizer().normalize(item, record, ctx.now)
-            raw = store.load_by_sha256(
-                source_code="EU_FT",
-                sha256=grant.content_hash,
-            )
+            self.assertIsNotNone(grant.raw_snapshot_id)
+            raw = store.load_by_snapshot_id(grant.raw_snapshot_id)
 
             connection = migrated_connection()
             ingested = TrustedGrantIngestor(connection).ingest(

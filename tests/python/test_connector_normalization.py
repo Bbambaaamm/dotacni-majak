@@ -107,5 +107,91 @@ class ConnectorNormalizationTest(unittest.TestCase):
         self.assertIn("'EUR'", sql)
 
 
+    def test_dotaceeu_programme_id_survives_display_name_correction(self):
+        item = DiscoveryItem(
+            external_id="DOTACEEU-rename",
+            detail_url=(
+                "https://www.dotaceeu.cz/cs/jak-ziskat-dotaci/vyzvy/"
+                "obdobi-2021-2027/05-operacni-program-zivotni-prostredi-2021-2027/"
+                "test"
+            ),
+        )
+        base_fields = {
+            "programme": "Operační program Životní prostředí 2021—2027",
+            "programmingPeriod": "2021-2027",
+        }
+        first_record = NativeRecord(
+            source_code="DOTACEEU",
+            external_id=item.external_id,
+            detail_url=item.detail_url,
+            native_title="Test",
+            native_status="OPEN",
+            raw_fields=base_fields,
+            snapshot_ids=["DOTACEEU:" + "d" * 64],
+        )
+        corrected_record = first_record.model_copy(
+            update={
+                "raw_fields": {
+                    **base_fields,
+                    "programme": "Operační program Životní prostředí 2021–2027",
+                }
+            }
+        )
+        first = DotaceEuGrantNormalizer().normalize(item, first_record, CAPTURED)
+        corrected = DotaceEuGrantNormalizer().normalize(
+            item, corrected_record, CAPTURED
+        )
+        self.assertEqual(first.programme_id, corrected.programme_id)
+        self.assertEqual(
+            first.programme_id,
+            "programme:dotaceeu:2021-2027:05",
+        )
+        self.assertNotEqual(first.programme_name, corrected.programme_name)
+
+    def test_eu_funding_programme_id_uses_stable_framework_identifier(self):
+        item = DiscoveryItem(
+            external_id="EU-RENAME",
+            detail_url=(
+                "https://ec.europa.eu/info/funding-tenders/opportunities/"
+                "portal/screen/opportunities/topic-details/EU-RENAME"
+            ),
+        )
+        common = {
+            "frameworkProgramme": ["43252368"],
+            "status": ["31094502"],
+        }
+        first_record = NativeRecord(
+            source_code="EU_FT",
+            external_id=item.external_id,
+            detail_url=item.detail_url,
+            native_title="Test",
+            native_status="31094502",
+            raw_fields={
+                "metadata": {
+                    **common,
+                    "frameworkProgrammeName": ["Original programme name"],
+                }
+            },
+            snapshot_ids=["EU_FT:" + "e" * 64],
+        )
+        renamed_record = first_record.model_copy(
+            update={
+                "raw_fields": {
+                    "metadata": {
+                        **common,
+                        "frameworkProgrammeName": ["Corrected programme name"],
+                    }
+                }
+            }
+        )
+        first = EuFundingGrantNormalizer().normalize(item, first_record, CAPTURED)
+        renamed = EuFundingGrantNormalizer().normalize(
+            item, renamed_record, CAPTURED
+        )
+        self.assertEqual(first.programme_id, renamed.programme_id)
+        self.assertEqual(first.programme_id, "programme:eu-ft:43252368")
+        self.assertNotEqual(first.programme_name, renamed.programme_name)
+
+
 if __name__ == "__main__":
     unittest.main()

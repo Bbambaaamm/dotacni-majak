@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { platform } from "node:process";
 
 const root = resolve(import.meta.dirname, "..");
@@ -69,29 +69,8 @@ run(venvPython, [
   "connectors/nsa",
 ]);
 
-console.log("Stahuji aktuální veřejné výzvy NSA a připravuji canonical import…");
+console.log("Stahuji aktuální veřejné výzvy NSA a publikuji je přes trusted pipeline…");
 run(venvPython, ["scripts/local_ingest_nsa.py"]);
-
-console.log("Aplikuji data do lokální D1…");
-run(
-  "npm",
-  [
-    "--workspace",
-    "@dotacni-majak/api",
-    "exec",
-    "--",
-    "wrangler",
-    "d1",
-    "execute",
-    "dotacni-majak-local",
-    "--local",
-    "--persist-to",
-    "../../.wrangler/local",
-    "--file",
-    "../../.local/nsa-import.sql",
-  ],
-  { shell: platform === "win32" },
-);
 
 await writeFile(
   join(root, ".local", "nsa-refresh.json"),

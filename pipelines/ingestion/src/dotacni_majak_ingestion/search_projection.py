@@ -118,7 +118,12 @@ class SqliteSearchProjection:
             indexed=True,
         )
 
-    def handle_outbox(self, event: OutboxEvent) -> None:
+    def handle_outbox(
+        self,
+        event: OutboxEvent,
+        *,
+        commit: bool = True,
+    ) -> None:
         if event.event_type is not OutboxEventType.SEARCH_REINDEX_REQUIRED:
             raise ValueError("search projection received non-search outbox event")
         grant_call_id = str(
@@ -126,4 +131,4 @@ class SqliteSearchProjection:
         )
         if not grant_call_id:
             raise ValueError("search reindex event has no grantCallId")
-        self.reindex_grant_call(grant_call_id)
+        self.reindex_grant_call(grant_call_id, commit=commit)
