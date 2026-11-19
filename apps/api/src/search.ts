@@ -119,7 +119,8 @@ function parseDate(value: string | null, code: "INVALID_CLOSES_BY" | "INVALID_CL
 }
 
 // Only well-formed source calendar dates can participate in a bounded UTC interval.
-const BOUNDED_DATE = "d.submission_close_at GLOB '????-??-??T??:??:??*' AND date(substr(d.submission_close_at, 1, 10)) = substr(d.submission_close_at, 1, 10)";
+const BOUNDED_DATE = `(d.submission_close_at GLOB '????-??-??' OR d.submission_close_at GLOB '????-??-??T??:??:??*')
+  AND strftime('%Y-%m-%d', substr(d.submission_close_at, 1, 10) || 'T00:00:00Z', '+0 days') = substr(d.submission_close_at, 1, 10)`;
 function dateFilters(closesFrom: string | null, closesBy: string | null): string {
   if (!closesFrom && !closesBy) return "";
   return `AND ${BOUNDED_DATE}

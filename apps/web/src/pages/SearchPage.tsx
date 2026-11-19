@@ -343,14 +343,14 @@ export function SearchPage() {
             <form onSubmit={(event) => { event.preventDefault(); changeClosesBy(closesByDraft); }}>
               <label htmlFor="closes-by-filter">Uzávěrka nejpozději (včetně dne, UTC)</label>
               <input id="closes-by-filter" type="date" value={closesByDraft}
-                min={closesFromDraft || undefined}
+                min={closesFrom || undefined}
                 onChange={(event) => setClosesByDraft(event.target.value)} />
               <button type="submit">Použít datum uzávěrky</button>
             </form>
             <form onSubmit={(event) => { event.preventDefault(); changeClosesFrom(closesFromDraft); }}>
               <label htmlFor="closes-from-filter">Uzávěrka nejdříve (včetně dne, UTC)</label>
               <input id="closes-from-filter" type="date" value={closesFromDraft}
-                max={closesByDraft || undefined}
+                max={closesBy || undefined}
                 onChange={(event) => setClosesFromDraft(event.target.value)} />
               <button type="submit">Použít datum od</button>
             </form>
