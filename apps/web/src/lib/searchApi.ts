@@ -18,6 +18,12 @@ export interface GrantSearchResponse {
   expandedTerms: string[];
   indexState: "READY" | "EMPTY";
   nextCursor: string | null;
+  facets: {
+    status: Record<"OPEN" | "PLANNED" | "ANNOUNCED", number>;
+    deadline: Record<"KNOWN" | "UNKNOWN", number>;
+    providers: { name: string; count: number }[];
+    providersTruncated: boolean;
+  };
 }
 
 export class SearchApiError extends Error {

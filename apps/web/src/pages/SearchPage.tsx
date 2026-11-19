@@ -60,9 +60,7 @@ export function SearchPage() {
   const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">("RELEVANCE");
 
   const loadedResults = data?.results ?? [];
-  const providerOptions = [
-    ...new Set(loadedResults.map((grant) => grant.providerName)),
-  ].sort((a, b) => a.localeCompare(b, "cs-CZ"));
+  const providerOptions = data?.facets.providers ?? [];
   const filteredResults = loadedResults;
   function changeSort(next: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST") {
     if (next === sortOrder) return;
@@ -291,7 +289,7 @@ export function SearchPage() {
                 Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
                 Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
                 Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
-                Nápověda názvů poskytovatelů je jen z načtené sady; můžete zadat i jiný přesný název.
+                Nápověda poskytovatelů zahrnuje shody v celém hledání, i mimo načtenou stránku. Můžete zadat i jiný přesný název.
                 Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
@@ -317,27 +315,29 @@ export function SearchPage() {
                 <option value="ALL">Všechny aktivní stavy</option>
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {statusLabel(status)}
+                    {statusLabel(status)} ({data.facets.status[status]})
                   </option>
                 ))}
               </select>
             </label>
             <form onSubmit={(event) => { event.preventDefault(); changeProvider(providerDraft.trim()); }}>
               <label htmlFor="provider-filter">Přesný název poskytovatele</label>
-              <input id="provider-filter" type="text" list="loaded-providers" maxLength={200}
+              <input id="provider-filter" type="text" list="search-providers" maxLength={200}
                 value={providerDraft} onChange={(event) => setProviderDraft(event.target.value)} />
-              <datalist id="loaded-providers">
-                {providerOptions.map((provider) => <option key={provider} value={provider} />)}
+              <datalist id="search-providers">
+                {providerOptions.map((provider) => <option key={provider.name} value={provider.name} />)}
               </datalist>
               <button type="submit">Použít poskytovatele</button>
+              <p className="fine-print provider-facet-note">Dostupní poskytovatelé pro ostatní filtry: {providerOptions.map((item) => `${item.name} (${item.count})`).join(", ") || "žádní"}.
+                {data.facets.providersTruncated ? " Zobrazeno prvních 20; další poskytovatelé mohou odpovídat. Zadejte jejich přesný název." : ""}</p>
             </form>
             <label>
               Termín podání
               <select aria-label="Termín podání" value={deadlineFilter}
                 onChange={(event) => changeDeadline(event.target.value as "ALL" | "KNOWN" | "UNKNOWN")}>
                 <option value="ALL">Všechny termíny</option>
-                <option value="KNOWN">Termín uveden</option>
-                <option value="UNKNOWN">Termín neuveden (UNKNOWN)</option>
+                <option value="KNOWN">Termín uveden ({data.facets.deadline.KNOWN})</option>
+                <option value="UNKNOWN">Termín neuveden (UNKNOWN) ({data.facets.deadline.UNKNOWN})</option>
               </select>
             </label>
             <form onSubmit={(event) => { event.preventDefault(); changeClosesBy(closesByDraft); }}>

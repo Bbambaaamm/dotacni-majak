@@ -88,7 +88,8 @@ test("provider absent from first page is found by exact name across real D1 and 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
-  await expect(page.locator("#loaded-providers option[value='E2E test provider B']")).toHaveCount(0);
+  await expect(page.locator("#search-providers option[value='E2E test provider B']")).toHaveCount(1);
+  await expect(page.getByText("E2E test provider B (1)")).toBeVisible();
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider B");
   await page.getByLabel("Přesný název poskytovatele").press("Enter");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
@@ -107,6 +108,34 @@ test("provider absent from first page is found by exact name across real D1 and 
   const duplicate = await request.get("/api/search?intent=strankovani&provider=A&provider=B");
   expect(duplicate.status()).toBe(400);
   expect(await duplicate.json()).toEqual({ error: "INVALID_PROVIDER" });
+});
+
+test("real D1 facets count later pages and exclude their own selected dimension", async ({ request }) => {
+  const response = await request.get("/api/search?intent=strankovani&limit=1&status=PLANNED&deadline=KNOWN&provider=E2E%20test%20provider%20B");
+  expect(response.status()).toBe(200);
+  const body = await response.json() as { results: unknown[]; facets: {
+    status: Record<string, number>; deadline: Record<string, number>;
+    providers: { name: string; count: number }[]; providersTruncated: boolean } };
+  expect(body.results).toHaveLength(1);
+  expect(body.facets.status).toEqual({ OPEN: 0, PLANNED: 1, ANNOUNCED: 0 });
+  expect(body.facets.deadline).toEqual({ KNOWN: 1, UNKNOWN: 0 });
+  expect(body.facets.providers).toEqual([{ name: "E2E test provider B", count: 1 }]);
+  expect(body.facets.providersTruncated).toBe(false);
+
+  const all = await request.get("/api/search?intent=strankovani&limit=1");
+  const allBody = await all.json() as typeof body;
+  expect(allBody.results).toHaveLength(1);
+  expect(allBody.facets.status).toEqual({ OPEN: 24, PLANNED: 1, ANNOUNCED: 0 });
+  expect(allBody.facets.deadline).toEqual({ KNOWN: 1, UNKNOWN: 24 });
+  expect(allBody.facets.providers).toEqual([
+    { name: "E2E test provider A", count: 24 }, { name: "E2E test provider B", count: 1 },
+  ]);
+  const status = await request.get("/api/search?intent=strankovani&status=PLANNED");
+  expect((await status.json() as typeof body).facets.status).toEqual(allBody.facets.status);
+  const deadline = await request.get("/api/search?intent=strankovani&deadline=KNOWN");
+  expect((await deadline.json() as typeof body).facets.deadline).toEqual(allBody.facets.deadline);
+  const provider = await request.get("/api/search?intent=strankovani&provider=E2E%20test%20provider%20B");
+  expect((await provider.json() as typeof body).facets.providers).toEqual(allBody.facets.providers);
 });
 
 test("inclusive cutoff filters real D1 beyond first page without declaring missing dates expired", async ({ page, request }) => {

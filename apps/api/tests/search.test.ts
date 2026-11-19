@@ -20,6 +20,7 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
         bind(...args) { values = args; return statement; },
         async first<T>() { return { count: empty ? 0 : 1 } as T; },
         async all<T>() {
+          if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
           const ontology = sql.includes("NOT IN");
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
           expect(sql).toContain("d.status IN (?, ?, ?)");
@@ -55,6 +56,40 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
 }
 
 describe("search cursor", () => {
+  it("binds facet inputs and reports a bounded provider list without a total", async () => {
+    const statements: { sql: string; values: unknown[] }[] = [];
+    const db: D1DatabaseLike = {
+      prepare(sql) {
+        const entry = { sql, values: [] as unknown[] };
+        statements.push(entry);
+        const statement: D1PreparedStatementLike = {
+          bind(...values) { entry.values = values; return statement; },
+          async first<T>() { return { count: 1 } as T; },
+          async all<T>() {
+            if (sql.includes("SELECT provider_name AS name")) return { success: true,
+              results: Array.from({ length: 21 }, (_, i) => ({ name: `Provider ${i}`, count: 1 })) as T[] };
+            if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true,
+              results: [{ kind: "status", value: "OPEN", count: 3 },
+                { kind: "deadline", value: "UNKNOWN", count: 2 }] as T[] };
+            return { success: true, results: [] as T[] };
+          },
+          async run<T>() { return { success: true, results: [] as T[] }; },
+        };
+        return statement;
+      },
+      async batch() { return []; },
+    };
+    const provider = "Provider ' OR 1=1 --";
+    const result = await searchGrants(db, "koupaliště", 1, null, "OPEN", "UNKNOWN", provider);
+    expect(result.facets).toMatchObject({ status: { OPEN: 3 }, deadline: { UNKNOWN: 2 },
+      providersTruncated: true });
+    expect(result.facets.providers).toHaveLength(20);
+    const facetStatements = statements.filter(({ sql }) => sql.startsWith("WITH matched AS MATERIALIZED"));
+    expect(facetStatements).toHaveLength(2);
+    expect(facetStatements.every(({ sql }) => !sql.includes(provider))).toBe(true);
+    expect(facetStatements[0].values).toContain(provider);
+    expect(facetStatements[1].values.at(-1)).toBe(21);
+  });
   it("walks over 20 direct rows with stable rank/id ties and repeatable cursors", async () => {
     const db = database(Array.from({ length: 27 }, (_, i) => row(i + 1, Math.floor(i / 3))), []);
     const first = await searchGrants(db, "  arbitrary   intent ");
@@ -224,6 +259,7 @@ describe("search cursor", () => {
             bind(...args) { values = args; return statement; },
             async first<T>() { return { count: 1 } as T; },
             async all<T>() {
+              if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
               expect(sql).toContain("WITH matches AS");
               expect(sql.match(/AND date\(d\.submission_close_at\) >= \?/g)).toHaveLength(2);
               expect(sql.match(/AND date\(d\.submission_close_at\) <= \?/g)).toHaveLength(2);
@@ -262,6 +298,7 @@ describe("search cursor", () => {
           bind() { return statement; },
           async first<T>() { return { count: 1 } as T; },
           async all<T>() {
+            if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
             expect(sql).toContain("julianday(d.submission_close_at) AS close_sort");
             return { success: true, results: [invalid] as T[] };
           },
