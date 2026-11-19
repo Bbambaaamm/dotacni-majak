@@ -178,6 +178,18 @@ describe("search cursor", () => {
     }
   });
 
+  it("continues a pre-cutoff cursor when no cutoff is selected, but never under a cutoff", async () => {
+    const db = database([row(1), row(2)], []);
+    const first = await searchGrants(db, "strankovani", 1);
+    const legacy = JSON.parse(atob(first.nextCursor!)) as Record<string, unknown>;
+    delete legacy.closesBy;
+    const oldCursor = btoa(JSON.stringify(legacy)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+    expect((await searchGrants(db, "strankovani", 1, oldCursor)).results.map((r) => r.grantCallVersionId))
+      .toEqual(["v-002"]);
+    await expect(searchGrants(db, "strankovani", 1, oldCursor, null, null, null, "2027-03-31"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+  });
+
   it("round-trips a cursor for the longest accepted multibyte intent", async () => {
     const intent = `strankovani${"—".repeat(489)}`;
     const db = database([row(1), row(2)], []);

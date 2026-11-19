@@ -63,7 +63,7 @@ function decodeCursor(raw: string | null, intent: string, limit: number, status:
     const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object") throw new Error();
     const c = value as SearchCursor;
-    if (c.v !== 1 || c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || c.closesBy !== closesBy ||
+    if (c.v !== 1 || c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || (c.closesBy ?? null) !== closesBy ||
       (c.phase !== "DIRECT" && c.phase !== "ONTOLOGY") ||
       typeof c.rank !== "number" || !Number.isFinite(c.rank) ||
       typeof c.id !== "string" || !c.id || c.id.length > 512 || encodeCursor(c) !== raw) throw new Error();
