@@ -7,6 +7,22 @@ afterEach(() => {
 });
 
 describe("search API client", () => {
+  it("preserves canonical instrument on first and continuation requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "alpha", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, "LOAN");
+    await searchGrants("alpha", undefined, "next-page", undefined, undefined, undefined,
+      undefined, undefined, undefined, "LOAN");
+    expect(urls).toEqual([
+      "/api/search?intent=alpha&instrument=LOAN",
+      "/api/search?intent=alpha&cursor=next-page&instrument=LOAN",
+    ]);
+  });
   it("sends the actual intent to the API", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       expect(String(input)).toContain("intent=koupali%C5%A1t%C4%9B");

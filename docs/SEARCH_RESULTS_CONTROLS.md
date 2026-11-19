@@ -1,5 +1,13 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Přesný typ nástroje financování
+
+Volitelný parametr `instrument` přijímá právě jednu kanonickou hodnotu z `grant_call_versions.funding_instrument_type`: `GRANT`, `LOAN`, `GUARANTEE`, `EQUITY`, `MIXED`, `OTHER`. Bez parametru jsou zahrnuty všechny typy. Hodnota se porovnává přesně v přímé i ontologické FTS fázi před stránkováním, včetně obou řazení podle termínu. Prázdný, neznámý, jinak zapsaný nebo opakovaný parametr vrací 400 `INVALID_INSTRUMENT` před přístupem k databázi. Cursor je svázán s výběrem; starší cursor bez pole `instrument` lze použít jen bez tohoto filtru.
+
+Na mobilu i desktopu má panel viditelně označený nativní výběr se všemi šesti typy a volbou pro všechny typy. Změna nebo zrušení chipu načte první stránku a odstraní staré výsledky; další stránka zachová výběr. Typ znamená pouze kanonické označení verze výzvy. Nevyjadřuje osobní způsobilost, výši financování, procento podpory ani výsledek scénáře.
+
+Existující globální počty stavu, termínu a poskytovatelů respektují zvolený typ. Hranice 500 ID pro úplné facety dál platí před filtry; žádný počet typů ani celkový počet shod se nepřidává.
+
 `/hledat` načítá z `GET /api/search` nejprve 20 výsledků v pořadí relevance; další stránky načte uživatel tlačítkem. Volitelný stav (`OPEN`, `PLANNED`, `ANNOUNCED`), dostupnost termínu (`KNOWN` = uveden, `UNKNOWN` = neuveden/NULL) a přesný název poskytovatele (`provider`, odpovídá `providers.name`) filtrují všechny odpovídající aktivní výsledky na serveru před stránkováním v přímé i ontologické fázi. Přepnutí stavu či termínu resetuje poskytovatele a načte první stránku; zadání poskytovatele načte první stránku při zachování stavu a termínu. Nápověda názvů poskytovatelů pochází z globálního facetu popsaného níže; lze ručně zadat i jiný přesný název. Nejde o substring search; stejně pojmenovaní poskytovatelé jsou zahrnuti společně. Přepnutí řazení podle nejbližšího nebo nejpozdějšího uvedeného termínu nepřepočítává relevanci ani způsobilost a platí napříč všemi odpovídajícími aktivními výzvami před stránkováním (přímé i ontologické shody). Termíny jsou porovnávány jako UTC timestampy; při shodě termínu je přímá shoda před ontologickou a dále rozhodne FTS rank a ID verze. Neuvedený termín (UNKNOWN) neznamená prošlý termín a při obou směrech řazení je na konci. Neparsovatelný neprázdný termín se také řadí na konec, ale původní text se vrací beze změny; `KNOWN` dál znamená nenulový zdrojový údaj, ne ověření jeho formátu. Počet načtených výsledků nikdy netvrdí celkovou velikost shod.
 
 Volitelné filtry `closesFrom=YYYY-MM-DD` a `closesBy=YYYY-MM-DD` vyberou výzvy s explicitně uvedeným `submission_close_at` včetně zvolených kalendářních dnů UTC. Každý funguje samostatně i jako společný uzavřený interval; D1 je aplikuje před stránkováním v přímé i ontologické FTS fázi při relevanci i obou řazeních podle data. Nevytvářejí závěr, zda je dnes ještě možné podat žádost. Neznámý termín ani neparsovatelný nebo kalendářně chybný zdrojový údaj neprojde žádným omezeným datovým filtrem; žádný z nich není pokládán za prošlý. Prázdné/neexistující kalendářní datum, timestamp místo data a opakovaný parametr vracejí `INVALID_CLOSES_FROM` nebo `INVALID_CLOSES_BY` 400. Obrácený interval (`closesFrom` později než `closesBy`) vrací `INVALID_DEADLINE_RANGE` 400 před přístupem k DB. Cursor je svázán s oběma hranicemi a změna kterékoli jej zneplatní; starší cursor bez `closesFrom` platí pouze bez nového filtru. Výběr `UNKNOWN` v UI zruší obě data; zadání kteréhokoli data při zvoleném `UNKNOWN` resetuje dostupnost termínu na všechny termíny. Změna, zrušení chipu kteréhokoli data i zrušení všech filtrů načte první stránku.
@@ -10,7 +18,7 @@ Na šířce do 800 px je nativní panel `<details>` při prvním zobrazení výs
 
 Na chybě první stránky se výsledky bezpečně skryjí a uživatel může zkusit stejné vyhledávání znovu bez ztráty záměru; po opakované chybě zůstává fail-closed stav. Browser E2E vyvolá chybu 503, ale úspěšný retry ověřuje proti skutečnému API a seed datům v D1, nikoli proti mock response.
 
-Bezpečně doložené finance filtry a jejich UX/E2E zůstávají v #400 otevřené. Obecné konvence pro jiné API endpointy patří do #545, nikoli do tohoto search-specifického kontraktu.
+Další bezpečně doložené finance filtry a jejich UX/E2E zůstávají v #400 otevřené. Obecné konvence pro jiné API endpointy patří do #545, nikoli do tohoto search-specifického kontraktu.
 
 ## Globální facety stavu, termínu a poskytovatele
 

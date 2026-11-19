@@ -153,6 +153,10 @@ describe("api worker", () => {
       ["intent=test&provider=", "INVALID_PROVIDER"],
       ["intent=test&provider=A&provider=B", "INVALID_PROVIDER"],
       ["intent=test&provider=%20A", "INVALID_PROVIDER"],
+      ["intent=test&instrument=", "INVALID_INSTRUMENT"],
+      ["intent=test&instrument=ALL", "INVALID_INSTRUMENT"],
+      ["intent=test&instrument=loan", "INVALID_INSTRUMENT"],
+      ["intent=test&instrument=LOAN&instrument=GRANT", "INVALID_INSTRUMENT"],
       ["intent=test&closesBy=", "INVALID_CLOSES_BY"],
       ["intent=test&closesBy=2027-02-29", "INVALID_CLOSES_BY"],
       ["intent=test&closesBy=2027-04-01&closesBy=2027-05-01", "INVALID_CLOSES_BY"],
@@ -166,6 +170,15 @@ describe("api worker", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({ error });
     }
+  });
+
+  it("rejects repeated instrument before D1 is touched", async () => {
+    const response = await handleRequest(
+      new Request("https://example.test/search?intent=test&instrument=LOAN&instrument=GRANT"),
+      env(null, () => { throw new Error("D1 reached"); }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "INVALID_INSTRUMENT" });
   });
 
   it("fails closed when search D1 is unavailable", async () => {

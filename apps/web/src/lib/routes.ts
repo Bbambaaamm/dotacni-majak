@@ -21,7 +21,7 @@ export interface AppRoute {
 
 export const routes: readonly AppRoute[] = [
   { id: "home", path: "/", label: "Domů" },
-  { id: "search", path: "/hledat", label: "Najít dotaci" },
+  { id: "search", path: "/hledat", label: "Najít podporu" },
   { id: "projects", path: "/projekty", label: "Moje projekty" },
   { id: "profile", path: "/profil", label: "Profil žadatele" },
   { id: "compare", path: "/porovnat", label: "Porovnat výzvy" },
@@ -42,7 +42,7 @@ export function resolveRoute(pathname: string): AppRoute {
     return {
       id: "grant-detail",
       path: normalized,
-      label: "Detail dotace",
+      label: "Detail podpory",
     };
   }
 

@@ -4,7 +4,7 @@ import { FACET_MATCH_LIMIT, searchGrants } from "../src/search";
 
 type Row = { grant_call_version_id: string; grant_call_id: string; title: string;
   summary: string; status: string; submission_close_at: string | null; provider_name: string;
-  official_detail_url: null; rank: number };
+  official_detail_url: null; rank: number; funding_instrument_type?: string };
 
 function row(id: number, rank = 0): Row {
   return { grant_call_version_id: `v-${String(id).padStart(3, "0")}`,
@@ -28,9 +28,11 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           expect(sql).toContain("d.status IN (?, ?, ?)");
           const selectedStatus = sql.includes("AND d.status = ?") ? values[4] : null;
           const provider = sql.includes("AND p.name = ?") ? values[4 + Number(Boolean(selectedStatus))] : null;
+          const instrument = sql.includes("AND v.funding_instrument_type = ?") ?
+            values[4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider))] : null;
           const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
             sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
-          const dateIndex = 4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider));
+          const dateIndex = 4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider)) + Number(Boolean(instrument));
           const closesFrom = sql.includes("AND date(d.submission_close_at) >= ?") ? String(values[dateIndex]) : null;
           const closesBy = sql.includes("AND date(d.submission_close_at) <= ?") ?
             String(values[dateIndex + Number(Boolean(closesFrom))]) : null;
@@ -38,6 +40,7 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
             .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
               (!selectedStatus || r.status === selectedStatus) &&
               (!provider || r.provider_name === provider) &&
+              (!instrument || (r.funding_instrument_type ?? "GRANT") === instrument) &&
               (!deadline || (r.submission_close_at === null) === (deadline === "UNKNOWN")) &&
               (!(closesFrom || closesBy) || (r.submission_close_at !== null &&
                 Number.isFinite(Date.parse(r.submission_close_at)) &&
@@ -58,6 +61,29 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
 }
 
 describe("search cursor", () => {
+  it("validates canonical instrument before database access and binds cursors", async () => {
+    const noDatabase = { prepare: () => { throw new Error("DB reached"); } } as unknown as D1DatabaseLike;
+    for (const value of ["", "ALL", "grant", "LOAN ", "DEBT"]) {
+      await expect(searchGrants(noDatabase, "koupaliště", 1, null, null, null, null, null, null, null, value))
+        .rejects.toMatchObject({ code: "INVALID_INSTRUMENT", status: 400 });
+    }
+    const rows = [row(1), { ...row(2), funding_instrument_type: "LOAN" }, { ...row(3), funding_instrument_type: "LOAN" }];
+    const db = database(rows, []);
+    const first = await searchGrants(db, "koupaliště", 1, null, null, null, null, null, null, null, "LOAN");
+    expect(first.results.map((r) => r.grantCallVersionId)).toEqual(["v-002"]);
+    expect((await searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null, null, null, null, "LOAN")).results
+      .map((r) => r.grantCallVersionId)).toEqual(["v-003"]);
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor)).rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null, null, null, null, "GRANT"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    const old = await searchGrants(db, "koupaliště", 1);
+    const parsed = JSON.parse(atob(old.nextCursor!.replaceAll("-", "+").replaceAll("_", "/")));
+    delete parsed.instrument;
+    const oldCursor = btoa(JSON.stringify(parsed)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+    expect((await searchGrants(db, "koupaliště", 1, oldCursor)).results).toHaveLength(1);
+    await expect(searchGrants(db, "koupaliště", 1, oldCursor, null, null, null, null, null, null, "LOAN"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+  });
   it("fails closed before metadata joins when either FTS phase or their union exceeds the cap", async () => {
     for (const [directCount, expandedCount, overlap] of [
       [FACET_MATCH_LIMIT + 1, 0, 0], [1, FACET_MATCH_LIMIT + 1, 0],
@@ -130,7 +156,8 @@ describe("search cursor", () => {
       async batch() { return []; },
     };
     const provider = "Provider ' OR 1=1 --";
-    const result = await searchGrants(db, "koupaliště", 1, null, "OPEN", "UNKNOWN", provider);
+    const result = await searchGrants(db, "koupaliště", 1, null, "OPEN", "UNKNOWN", provider,
+      null, null, null, "LOAN");
     expect(result.facets).toMatchObject({ status: { OPEN: 3 }, deadline: { UNKNOWN: 2 },
       providersTruncated: true });
     expect(result.facets?.providers).toHaveLength(20);
@@ -138,6 +165,8 @@ describe("search cursor", () => {
     expect(facetStatements).toHaveLength(2);
     expect(facetStatements.every(({ sql }) => !sql.includes(provider))).toBe(true);
     expect(facetStatements[0].values).toContain(provider);
+    expect(facetStatements.every(({ sql, values }) =>
+      sql.includes("v.funding_instrument_type = ?") && values.includes("LOAN"))).toBe(true);
     expect(facetStatements[1].values.at(-1)).toBe(21);
     expect(statements.filter(({ sql }) => sql.startsWith("SELECT grant_call_version_id FROM grant_search_fts"))
       .every(({ sql, values }) => sql.includes("LIMIT ?") && values.at(-1) === 501)).toBe(true);
