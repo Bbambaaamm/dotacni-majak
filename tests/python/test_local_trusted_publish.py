@@ -599,6 +599,42 @@ class TrustedLocalPublishTest(unittest.TestCase):
             ).fetchone()[0]
             self.assertEqual(programme, official.programme_id)
 
+        # A later source payload may temporarily omit frameworkProgramme. Keep the
+        # last known official identity while publishing its distinct RAW version.
+        later = self.at + timedelta(hours=2)
+        missing_framework = self.store.put(
+            source_code="EU_FT", source_url=self.snapshot.source_url,
+            content=b'{"framework":null}', mime_type="application/json",
+            retrieved_at=later,
+        )
+        latest_fallback = replace(fallback, content_hash=missing_framework.sha256)
+        publish_grants_to_local_d1(
+            [latest_fallback], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=later,
+        )
+        with sqlite3.connect(self.database) as connection:
+            programme = connection.execute(
+                "SELECT programme_id FROM grant_calls WHERE id=?",
+                (fallback.grant_call_id,),
+            ).fetchone()[0]
+            self.assertEqual(programme, official.programme_id)
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM grant_call_versions").fetchone()[0], 2
+            )
+
+        with self.assertRaises(CanonicalPublicationError):
+            publish_grants_to_local_d1(
+                [replace(latest_fallback, programme_id="programme:eu-ft:98765432")],
+                raw_dir=self.raw_dir, persist_root=self.persist,
+                adapter_version="test-adapter-1.0", now=self.at + timedelta(hours=3),
+            )
+        with sqlite3.connect(self.database) as connection:
+            programme = connection.execute(
+                "SELECT programme_id FROM grant_calls WHERE id=?",
+                (fallback.grant_call_id,),
+            ).fetchone()[0]
+            self.assertEqual(programme, official.programme_id)
+
     def test_each_local_entrypoint_forwards_collection_counts(self):
         args = Namespace(raw_dir=str(self.raw_dir), db_root=str(self.persist), limit=2)
         for name, collected in (

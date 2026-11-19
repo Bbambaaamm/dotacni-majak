@@ -168,6 +168,12 @@ def _stable_id(prefix: str, *parts: object) -> str:
     return prefix + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
 
 
+def _is_eu_framework_programme_id(programme_id: str) -> bool:
+    return programme_id != "programme:eu-ft:catalogue" and bool(
+        re.fullmatch(r"programme:eu-ft:[A-Za-z0-9_.:-]{2,64}", programme_id)
+    )
+
+
 def _can_migrate_legacy_programme_identity(
     source_code: str,
     old_programme_id: str,
@@ -179,8 +185,7 @@ def _can_migrate_legacy_programme_identity(
     if (
         source_code == "EU_FT"
         and old_programme_id == "programme:eu-ft:catalogue"
-        and re.fullmatch(r"programme:eu-ft:[A-Za-z0-9_.:-]{2,64}", new_programme_id)
-        and new_programme_id != old_programme_id
+        and _is_eu_framework_programme_id(new_programme_id)
     ):
         return True
     legacy = re.fullmatch(
@@ -341,6 +346,7 @@ class SqliteCanonicalPublisher:
                 )
 
             programme_migrated = False
+            effective_programme_id = payload.programme_id
             if existing_call is None:
                 self.connection.execute(
                     """INSERT INTO grant_calls(
@@ -370,22 +376,32 @@ class SqliteCanonicalPublisher:
                         "stable GrantCall identity conflicts with existing slug",
                     )
                 if old_programme_id != payload.programme_id:
-                    if not _can_migrate_legacy_programme_identity(
+                    if (
+                        candidate.source_code == "EU_FT"
+                        and payload.programme_id == "programme:eu-ft:catalogue"
+                        and _is_eu_framework_programme_id(old_programme_id)
+                    ):
+                        # Missing framework metadata does not revoke the last
+                        # observed official identity; retain it, but still
+                        # publish the new RAW-backed version and evidence.
+                        effective_programme_id = old_programme_id
+                    elif _can_migrate_legacy_programme_identity(
                         candidate.source_code,
                         old_programme_id,
                         payload.programme_id,
                     ):
+                        self.connection.execute(
+                            """UPDATE grant_calls
+                               SET programme_id=?, updated_at=?
+                               WHERE id=?""",
+                            (payload.programme_id, timestamp, grant_call_id),
+                        )
+                        programme_migrated = True
+                    else:
                         raise CanonicalPublicationError(
                             PublicationErrorCode.IDENTITY_CONFLICT,
                             "stable GrantCall identity conflicts with existing programme",
                         )
-                    self.connection.execute(
-                        """UPDATE grant_calls
-                           SET programme_id=?, updated_at=?
-                           WHERE id=?""",
-                        (payload.programme_id, timestamp, grant_call_id),
-                    )
-                    programme_migrated = True
 
             existing_version = self.connection.execute(
                 """SELECT
@@ -571,7 +587,7 @@ class SqliteCanonicalPublisher:
                            current_title=?, updated_at=?
                        WHERE id=?""",
                     (
-                        payload.programme_id,
+                        effective_programme_id,
                         payload.canonical_code,
                         version_id,
                         payload.status,
