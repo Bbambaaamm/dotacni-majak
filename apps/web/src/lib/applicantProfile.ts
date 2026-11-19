@@ -622,7 +622,7 @@ export class LocalApplicantProfileStore {
     // import() accepts a bare profile or a JSON object whose value is the
     // profile (some export formats wrap the profile under a key).
     const candidate =
-      typeof parsed === "object" && !Array.isArray(parsed)
+      parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
         ? (parsed as Record<string, unknown>).profile ?? parsed
         : parsed;
 

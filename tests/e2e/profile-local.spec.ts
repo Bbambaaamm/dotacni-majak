@@ -41,6 +41,40 @@ test("profile can be saved, restored, exported and explicitly deleted without re
   expect(apiRequests).toEqual([]);
 });
 
+test("editing applicant type and municipality removes dependent imported facts and provenance", async ({ page }) => {
+  await page.goto("/profil");
+  await page.getByLabel("Typ žadatele").selectOption("BUSINESS");
+  await page.getByLabel("Kód obce (volitelné)").fill("123456");
+  await page.getByLabel("Počet obyvatel obce (volitelné)").fill("3200");
+  await page.getByRole("button", { name: "Uložit místně" }).click();
+  await page.evaluate((key) => {
+    const profile = JSON.parse(localStorage.getItem(key)!);
+    profile.applicantTypeId = "business-hierarchy";
+    profile.municipalityName = "Původní obec";
+    profile.regionCode = "OLD";
+    profile.seatGeographyId = "old-seat";
+    profile.municipalityPopulationAsOf = "2026-01-01";
+    for (const field of ["applicantTypeId", "municipalityName", "regionCode", "seatGeographyId", "municipalityPopulationAsOf"]) {
+      profile.fieldSources[field] = profile.fieldSources.applicantType;
+    }
+    localStorage.setItem(key, JSON.stringify(profile));
+  }, storageKey);
+  await page.reload();
+  await page.getByLabel("Typ žadatele").selectOption("NATURAL_PERSON");
+  await page.getByLabel("Kód obce (volitelné)").fill("654321");
+  await page.getByLabel("Počet obyvatel obce (volitelné)").fill("3300");
+  await page.getByRole("button", { name: "Uložit místně" }).click();
+  await expect(page.getByRole("status")).toContainText("uložen pouze");
+  const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), storageKey);
+  expect(stored.applicantType).toBe("NATURAL_PERSON");
+  expect(stored.municipalityCode).toBe("654321");
+  expect(stored.municipalityPopulation).toBe(3300);
+  for (const field of ["applicantTypeId", "municipalityName", "regionCode", "seatGeographyId", "municipalityPopulationAsOf"]) {
+    expect(stored[field]).toBeNull();
+    expect(stored.fieldSources[field]).toBeUndefined();
+  }
+});
+
 test("unknown-version profile is preserved and cannot be silently overwritten", async ({ page }) => {
   await page.goto("/profil");
   await page.evaluate((key) => localStorage.setItem(key, '{"schemaVersion":"99.0.0","future":"recover-me"}'), storageKey);

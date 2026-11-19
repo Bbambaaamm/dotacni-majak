@@ -66,6 +66,7 @@ export function ProfilePage() {
       return;
     }
     const previousPopulation = profile?.municipalityPopulation ?? null;
+    const typeChanged = profile?.applicantType !== applicantType;
     const codeChanged = (municipalityCode || null) !== (profile?.municipalityCode ?? null);
     const populationChanged = population !== previousPopulation;
     if (codeChanged && previousPopulation !== null && !populationChanged) {
@@ -78,7 +79,15 @@ export function ProfilePage() {
       verifiedAt: null, verificationStatus: "USER_DECLARED", evidenceId: null,
     };
     const fieldSources = { ...profile?.fieldSources };
-    if (profile?.applicantType !== applicantType) fieldSources.applicantType = source;
+    if (typeChanged) {
+      fieldSources.applicantType = source;
+      delete fieldSources.applicantTypeId;
+    }
+    if (codeChanged) {
+      for (const key of ["municipalityName", "regionCode", "seatGeographyId"] as const) {
+        delete fieldSources[key];
+      }
+    }
     if (populationChanged || codeChanged) delete fieldSources.municipalityPopulationAsOf;
     if (populationChanged) {
       if (population === null) delete fieldSources.municipalityPopulation;
@@ -91,7 +100,11 @@ export function ProfilePage() {
     const next = createApplicantProfile({
       ...profile,
       id: profile?.id ?? crypto.randomUUID(), applicantType,
+      applicantTypeId: typeChanged ? null : profile?.applicantTypeId,
       municipalityCode: municipalityCode || null,
+      municipalityName: codeChanged ? null : profile?.municipalityName,
+      regionCode: codeChanged ? null : profile?.regionCode,
+      seatGeographyId: codeChanged ? null : profile?.seatGeographyId,
       municipalityPopulation: population,
       municipalityPopulationAsOf: populationChanged || codeChanged
         ? null : profile?.municipalityPopulationAsOf,

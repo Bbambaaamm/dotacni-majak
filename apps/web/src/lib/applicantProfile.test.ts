@@ -361,6 +361,15 @@ describe("LocalApplicantProfileStore", () => {
     expect(otherStore.has()).toBe(true);
   });
 
+  it("import rejects JSON null without accessing storage", () => {
+    const storage: ProfileStorage = {
+      getItem: () => { throw new Error("should not read"); },
+      removeItem: () => { throw new Error("should not delete"); },
+      setItem: () => { throw new Error("should not write"); },
+    };
+    expect(new LocalApplicantProfileStore(storage).import("null")).toBeNull();
+  });
+
   it("import returns null for malformed JSON", () => {
     const store = new LocalApplicantProfileStore(new MemoryStorage());
     expect(store.import("not json {{{")).toBeNull();
