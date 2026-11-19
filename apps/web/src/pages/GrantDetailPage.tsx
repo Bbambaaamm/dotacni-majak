@@ -315,35 +315,46 @@ export function GrantDetailPage() {
             )}
           </section>
 
-          <section className="detail-section">
-            <h2>Finance</h2>
+          <section className="detail-section" aria-labelledby="finance-title">
+            <h2 id="finance-title">Finance</h2>
             {detail.fundingScenarios.length ? (
               <div className="results-list">
-                {detail.fundingScenarios.map((scenario) => (
-                  <article className="grant-card" key={scenario.id}>
-                    <h3>{scenario.name}</h3>
-                    <p>{fundingSummary(scenario)}</p>
-                    <dl className="facts">
-                      <div>
-                        <dt>Míra podpory</dt>
-                        <dd>
-                          {scenario.supportRateMinBps !== null
-                            ? `${formatRate(scenario.supportRateMinBps)} – `
-                            : ""}
-                          {formatRate(scenario.supportRateMaxBps)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Maximální dotace</dt>
-                        <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
-                      </div>
-                      <div>
-                        <dt>Režim platby</dt>
-                        <dd>{scenario.paymentMode ?? "Není uvedeno"}</dd>
-                      </div>
-                    </dl>
-                  </article>
-                ))}
+                {detail.fundingScenarios.map((scenario) => {
+                  const evidence = detail.evidence.find((item) => item.id === scenario.evidenceId);
+                  return (
+                    <article className="grant-card" key={scenario.id}>
+                      <h3>{scenario.name}</h3>
+                      <p>{fundingSummary(scenario)}</p>
+                      <dl className="facts">
+                        <div>
+                          <dt>Míra podpory</dt>
+                          <dd>
+                            {scenario.supportRateMinBps !== null
+                              ? `${formatRate(scenario.supportRateMinBps)} – `
+                              : ""}
+                            {formatRate(scenario.supportRateMaxBps)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Maximální dotace</dt>
+                          <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
+                        </div>
+                        <div>
+                          <dt>Režim platby</dt>
+                          <dd>{scenario.paymentMode ?? "Není uvedeno"}</dd>
+                        </div>
+                      </dl>
+                      {evidence ? (
+                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                          Doklad financování: {evidence.documentTitle ?? "oficiální dokument"}
+                          {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
+                        </a> · {verificationLabel(evidence.verificationStatus)}</p>
+                      ) : (
+                        <p className="fine-print">Samostatný doklad financování není připojen; ověřte částky a podmínky v oficiálním zdroji.</p>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <>
@@ -355,19 +366,30 @@ export function GrantDetailPage() {
             )}
           </section>
 
-          <section className="detail-section">
-            <h2>Požadavky a přílohy</h2>
+          <section className="detail-section" aria-labelledby="requirements-title">
+            <h2 id="requirements-title">Požadavky a přílohy</h2>
             {detail.requirements.length ? (
               <ul className="reason-list">
-                {detail.requirements.map((requirement) => (
-                  <li key={requirement.id}>
-                    <StatusBadge
-                      kind={requirement.necessity === "REQUIRED" ? "info" : "unknown"}
-                      label={`${requirement.necessity === "REQUIRED" ? "Povinné" : requirement.necessity === "CONDITIONAL" ? "Podmíněné" : "Doporučené"}: ${requirement.title}`}
-                    />
-                    {requirement.description ? <p>{requirement.description}</p> : null}
-                  </li>
-                ))}
+                {detail.requirements.map((requirement) => {
+                  const evidence = detail.evidence.find((item) => item.id === requirement.evidenceId);
+                  return (
+                    <li key={requirement.id}>
+                      <StatusBadge
+                        kind={requirement.necessity === "REQUIRED" ? "info" : "unknown"}
+                        label={`${requirement.necessity === "REQUIRED" ? "Povinné" : requirement.necessity === "CONDITIONAL" ? "Podmíněné" : "Doporučené"}: ${requirement.title}`}
+                      />
+                      {requirement.description ? <p>{requirement.description}</p> : null}
+                      {evidence ? (
+                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                          Doklad požadavku: {evidence.documentTitle ?? "oficiální dokument"}
+                          {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
+                        </a> · {verificationLabel(evidence.verificationStatus)}</p>
+                      ) : (
+                        <p className="fine-print">Samostatný doklad požadavku není připojen; ověřte jej v oficiálním zdroji.</p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <>

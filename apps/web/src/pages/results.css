@@ -18,3 +18,4 @@
 .filter-chip,.filter-reset{border:1px solid #087f8c;border-radius:999px;background:#fff;color:#0b2d48;padding:8px 12px;font:inherit;cursor:pointer}
 .filter-reset{border-color:transparent;background:transparent;text-decoration:underline}
 @media(max-width:800px){.filter-panel .result-filters{grid-template-columns:minmax(0,1fr)}.filter-chip{max-width:100%;overflow-wrap:anywhere}}
+.detail-page{grid-template-columns:minmax(0,1fr);min-width:0}.detail-page>*,.detail-layout>div{min-width:0}.detail-section{overflow-wrap:anywhere}
