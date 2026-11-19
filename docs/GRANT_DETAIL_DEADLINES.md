@@ -5,3 +5,7 @@ Detail zobrazuje `deadlines` aktuální `GrantCallVersion` z existujícího API.
 Termín s propojeným `evidenceId` nabízí odkaz na oficiální dokument a stránku pouze tehdy, když API vrátilo odpovídající `field_evidence`. Jinak přizná nepřipojený samostatný doklad a směruje k oficiálnímu zdroji. Pokud žádné termíny nejsou normalizované a verze má datum příjmu, API vrací dosavadní syntetické `APPLICATION_WINDOW` bez předstíraného `evidenceId`; pokud není ani toto, detail explicitně uvádí neznámý termín. Zobrazení termínu/statusu není živé potvrzení otevřeného příjmu, osobní způsobilosti ani garance přijetí.
 
 Regrese `tests/e2e/core-flow.spec.ts` ověřuje skutečnou D1/API/browser cestu, zachování UTC sekundy a odkaz na doklad stránky 2. Celé #401 zůstává otevřené: personalizovaná relevance/eligibility/finance, responsive a další stavy vyžadují samostatné reviewovatelné slice.
+
+## Zachycení verze není kontrola zdroje
+
+Rychlý přehled uvádí `capturedAt` jako „Verze výzvy zachycena“ odděleně od „Poslední kontrola zdroje“. Druhý údaj vychází jen z `sources[].lastSeenAt`; pokud chybí všechny záznamy o kontrole, ukazuje „Není doložena“, nikoli datum zachycení jako falešnou kontrolu. Jednotlivé zdroje dále zobrazují vlastní datum kontroly. Reálný D1/API/browser test zahrnuje verzi bez `source_records` i verzi s doloženou kontrolou; tento indikátor sám nepotvrzuje živou aktuálnost ani otevřený příjem.

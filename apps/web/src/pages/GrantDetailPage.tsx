@@ -116,7 +116,7 @@ function lastSeenLabel(detail: GrantDetailResponse): string {
     .filter(Boolean)
     .sort()
     .at(-1);
-  return latest ? formatDate(latest) : formatDate(detail.capturedAt);
+  return latest ? formatDate(latest) : "Není doložena";
 }
 
 export function GrantDetailPage() {
@@ -255,6 +255,10 @@ export function GrantDetailPage() {
               <div>
                 <dt>Ukončení příjmu</dt>
                 <dd>{formatDate(detail.submissionCloseAt)}</dd>
+              </div>
+              <div>
+                <dt>Verze výzvy zachycena</dt>
+                <dd>{formatDate(detail.capturedAt)}</dd>
               </div>
               <div>
                 <dt>Poslední kontrola zdroje</dt>
