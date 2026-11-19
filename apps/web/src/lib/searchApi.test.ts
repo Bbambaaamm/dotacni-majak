@@ -59,6 +59,23 @@ describe("search API client", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("sends a fixed status on first and continuation requests, omitting the UI sentinel", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("strankovani");
+    await searchGrants("strankovani", undefined, undefined, "PLANNED");
+    await searchGrants("strankovani", undefined, "next-page", "PLANNED");
+    expect(urls).toEqual([
+      "/api/search?intent=strankovani",
+      "/api/search?intent=strankovani&status=PLANNED",
+      "/api/search?intent=strankovani&cursor=next-page&status=PLANNED",
+    ]);
+  });
+
   it("explains local search backend unavailability", () => {
     expect(
       searchErrorMessage(

@@ -12,6 +12,9 @@ import {
 } from "../lib/searchApi";
 import "./results.css";
 
+const STATUS_OPTIONS = ["OPEN", "PLANNED", "ANNOUNCED"] as const;
+type StatusFilter = "ALL" | typeof STATUS_OPTIONS[number];
+
 function statusLabel(status: string): string {
   switch (status) {
     case "OPEN":
@@ -46,19 +49,17 @@ export function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [providerFilter, setProviderFilter] = useState("ALL");
   const [deadlineFilter, setDeadlineFilter] = useState("ALL");
   const [sortOrder, setSortOrder] = useState("RELEVANCE");
 
   const loadedResults = data?.results ?? [];
-  const statusOptions = [...new Set(loadedResults.map((grant) => grant.status))].sort();
   const providerOptions = [
     ...new Set(loadedResults.map((grant) => grant.providerName)),
   ].sort((a, b) => a.localeCompare(b, "cs-CZ"));
   const filteredResults = loadedResults.filter(
     (grant) =>
-      (statusFilter === "ALL" || grant.status === statusFilter) &&
       (providerFilter === "ALL" || grant.providerName === providerFilter) &&
       (deadlineFilter === "ALL" ||
         (deadlineFilter === "KNOWN" ? grant.submissionCloseAt !== null : grant.submissionCloseAt === null)),
@@ -69,8 +70,17 @@ export function SearchPage() {
     const difference = Date.parse(a.submissionCloseAt) - Date.parse(b.submissionCloseAt);
     return sortOrder === "DEADLINE_LATEST" ? -difference : difference;
   });
+  function changeStatus(next: StatusFilter) {
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setProviderFilter("ALL");
+    setDeadlineFilter("ALL");
+    setSortOrder("RELEVANCE");
+    setStatusFilter(next);
+  }
   const activeFilters = [
-    statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => setStatusFilter("ALL") } : null,
+    statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
     providerFilter !== "ALL" ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: () => setProviderFilter("ALL") } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => setDeadlineFilter("ALL") } : null,
   ].filter((item): item is { key: string; label: string; clear: () => void } => item !== null);
@@ -85,13 +95,10 @@ export function SearchPage() {
     setError(null);
     setLoadingMore(false);
     setMoreError(null);
-    setStatusFilter("ALL");
-    setProviderFilter("ALL");
-    setDeadlineFilter("ALL");
-    setSortOrder("RELEVANCE");
 
-    searchGrants(intent, controller.signal)
+    searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter)
       .then((result) => {
+        if (controller.signal.aborted) return;
         setData(result);
         setLoading(false);
       })
@@ -102,7 +109,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState]);
+  }, [intent, demoState, statusFilter]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -112,7 +119,8 @@ export function SearchPage() {
     setLoadingMore(true);
     setMoreError(null);
     try {
-      const page = await searchGrants(intent, controller.signal, cursor);
+      const page = await searchGrants(intent, controller.signal, cursor,
+        statusFilter === "ALL" ? undefined : statusFilter);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -214,7 +222,7 @@ export function SearchPage() {
       {!loading &&
       !error &&
       data?.indexState === "READY" &&
-      data.results.length === 0 ? (
+      data.results.length === 0 && statusFilter === "ALL" ? (
         <ResultStatePanel
           state={{
             ...resultStateContent("NO_RESULTS"),
@@ -223,7 +231,7 @@ export function SearchPage() {
         />
       ) : null}
 
-      {!loading && !error && data?.indexState === "READY" && data.results.length > 0 ? (
+      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL") ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
@@ -233,7 +241,8 @@ export function SearchPage() {
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
                 Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
-                Filtry a řazení se vztahují pouze na tuto sadu. Způsobilost a financování se
+                Stav se filtruje napříč všemi odpovídajícími aktivními výzvami. Poskytovatel,
+                termín a řazení se vztahují pouze na načtenou sadu. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
             </div>
@@ -247,18 +256,18 @@ export function SearchPage() {
 
           <details className="filter-panel" open>
             <summary>Upravit filtry a řazení</summary>
-            <div className="result-filters" aria-label="Filtrovat načtené výsledky">
+            <div className="result-filters" aria-label="Filtrovat výsledky">
             <label>
               Stav výzvy
               <select
                 aria-label="Stav výzvy"
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
+                onChange={(event) => changeStatus(event.target.value as StatusFilter)}
               >
-                <option value="ALL">Všechny stavy ({data.results.length})</option>
-                {statusOptions.map((status) => (
+                <option value="ALL">Všechny aktivní stavy</option>
+                {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {statusLabel(status)} ({data.results.filter((grant) => grant.status === status).length})
+                    {statusLabel(status)}
                   </option>
                 ))}
               </select>
@@ -317,7 +326,9 @@ export function SearchPage() {
 
           {filteredResults.length === 0 ? (
             <p className="filter-empty" role="status">
-              Tomuto filtru neodpovídá žádný z načtených výsledků.
+              {data.results.length === 0
+                ? "Tomuto stavu neodpovídá žádná aktivní výzva pro váš záměr."
+                : "Tomuto filtru neodpovídá žádný z načtených výsledků."}
             </p>
           ) : null}
 

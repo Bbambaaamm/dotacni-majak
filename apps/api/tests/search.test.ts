@@ -22,7 +22,10 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
         async all<T>() {
           const ontology = sql.includes("NOT IN");
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
+          expect(sql).toContain("d.status IN (?, ?, ?)");
+          const selectedStatus = sql.includes("AND d.status = ?") ? values[4] : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
+            .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) && (!selectedStatus || r.status === selectedStatus))
             .slice().sort((a, b) => a.rank - b.rank || a.grant_call_version_id.localeCompare(b.grant_call_version_id));
           const after = sql.includes("WHERE rank > ?") ? values.slice(-4, -1) : null;
           const filtered = after ? candidates.filter((r) => r.rank > Number(after[0]) ||
@@ -74,6 +77,26 @@ describe("search cursor", () => {
     await expect(searchGrants(db, "koupaliště", 2, first.nextCursor)).rejects.toMatchObject({ code: "INVALID_CURSOR" });
     await expect(searchGrants(db, "koupaliště", 1, "not-a-cursor")).rejects.toMatchObject({ code: "INVALID_CURSOR" });
     await expect(searchGrants(db, "koupaliště", 51)).rejects.toMatchObject({ code: "INVALID_LIMIT" });
+  });
+
+  it("filters both phases before pagination and binds status to cursors", async () => {
+    const direct = Array.from({ length: 24 }, (_, i) => row(i + 1, i));
+    direct.push({ ...row(25, 25), status: "PLANNED" }, { ...row(26, 26), status: "CLOSED" });
+    const expanded = [{ ...row(100, 0), status: "PLANNED" }, direct[24], { ...row(101, 1), status: "CLOSED" }];
+    const db = database(direct, expanded);
+    const unfiltered = await searchGrants(db, "koupaliště", 50);
+    expect(unfiltered.results).toHaveLength(26);
+    expect(unfiltered.results.every((result) => result.status !== "CLOSED")).toBe(true);
+    const planned = await searchGrants(db, "koupaliště", 1, null, "PLANNED");
+    expect(planned.results.map((r) => r.grantCallVersionId)).toEqual(["v-025"]);
+    expect(planned.nextCursor).toBeTruthy();
+    const continuation = await searchGrants(db, "koupaliště", 1, planned.nextCursor, "PLANNED");
+    expect(continuation.results).toEqual([expect.objectContaining({ grantCallVersionId: "v-100", matchKind: "ONTOLOGY" })]);
+    await expect(searchGrants(db, "koupaliště", 1, planned.nextCursor, "OPEN")).rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    await expect(searchGrants(db, "koupaliště", 1, planned.nextCursor)).rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    for (const status of ["CLOSED", "", "open", "ALL", "PLANNED "]) {
+      await expect(searchGrants(db, "koupaliště", 1, null, status)).rejects.toMatchObject({ code: "INVALID_STATUS" });
+    }
   });
 
   it("round-trips a cursor for the longest accepted multibyte intent", async () => {
