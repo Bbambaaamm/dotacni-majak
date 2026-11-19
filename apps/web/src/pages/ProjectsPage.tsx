@@ -65,6 +65,7 @@ export function ProjectsPage() {
   const [workspace, setWorkspace] = useState<WorkspaceResult | null>(null);
   const [workspaceList, setWorkspaceList] = useState<Array<{ id: string; grantCallId: string }>>([]);
   const [workspaceError, setWorkspaceError] = useState(false);
+  const [eligibilityWritePending, setEligibilityWritePending] = useState(false);
 
   useEffect(() => {
     if (!project) return;
@@ -323,7 +324,7 @@ export function ProjectsPage() {
         {workspaceList.length > 0 && (
           <nav aria-label="Přípravy žádostí">
             <ul>{workspaceList.map((item) => (
-              <li key={item.id}><Button variant="secondary" disabled={busy || workspaceError}
+              <li key={item.id}><Button variant="secondary" disabled={busy || eligibilityWritePending || workspaceError}
                 onClick={async () => {
                   setBusy(true);
                   try { setWorkspace(await getWorkspace(project.projectId, project.ownerCapability, item.id)); }
@@ -334,7 +335,7 @@ export function ProjectsPage() {
           </nav>
         )}
         {prefill.grantCallId && workspace?.workspace.grantCallId !== prefill.grantCallId && (
-          <Button disabled={busy} onClick={() => void handleWorkspace(project, prefill.grantCallId!)}>
+          <Button disabled={busy || eligibilityWritePending} onClick={() => void handleWorkspace(project, prefill.grantCallId!)}>
             Připravit žádost k vybrané výzvě
           </Button>
         )}
@@ -378,7 +379,7 @@ export function ProjectsPage() {
                 <strong>{task.title}</strong> · {task.necessity} · {task.status}
                 {task.reason_code && <small> · {task.reason_code}</small>}
                 {task.source === "REQUIREMENT" && task.reason_code === "REQUIREMENT" && (
-                  <Button variant="secondary" disabled={busy} onClick={async () => {
+                  <Button variant="secondary" disabled={busy || eligibilityWritePending} onClick={async () => {
                     setBusy(true);
                     try { setWorkspace(await updateTask(project.projectId, project.ownerCapability, workspace.workspace.id, task.id, task.status === "DONE" ? "TODO" : "DONE")); }
                     catch { setWorkspaceError(true); }
@@ -388,7 +389,7 @@ export function ProjectsPage() {
               </li>
             ))}</ul>
             <p>Neznámou způsobilost, finance a úplnost podmínek nelze označit za splněné bez samostatného ověření.</p>
-            <Button variant="secondary" onClick={async () => {
+            <Button variant="secondary" disabled={eligibilityWritePending} onClick={async () => {
               try { setWorkspace(await getWorkspace(project.projectId, project.ownerCapability, workspace.workspace.id)); setWorkspaceError(false); }
               catch { setWorkspaceError(true); }
             }}>Obnovit přípravu a změny</Button>
@@ -398,9 +399,10 @@ export function ProjectsPage() {
 
       {workspace && !workspaceError && (
         <ProjectEligibility
-          key={`${project.projectId}:${workspace.workspace.grantCallId}`}
+          key={`${project.projectId}:${workspace.workspace.grantCallId}:${workspace.workspace.currentGrantVersionId}`}
           grantCallId={workspace.workspace.grantCallId}
           ownerCapability={project.ownerCapability}
+          onWritePendingChange={setEligibilityWritePending}
         />
       )}
 

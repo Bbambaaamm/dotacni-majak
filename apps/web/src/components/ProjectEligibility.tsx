@@ -28,8 +28,8 @@ function label(snapshot: EligibilitySnapshot): string {
   }
 }
 
-export function ProjectEligibility({ grantCallId, ownerCapability }: {
-  grantCallId: string; ownerCapability: string;
+export function ProjectEligibility({ grantCallId, ownerCapability, onWritePendingChange }: {
+  grantCallId: string; ownerCapability: string; onWritePendingChange: (pending: boolean) => void;
 }) {
   const [revision, setRevision] = useState(0);
   const [snapshot, setSnapshot] = useState<EligibilitySnapshot | null>(null);
@@ -56,6 +56,7 @@ export function ProjectEligibility({ grantCallId, ownerCapability }: {
     event.preventDefault();
     if (saving || loading || !answer || !snapshot?.missingAttributes.includes("applicant.type")) return;
     controller.current?.abort();
+    onWritePendingChange(true);
     setSaving(true);
     setLoading(true);
     setSnapshot(null);
@@ -67,6 +68,7 @@ export function ProjectEligibility({ grantCallId, ownerCapability }: {
       setError(true);
       setLoading(false);
     } finally {
+      onWritePendingChange(false);
       setSaving(false);
     }
   }
@@ -75,11 +77,15 @@ export function ProjectEligibility({ grantCallId, ownerCapability }: {
     <section className="share-card" aria-labelledby="eligibility-title">
       <h2 id="eligibility-title">Způsobilost pro vybranou výzvu</h2>
       <p>Samostatné posouzení aktuální verze výzvy proti serverovému profilu projektu. Tematická shoda ani stav přípravy nejsou způsobilost. Místní profil z prohlížeče se neposílá automaticky.</p>
-      {loading ? <p role="status">Načítáme aktuální posouzení…</p> : error ? (
-        <p role="alert">Posouzení nebo uložení odpovědi se nepodařilo. Starý výsledek nepoužíváme; údaje ověřte v oficiálním zdroji.</p>
-      ) : snapshot ? (
-        <>
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {loading ? <p>Načítáme aktuální posouzení…</p> : error ? (
+          <p role="alert">Posouzení nebo uložení odpovědi se nepodařilo. Starý výsledek nepoužíváme; údaje ověřte v oficiálním zdroji.</p>
+        ) : snapshot ? (
           <StatusBadge kind={snapshot.status === "ELIGIBLE" ? "success" : "unknown"} label={label(snapshot)} />
+        ) : null}
+      </div>
+      {!loading && !error && snapshot ? (
+        <>
           <p>Posuzovaná verze: <code>{snapshot.versionId}</code>. {snapshot.ruleSetId === null
             ? "Pro tuto verzi chybí pravidla; žádný výsledek nevyvozujeme."
             : "Podmínky je nutné před žádostí ověřit u poskytovatele."}</p>

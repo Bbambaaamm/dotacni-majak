@@ -454,7 +454,7 @@ test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-de
     conditions: [{ evidenceId: "e2e-fe-applicant-type" }] });
   await eligibility.getByLabel("Typ žadatele").selectOption("MUNICIPALITY");
   await eligibility.getByRole("button", { name: "Uložit odpověď a přepočítat" }).click();
-  await expect(eligibility.getByText("Známé podmínky vycházejí, ale vstup není ověřený")).toBeVisible();
+  await expect(eligibility.getByRole("status")).toContainText("Známé podmínky vycházejí, ale vstup není ověřený");
   await expect(eligibility.getByText(/Shoda není ověřená způsobilost/)).toBeVisible();
   const after = await page.request.get("/api/grants/grant%3Ae2e%3Aopen/eligibility", { headers });
   expect(after.headers()["cache-control"]).toBe("private, no-store");
@@ -472,6 +472,39 @@ test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-de
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(accessibility.violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("pending profile write blocks workspace switching until owner-wide update commits", async ({ page }) => {
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.getByRole("button", { name: "Vytvořit projekt" }).click();
+  const eligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
+  await expect(eligibility.getByRole("status")).toContainText("Chybí údaj pro posouzení (UNKNOWN)");
+  const project = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {
+    projectId: string; ownerCapability: string;
+  });
+  const created = await page.request.post(`/api/projects/${project.projectId}/workspaces`, {
+    headers: { authorization: `Bearer ${project.ownerCapability}` }, data: { grantCallId: "grant:e2e:planned" },
+  });
+  expect(created.status()).toBe(201);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Otevřít přípravu: grant:e2e:planned" })).toBeVisible();
+  await expect(eligibility.getByRole("status")).toContainText("Chybí údaj pro posouzení (UNKNOWN)");
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/applicant-profile", async (route) => {
+    if (route.request().method() === "PUT") await pending;
+    await route.continue();
+  });
+  await eligibility.getByLabel("Typ žadatele").selectOption("MUNICIPALITY");
+  await eligibility.getByRole("button", { name: "Uložit odpověď a přepočítat" }).click();
+  await expect(page.getByRole("button", { name: "Otevřít přípravu: grant:e2e:planned" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Obnovit přípravu a změny" })).toBeDisabled();
+  release();
+  await expect(page.getByRole("button", { name: "Otevřít přípravu: grant:e2e:planned" })).toBeEnabled();
+  await page.getByRole("button", { name: "Otevřít přípravu: grant:e2e:planned" }).click();
+  await expect(eligibility.getByRole("status")).toContainText("Výsledek vyžaduje ověření, nejde o zamítnutí");
+  await expect(eligibility).toContainText("gcv-e2e-planned");
 });
 
 test("eligibility outage hides a previously computed result and recovers only from real D1", async ({ page }) => {

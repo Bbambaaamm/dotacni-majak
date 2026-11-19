@@ -13,6 +13,8 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
   await expect(page.getByText(/Co udělat teď\?/)).toBeVisible();
   await expect(page.getByText(/ELIGIBILITY_UNKNOWN/)).toBeVisible();
   await expect(page.getByText(/Toto není posouzení způsobilosti/)).toBeVisible();
+  const eligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
+  await expect(eligibility.getByRole("status")).toContainText("Chybí údaj pro posouzení (UNKNOWN)");
   const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {projectId: string; ownerCapability: string});
   const base = `/api/projects/${owner.projectId}/workspaces`;
   expect((await page.request.get(base)).status()).toBe(404);
@@ -42,6 +44,11 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
   });
   expect(run("workspace-update")).toContain("RAW_EVIDENCE_VERIFIED");
   await page.getByRole("button", { name: "Obnovit přípravu a změny" }).click();
+  await expect(eligibility.getByRole("status")).toContainText("Výsledek vyžaduje ověření, nejde o zamítnutí");
+  const refreshed = await (await page.request.get(`${base}/${id}`, { headers })).json();
+  expect(refreshed.workspace.currentGrantVersionId).not.toBe("gcv-e2e-open");
+  await expect(eligibility).toContainText(refreshed.workspace.currentGrantVersionId);
+  await expect(eligibility.getByRole("heading", { name: "Jaký typ žadatele bude žádost podávat?" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Podmínky výzvy se od zahájení přípravy změnily" })).toBeVisible();
   await expect(page.getByLabel("Změny výzvy")).toContainText("2028-01-31T23:59:59Z");
   await expect(page.getByLabel("Změny výzvy")).toContainText("2027-12-31T23:59:59Z");
