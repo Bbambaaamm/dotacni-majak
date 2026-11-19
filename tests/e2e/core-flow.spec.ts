@@ -51,6 +51,41 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
 });
 
+test("mobile result filters, deadline order and chips use the real API without implying eligibility", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  const planned = page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" });
+  const open = page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" });
+  await expect(planned).toBeVisible();
+  await expect(open).toBeVisible();
+  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE_LATEST");
+  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E otevřená výzva");
+  await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE");
+  expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
+  await page.getByLabel("Termín podání").selectOption("UNKNOWN");
+  await expect(page.getByText("Tomuto filtru neodpovídá žádný z načtených výsledků.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();
+  await page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" }).click();
+  await page.getByLabel("Stav výzvy").selectOption("PLANNED");
+  await expect(planned).toBeVisible();
+  await expect(open).toHaveCount(0);
+  await page.getByRole("button", { name: "Zrušit všechny filtry" }).click();
+  await expect(open).toBeVisible();
+  const filterToggle = page.getByText("Upravit filtry a řazení");
+  await filterToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+  await expect(page.getByText(/Filtry a řazení se vztahují pouze na tuto sadu/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+});
+
 test("tennis intent never surfaces the CLOSED historical NSA fixture as active", async ({ page }) => {
   await page.goto("/");
   await page

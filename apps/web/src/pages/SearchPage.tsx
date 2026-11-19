@@ -45,6 +45,8 @@ export function SearchPage() {
   const [loading, setLoading] = useState(Boolean(intent && !demoState));
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [providerFilter, setProviderFilter] = useState("ALL");
+  const [deadlineFilter, setDeadlineFilter] = useState("ALL");
+  const [sortOrder, setSortOrder] = useState("RELEVANCE");
 
   const loadedResults = data?.results ?? [];
   const statusOptions = [...new Set(loadedResults.map((grant) => grant.status))].sort();
@@ -54,8 +56,21 @@ export function SearchPage() {
   const filteredResults = loadedResults.filter(
     (grant) =>
       (statusFilter === "ALL" || grant.status === statusFilter) &&
-      (providerFilter === "ALL" || grant.providerName === providerFilter),
-  );
+      (providerFilter === "ALL" || grant.providerName === providerFilter) &&
+      (deadlineFilter === "ALL" ||
+        (deadlineFilter === "KNOWN" ? grant.submissionCloseAt !== null : grant.submissionCloseAt === null)),
+  ).sort((a, b) => {
+    if (sortOrder === "RELEVANCE") return 0;
+    if (!a.submissionCloseAt) return b.submissionCloseAt ? 1 : 0;
+    if (!b.submissionCloseAt) return -1;
+    const difference = Date.parse(a.submissionCloseAt) - Date.parse(b.submissionCloseAt);
+    return sortOrder === "DEADLINE_LATEST" ? -difference : difference;
+  });
+  const activeFilters = [
+    statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => setStatusFilter("ALL") } : null,
+    providerFilter !== "ALL" ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: () => setProviderFilter("ALL") } : null,
+    deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => setDeadlineFilter("ALL") } : null,
+  ].filter((item): item is { key: string; label: string; clear: () => void } => item !== null);
 
   useEffect(() => {
     if (!intent || demoState) return;
@@ -65,6 +80,8 @@ export function SearchPage() {
     setError(null);
     setStatusFilter("ALL");
     setProviderFilter("ALL");
+    setDeadlineFilter("ALL");
+    setSortOrder("RELEVANCE");
 
     searchGrants(intent, controller.signal)
       .then((result) => {
@@ -185,8 +202,9 @@ export function SearchPage() {
                 {filteredResults.length === data.results.length
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
-                Způsobilost a financování se vyhodnocují odděleně a nejsou zde
-                doplňovány odhadem.
+                Toto jsou pouze právě načtené výsledky (nejvýše 20), nikoli počet všech odpovídajících výzev.
+                Filtry a řazení se vztahují pouze na tuto sadu. Způsobilost a financování se
+                vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
             </div>
             <a
@@ -197,7 +215,9 @@ export function SearchPage() {
             </a>
           </div>
 
-          <div className="result-filters" aria-label="Filtrovat načtené výsledky">
+          <details className="filter-panel" open>
+            <summary>Upravit filtry a řazení</summary>
+            <div className="result-filters" aria-label="Filtrovat načtené výsledky">
             <label>
               Stav výzvy
               <select
@@ -228,10 +248,42 @@ export function SearchPage() {
                 ))}
               </select>
             </label>
-            <p className="fine-print">
-              Filtry se vztahují jen k aktuálně načtenému výsledkovému setu.
-            </p>
-          </div>
+            <label>
+              Termín podání
+              <select aria-label="Termín podání" value={deadlineFilter}
+                onChange={(event) => setDeadlineFilter(event.target.value)}>
+                <option value="ALL">Všechny termíny</option>
+                <option value="KNOWN">Termín uveden</option>
+                <option value="UNKNOWN">Termín neuveden (UNKNOWN)</option>
+              </select>
+            </label>
+            <label>
+              Řazení načtených výsledků
+              <select aria-label="Řazení načtených výsledků" value={sortOrder}
+                onChange={(event) => setSortOrder(event.target.value)}>
+                <option value="RELEVANCE">Původní pořadí relevance</option>
+                <option value="DEADLINE">Nejbližší uvedený termín</option>
+                <option value="DEADLINE_LATEST">Nejpozdější uvedený termín</option>
+              </select>
+            </label>
+            <p className="fine-print">Termín bez uvedeného data není považován za prošlý ani za otevřený.</p>
+            </div>
+          </details>
+          {activeFilters.length > 0 ? (
+            <div className="active-filters" aria-label="Aktivní filtry">
+              {activeFilters.map((filter) => (
+                <button key={filter.key} type="button" className="filter-chip"
+                  onClick={filter.clear} aria-label={`Zrušit filtr ${filter.label}`}>
+                  {filter.label} ×
+                </button>
+              ))}
+              <button type="button" className="filter-reset" onClick={() => {
+                setStatusFilter("ALL");
+                setProviderFilter("ALL");
+                setDeadlineFilter("ALL");
+              }}>Zrušit všechny filtry</button>
+            </div>
+          ) : null}
 
           {filteredResults.length === 0 ? (
             <p className="filter-empty" role="status">
