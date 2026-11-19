@@ -154,8 +154,18 @@ def update_version(db: sqlite3.Connection, *, simulate_failure: bool = False) ->
                          "FROM grant_call_versions WHERE id=?", (version_id,)).fetchone()
         if row is None:
             raise AssertionError("published version missing")
+        field_paths = {"/submission_close_at": "deadlines.application_close",
+                       "/status": "status", "/title": "title", "/summary": "summary"}
+        evidence = db.execute(
+            "SELECT fe.id,fe.field_path FROM field_evidence fe "
+            "WHERE fe.entity_id=? AND fe.field_path IN ('/submission_close_at','/status','/title','/summary') "
+            "ORDER BY fe.created_at DESC,fe.id DESC", (version_id,)
+        ).fetchall()
+        evidence_by_field = {field_paths[path]: evidence_id for evidence_id, path in evidence
+                             if path in field_paths}
         return GrantVersionState(status=row[0], title=row[1], summary=row[2],
-                                 submission_open_at=row[3], submission_close_at=row[4])
+                                 submission_open_at=row[3], submission_close_at=row[4],
+                                 evidence_by_field=evidence_by_field)
     events = ChangeDetector().detect(
         grant_call_id="grant:e2e:open", from_version_id=before,
         to_version_id=result.publication.grant_call_version_id,
@@ -170,7 +180,18 @@ def update_version(db: sqlite3.Connection, *, simulate_failure: bool = False) ->
                     event.to_version_id, event.change_type.value, event.severity.value,
                     event.field_path, json.dumps(event.old_value), json.dumps(event.new_value),
                     event.evidence_id, event.created_at.isoformat()))
-    print("WORKSPACE_VERSION_PUBLISHED", result.publication.grant_call_version_id, "CHANGE_EVENTS", len(events))
+    deadline_provenance = db.execute(
+        "SELECT fe.id,dv.sha256,sd.source_url FROM change_events ce "
+        "JOIN field_evidence fe ON fe.id=ce.evidence_id "
+        "JOIN document_versions dv ON dv.id=fe.document_version_id "
+        "JOIN source_documents sd ON sd.id=dv.source_document_id "
+        "WHERE ce.from_version_id=? AND ce.to_version_id=? "
+        "AND ce.field_path='deadlines.application_close'",
+        (before, result.publication.grant_call_version_id),
+    ).fetchone()
+    assert deadline_provenance is not None and deadline_provenance[1:] == (snapshot.sha256, source_url)
+    print("WORKSPACE_VERSION_PUBLISHED", result.publication.grant_call_version_id,
+          "CHANGE_EVENTS", len(events), "RAW_EVIDENCE_VERIFIED")
 
 
 def main() -> None:

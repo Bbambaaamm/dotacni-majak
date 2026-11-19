@@ -47,6 +47,8 @@ nenahrazuje tento explicitní import. Browser spec
 `tests/e2e/workspace-flow.spec.ts` ověřuje vlastníka/cizí capability,
 checklist, reload, immutable baseline, deterministické change_events z RAW-first
 simulace, a11y, idempotentní upozornění, vadný RAW hash a bezpečné selhání UI.
+Test navíc ověřuje `change_events.evidence_id → field_evidence → document_versions`
+proti SHA-256 a URL uloženého RAW snapshotu (lokální simulace).
 Není to důkaz produkčního plánovače, push doručování ani skutečné žádosti.
 
 ## Baseline

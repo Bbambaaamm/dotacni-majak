@@ -40,7 +40,7 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
     encoding: "utf8", cwd: process.cwd(),
     env: { ...process.env, PYTHONPATH: ["pipelines/ingestion/src", "packages/source-sdk/src", "packages/watches/src", "packages/notifications/src", "packages/search/src", "packages/eligibility/src", "packages/finance/src", "packages/change-detection/src", "packages/workspace/src", "packages/checklist/src"].join(":") },
   });
-  expect(run("workspace-update")).toContain("WORKSPACE_VERSION_PUBLISHED");
+  expect(run("workspace-update")).toContain("RAW_EVIDENCE_VERIFIED");
   await page.getByRole("button", { name: "Obnovit přípravu a změny" }).click();
   await expect(page.getByRole("heading", { name: "Podmínky výzvy se od zahájení přípravy změnily" })).toBeVisible();
   await expect(page.getByLabel("Změny výzvy")).toContainText("2028-01-31T23:59:59Z");
@@ -56,7 +56,12 @@ test("Dotáhne: detail → project → persisted owner workspace → trusted ver
   expect(second.workspace.baselineGrantVersionId).toBe("gcv-e2e-open");
   expect(second.workspace.currentGrantVersionId).not.toBe("gcv-e2e-open");
   expect(second.versionReview.alerts).toHaveLength(1);
-  expect(second.versionReview.diff.some((change: {field: string}) => change.field === "deadlines.application_close")).toBe(true);
+  const deadlineChange = second.versionReview.diff.find((change: {field: string}) => change.field === "deadlines.application_close");
+  expect(deadlineChange?.evidenceId).toBeTruthy();
+  const grantDetail = await (await page.request.get("/api/grants/grant%3Ae2e%3Aopen")).json();
+  const evidence = grantDetail.evidence.find((item: {id: string}) => item.id === deadlineChange.evidenceId);
+  expect(evidence?.fieldPath).toBe("/submission_close_at");
+  expect(evidence?.sourceUrl).toBe("https://example.invalid/e2e/open");
   expect(second.versionReview.diff.some((change: {field: string}) => change.field.includes("Removed"))).toBe(false);
   expect(run("workspace-fail")).toContain("WORKSPACE_FAILED_RAW_LAST_GOOD_PRESERVED");
   const after = await (await page.request.get(`${base}/${id}`, { headers })).json();
