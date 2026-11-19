@@ -112,7 +112,14 @@ INSERT INTO field_evidence(
    1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-summary','GRANT_CALL_VERSION','gcv-e2e-open','/summary','e2e-dv-open',
    1,1,'Deterministický nesportovní E2E záznam pro ověření celé UI/API cesty.',
+   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
+  ('e2e-fe-deadline','GRANT_CALL_VERSION','gcv-e2e-open','/submission_close_at','e2e-dv-open',
+   2,2,'Příjem žádostí do 31. prosince 2027, 23:59:59 UTC',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z');
+
+INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at,timezone,description,evidence_id)
+VALUES ('e2e-deadline-open','gcv-e2e-open','APPLICATION_CLOSE',
+        '2027-12-31T23:59:59Z','UTC','Přesný konec příjmu žádostí','e2e-fe-deadline');
 
 INSERT INTO grant_requirements(id,grant_call_version_id,requirement_type,title,necessity,evidence_id)
 VALUES

@@ -55,6 +55,26 @@ function formatDate(value: string | null): string {
   }).format(parsed);
 }
 
+function deadlineLabel(type: string): string {
+  switch (type) {
+    case "APPLICATION_WINDOW": return "Příjem žádostí (souhrn výzvy)";
+    case "APPLICATION_OPEN": return "Zahájení příjmu žádostí";
+    case "APPLICATION_CLOSE": return "Ukončení příjmu žádostí";
+    case "PROJECT_START": return "Zahájení projektu";
+    case "PROJECT_FINISH": return "Dokončení projektu";
+    case "DOCUMENT_COMPLETION": return "Doplnění dokumentů";
+    case "SUSTAINABILITY_END": return "Konec udržitelnosti";
+    default: return "Další termín";
+  }
+}
+
+// Preserve the source's offset and precision; do not silently turn a
+// date-only deadline into a midnight cutoff or reinterpret it locally.
+function deadlineTime(value: string | null): string {
+  if (!value) return "Není uvedeno";
+  return value.replace("T", " ").replace(/Z$/, " UTC");
+}
+
 function formatRate(value: number | null): string {
   if (value === null) return "Není uvedeno";
   return new Intl.NumberFormat("cs-CZ", {
@@ -241,6 +261,42 @@ export function GrantDetailPage() {
                 <dd>{lastSeenLabel(detail)}</dd>
               </div>
             </dl>
+          </section>
+
+          <section className="detail-section" aria-labelledby="deadline-title">
+            <h2 id="deadline-title">Termíny podle zdroje</h2>
+            <p className="fine-print">
+              Jde o údaje k zachycené verzi výzvy, nikoli potvrzení, že lze právě podat žádost. Před podáním ověřte změny a přesný čas v oficiálním zdroji.
+            </p>
+            {detail.deadlines.length ? (
+              <ul className="reason-list">
+                {detail.deadlines.map((deadline) => {
+                  const evidence = detail.evidence.find((item) => item.id === deadline.evidenceId);
+                  return (
+                    <li key={deadline.id}>
+                      <strong>{deadlineLabel(deadline.type)}</strong>
+                      <dl className="facts">
+                        {deadline.startsAt ? <div><dt>Od</dt><dd>{deadlineTime(deadline.startsAt)}</dd></div> : null}
+                        <div><dt>Do</dt><dd>{deadlineTime(deadline.endsAt)}</dd></div>
+                        {deadline.timezone && deadline.timezone !== "UTC"
+                          ? <div><dt>Zóna uvedená zdrojem</dt><dd>{deadline.timezone}</dd></div> : null}
+                      </dl>
+                      {deadline.description ? <p>{deadline.description}</p> : null}
+                      {evidence ? (
+                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                          Doklad termínu: {evidence.documentTitle ?? "oficiální dokument"}
+                          {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
+                        </a></p>
+                      ) : (
+                        <p className="fine-print">Samostatný doklad termínu není připojen; ověřte jej v oficiálním zdroji.</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p>Termíny nejsou v této verzi normalizované. Neznámý čas neznamená neomezený příjem žádostí.</p>
+            )}
           </section>
 
           <section className="detail-section">
