@@ -202,6 +202,20 @@ SELECT 'e2e-sr-page-' || i,'e2e-source-open','E2E-PAGE-' || i,
   'https://example.invalid/e2e/page/' || i,'GRANT_CALL','grant:e2e:page:' || i,
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z','SEEN',0,printf('%064d',i) FROM n;
 
+-- Synthetic presence boundaries for grant detail; canonical OPEN status stays unchanged.
+UPDATE source_records SET presence_state='MISSING_CANDIDATE',missing_run_count=1
+WHERE id='e2e-sr-page-21';
+UPDATE source_records SET presence_state='CONFIRMED_MISSING',missing_run_count=3
+WHERE id='e2e-sr-page-22';
+UPDATE source_records SET presence_state='MISSING_CANDIDATE',missing_run_count=1
+WHERE id='e2e-sr-page-23';
+INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
+  first_seen_at,last_seen_at,presence_state,missing_run_count,content_hash)
+VALUES ('e2e-sr-page-23-seen','e2e-source-planned','E2E-PAGE-23-B',
+  'https://example.invalid/e2e/page/23-b','GRANT_CALL','grant:e2e:page:23',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z','SEEN',0,printf('%064d',123));
+DELETE FROM source_records WHERE id='e2e-sr-page-24';
+
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
   eligible_costs,keywords,status,submission_close_at,updated_at)

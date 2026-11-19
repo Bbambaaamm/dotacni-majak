@@ -2,6 +2,46 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("grant detail reports source presence without changing OPEN status", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cases = [
+    { id: 21, states: ["MISSING_CANDIDATE"], labels: ["Možná chybí u zdroje (předběžné)"], caution: true },
+    { id: 22, states: ["CONFIRMED_MISSING"], labels: ["Potvrzeně chybí u zdroje (neznamená zrušení výzvy)"], caution: true },
+    { id: 23, states: ["MISSING_CANDIDATE", "SEEN"], labels: ["Možná chybí u zdroje (předběžné)", "Viděn u zdroje"], caution: false },
+    { id: 24, states: [], labels: [], caution: false },
+    { id: 20, states: ["SEEN"], labels: ["Viděn u zdroje"], caution: false },
+  ];
+  for (const scenario of cases) {
+    const response = await request.get(`/api/grants/grant%3Ae2e%3Apage%3A${scenario.id}`);
+    expect(response.status()).toBe(200);
+    const detail = await response.json();
+    expect(detail.status).toBe("OPEN");
+    expect(detail.sources.map((source: { presenceState: string }) => source.presenceState).sort())
+      .toEqual([...scenario.states].sort());
+
+    await page.goto(`/dotace/grant%3Ae2e%3Apage%3A${scenario.id}`);
+    await expect(page.getByRole("heading", { name: `E2E stránkování ${scenario.id}` })).toBeVisible();
+    await expect(page.locator(".detail-hero").getByText("Lze podat žádost")).toBeVisible();
+    const sourcePanel = page.getByRole("complementary", { name: "Oficiální zdroje" });
+    for (const label of scenario.labels) await expect(sourcePanel.getByText(label, { exact: true })).toBeVisible();
+    await expect(page.locator(".source-presence-caution")).toHaveCount(scenario.caution ? 1 : 0);
+    if (scenario.id === 24) {
+      await expect(sourcePanel.getByText("Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.")).toBeVisible();
+    }
+    if (scenario.id === 23) {
+      await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj A ↗" })).toBeVisible();
+      await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj B ↗" })).toBeVisible();
+    }
+    if (scenario.caution) {
+      await expect(page.getByRole("status")).toContainText("Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
+      const accessibility = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(accessibility.violations).toEqual([]);
+    }
+  }
+});
+
 test("mobile instrument selector filters real API and D1 before pagination", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=digitalizace%20obce");

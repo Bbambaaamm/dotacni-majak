@@ -8,6 +8,7 @@ import {
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
 import { grantCallIdFromWebPath } from "../lib/routes";
+import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
 function statusLabel(status: string): string {
@@ -222,6 +223,7 @@ export function GrantDetailPage() {
   const primarySource = detail.officialDetailUrl
     ?? detail.sources[0]?.canonicalUrl
     ?? detail.provider.officialUrl;
+  const showSourceCaution = allSourcesMissing(detail.sources);
 
   return (
     <article className="detail-page">
@@ -235,6 +237,19 @@ export function GrantDetailPage() {
             label={verificationLabel(detail.verificationStatus)}
           />
         </div>
+        {showSourceCaution ? (
+          <p className="source-presence-caution" role="status">
+            <strong>Ověřte dostupnost u poskytovatele.</strong>{" "}
+            V žádném zobrazeném zdrojovém záznamu není stav „viděn“.
+            {detail.sources.some((source) => source.presenceState === "MISSING_CANDIDATE")
+              ? " Některé chybění je zatím předběžné."
+              : null}
+            {detail.sources.some((source) => source.presenceState === "CONFIRMED_MISSING")
+              ? " Potvrzené chybění znamená jen to, že záznam nebyl u zdroje nalezen."
+              : null}
+            {" "}Chybění u zdroje samo o sobě neznamená zrušení výzvy.
+          </p>
+        ) : null}
         <p className="eyebrow">{detail.provider.name}</p>
         <h1>{detail.title}</h1>
         {detail.summary ? <p className="results-lead">{detail.summary}</p> : null}
@@ -470,16 +485,21 @@ export function GrantDetailPage() {
                     {source.sourceName} ↗
                   </a>
                   <br />
+                  <strong>{sourcePresenceLabel(source.presenceState)}</strong>
+                  <br />
                   <small>Pozorováno {formatDate(source.lastSeenAt)}</small>
                 </li>
               ))}
             </ul>
-          ) : primarySource ? (
-            <a href={primarySource} rel="noreferrer" target="_blank">
-              Otevřít oficiální zdroj ↗
-            </a>
           ) : (
-            <StatusBadge kind="unknown" label="Zdrojový odkaz zatím není v indexu dostupný" />
+            <>
+              <p>Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.</p>
+              {primarySource ? (
+                <a href={primarySource} rel="noreferrer" target="_blank">Otevřít oficiální zdroj ↗</a>
+              ) : (
+                <StatusBadge kind="unknown" label="Zdrojový odkaz zatím není v indexu dostupný" />
+              )}
+            </>
           )}
 
           {detail.evidence.length ? (
