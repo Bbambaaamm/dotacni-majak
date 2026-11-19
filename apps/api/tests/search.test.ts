@@ -24,11 +24,13 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
           expect(sql).toContain("d.status IN (?, ?, ?)");
           const selectedStatus = sql.includes("AND d.status = ?") ? values[4] : null;
+          const provider = sql.includes("AND p.name = ?") ? values[4 + Number(Boolean(selectedStatus))] : null;
           const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
             sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
             .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
               (!selectedStatus || r.status === selectedStatus) &&
+              (!provider || r.provider_name === provider) &&
               (!deadline || (r.submission_close_at === null) === (deadline === "UNKNOWN")))
             .slice().sort((a, b) => a.rank - b.rank || a.grant_call_version_id.localeCompare(b.grant_call_version_id));
           const after = sql.includes("WHERE rank > ?") ? values.slice(-4, -1) : null;
@@ -124,6 +126,27 @@ describe("search cursor", () => {
     for (const deadline of ["ALL", "", "known", "KNOWN ", "OVERDUE"]) {
       await expect(searchGrants(db, "koupaliště", 1, null, null, deadline))
         .rejects.toMatchObject({ code: "INVALID_DEADLINE" });
+    }
+  });
+
+  it("filters providers before both FTS phases and binds the exact name to a cursor", async () => {
+    const direct = Array.from({ length: 23 }, (_, i) => row(i + 1, i));
+    direct[21] = { ...direct[21], provider_name: "Provider B" };
+    const expanded = [{ ...row(100), provider_name: "Provider B" }, row(101)];
+    const db = database(direct, expanded);
+    const first = await searchGrants(db, "koupaliště", 1, null, null, null, "Provider B");
+    expect(first.results.map((result) => result.grantCallVersionId)).toEqual(["v-022"]);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, "Provider B");
+    expect(second.results).toEqual([expect.objectContaining({ grantCallVersionId: "v-100", matchKind: "ONTOLOGY" })]);
+    expect(second.nextCursor).toBeNull();
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, "Provider"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    for (const provider of ["", " Provider B", "Provider B ", "x".repeat(201), "bad\nname"]) {
+      await expect(searchGrants(db, "koupaliště", 1, null, null, null, provider))
+        .rejects.toMatchObject({ code: "INVALID_PROVIDER" });
     }
   });
 

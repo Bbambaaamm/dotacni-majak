@@ -93,6 +93,21 @@ describe("search API client", () => {
     ]);
   });
 
+  it("sends an exact provider on first and cursor requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("strankovani", undefined, undefined, "PLANNED", "KNOWN", "E2E test provider B");
+    await searchGrants("strankovani", undefined, "next-page", "PLANNED", "KNOWN", "E2E test provider B");
+    expect(urls).toEqual([
+      "/api/search?intent=strankovani&status=PLANNED&deadline=KNOWN&provider=E2E+test+provider+B",
+      "/api/search?intent=strankovani&cursor=next-page&status=PLANNED&deadline=KNOWN&provider=E2E+test+provider+B",
+    ]);
+  });
+
   it("explains local search backend unavailability", () => {
     expect(
       searchErrorMessage(

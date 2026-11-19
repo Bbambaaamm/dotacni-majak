@@ -50,7 +50,8 @@ export function SearchPage() {
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [providerFilter, setProviderFilter] = useState("ALL");
+  const [providerFilter, setProviderFilter] = useState("");
+  const [providerDraft, setProviderDraft] = useState("");
   const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
   const [sortOrder, setSortOrder] = useState("RELEVANCE");
 
@@ -58,9 +59,7 @@ export function SearchPage() {
   const providerOptions = [
     ...new Set(loadedResults.map((grant) => grant.providerName)),
   ].sort((a, b) => a.localeCompare(b, "cs-CZ"));
-  const filteredResults = loadedResults.filter(
-    (grant) => providerFilter === "ALL" || grant.providerName === providerFilter,
-  ).sort((a, b) => {
+  const filteredResults = loadedResults.slice().sort((a, b) => {
     if (sortOrder === "RELEVANCE") return 0;
     if (!a.submissionCloseAt) return b.submissionCloseAt ? 1 : 0;
     if (!b.submissionCloseAt) return -1;
@@ -71,7 +70,8 @@ export function SearchPage() {
     moreController.current?.abort();
     setData(null);
     setLoading(true);
-    setProviderFilter("ALL");
+    setProviderFilter("");
+    setProviderDraft("");
     setSortOrder("RELEVANCE");
     setStatusFilter(next);
   }
@@ -79,13 +79,26 @@ export function SearchPage() {
     moreController.current?.abort();
     setData(null);
     setLoading(true);
-    setProviderFilter("ALL");
+    setProviderFilter("");
+    setProviderDraft("");
     setSortOrder("RELEVANCE");
     setDeadlineFilter(next);
   }
+  function changeProvider(next: string) {
+    if (next === providerFilter) return;
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setSortOrder("RELEVANCE");
+    setProviderFilter(next);
+  }
+  function clearProvider() {
+    setProviderDraft("");
+    changeProvider("");
+  }
   const activeFilters = [
     statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
-    providerFilter !== "ALL" ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: () => setProviderFilter("ALL") } : null,
+    providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => changeDeadline("ALL") } : null,
   ].filter((item): item is { key: string; label: string; clear: () => void } => item !== null);
 
@@ -101,7 +114,7 @@ export function SearchPage() {
     setMoreError(null);
 
     searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter,
-      deadlineFilter === "ALL" ? undefined : deadlineFilter)
+      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined)
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
@@ -114,7 +127,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -126,7 +139,7 @@ export function SearchPage() {
     try {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
-        deadlineFilter === "ALL" ? undefined : deadlineFilter);
+        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -228,7 +241,7 @@ export function SearchPage() {
       {!loading &&
       !error &&
       data?.indexState === "READY" &&
-      data.results.length === 0 && statusFilter === "ALL" && deadlineFilter === "ALL" ? (
+      data.results.length === 0 && statusFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter ? (
         <ResultStatePanel
           state={{
             ...resultStateContent("NO_RESULTS"),
@@ -237,7 +250,7 @@ export function SearchPage() {
         />
       ) : null}
 
-      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || deadlineFilter !== "ALL") ? (
+      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter)) ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
@@ -247,8 +260,9 @@ export function SearchPage() {
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
                 Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
-                Stav a dostupnost termínu se filtrují napříč všemi odpovídajícími aktivními výzvami.
-                Poskytovatel a řazení se vztahují pouze na načtenou sadu. Způsobilost a financování se
+                Stav, dostupnost termínu a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
+                Nápověda názvů poskytovatelů je jen z načtené sady; můžete zadat i jiný přesný název.
+                Řazení se vztahuje pouze na načtenou sadu. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
             </div>
@@ -278,21 +292,15 @@ export function SearchPage() {
                 ))}
               </select>
             </label>
-            <label>
-              Poskytovatel
-              <select
-                aria-label="Poskytovatel"
-                value={providerFilter}
-                onChange={(event) => setProviderFilter(event.target.value)}
-              >
-                <option value="ALL">Všichni poskytovatelé ({data.results.length})</option>
-                {providerOptions.map((provider) => (
-                  <option key={provider} value={provider}>
-                    {provider} ({data.results.filter((grant) => grant.providerName === provider).length})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <form onSubmit={(event) => { event.preventDefault(); changeProvider(providerDraft.trim()); }}>
+              <label htmlFor="provider-filter">Přesný název poskytovatele</label>
+              <input id="provider-filter" type="text" list="loaded-providers" maxLength={200}
+                value={providerDraft} onChange={(event) => setProviderDraft(event.target.value)} />
+              <datalist id="loaded-providers">
+                {providerOptions.map((provider) => <option key={provider} value={provider} />)}
+              </datalist>
+              <button type="submit">Použít poskytovatele</button>
+            </form>
             <label>
               Termín podání
               <select aria-label="Termín podání" value={deadlineFilter}
@@ -324,7 +332,8 @@ export function SearchPage() {
               ))}
               <button type="button" className="filter-reset" onClick={() => {
                 setStatusFilter("ALL");
-                setProviderFilter("ALL");
+                setProviderFilter("");
+                setProviderDraft("");
                 setDeadlineFilter("ALL");
               }}>Zrušit všechny filtry</button>
             </div>
@@ -332,9 +341,7 @@ export function SearchPage() {
 
           {filteredResults.length === 0 ? (
             <p className="filter-empty" role="status">
-              {data.results.length === 0
-                ? "Zvolenému stavu a dostupnosti termínu neodpovídá žádná aktivní výzva pro váš záměr."
-                : "Tomuto poskytovateli neodpovídá žádný z načtených výsledků."}
+              Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.
             </p>
           ) : null}
 
