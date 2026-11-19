@@ -153,6 +153,9 @@ describe("api worker", () => {
       ["intent=test&provider=", "INVALID_PROVIDER"],
       ["intent=test&provider=A&provider=B", "INVALID_PROVIDER"],
       ["intent=test&provider=%20A", "INVALID_PROVIDER"],
+      ["intent=test&closesBy=", "INVALID_CLOSES_BY"],
+      ["intent=test&closesBy=2027-02-29", "INVALID_CLOSES_BY"],
+      ["intent=test&closesBy=2027-04-01&closesBy=2027-05-01", "INVALID_CLOSES_BY"],
     ]) {
       const response = await handleRequest(new Request(`https://example.test/search?${query}`), env());
       expect(response.status).toBe(400);

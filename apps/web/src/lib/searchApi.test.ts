@@ -108,6 +108,21 @@ describe("search API client", () => {
     ]);
   });
 
+  it("sends an inclusive cutoff on first and cursor requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, "2027-03-31");
+    await searchGrants("strankovani", undefined, "next-page", undefined, undefined, undefined, "2027-03-31");
+    expect(urls).toEqual([
+      "/api/search?intent=strankovani&closesBy=2027-03-31",
+      "/api/search?intent=strankovani&cursor=next-page&closesBy=2027-03-31",
+    ]);
+  });
+
   it("explains local search backend unavailability", () => {
     expect(
       searchErrorMessage(
