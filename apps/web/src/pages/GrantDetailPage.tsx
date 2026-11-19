@@ -97,6 +97,17 @@ function formatMinor(value: number | null, currency: string): string {
   }
 }
 
+function instrumentLabel(type: GrantFundingScenarioDetail["instrumentType"]): string {
+  switch (type) {
+    case "GRANT": return "Dotace / příspěvek";
+    case "LOAN": return "Úvěr";
+    case "GUARANTEE": return "Záruka";
+    case "EQUITY": return "Kapitálový nástroj";
+    case "MIXED": return "Kombinovaný nástroj";
+    case "OTHER": return "Jiný nástroj podpory";
+  }
+}
+
 function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   const parts: string[] = [];
   if (scenario.supportRateMaxBps !== null) {
@@ -206,6 +217,8 @@ export function GrantDetailPage() {
   }
 
   const projectHref = `/projekty?intent=${encodeURIComponent(detail.title)}&grantCallId=${encodeURIComponent(detail.grantCallId)}`;
+  const nonGrant = detail.fundingInstrumentType !== "GRANT"
+    || detail.fundingScenarios.some((scenario) => scenario.instrumentType !== "GRANT");
   const primarySource = detail.officialDetailUrl
     ?? detail.sources[0]?.canonicalUrl
     ?? detail.provider.officialUrl;
@@ -317,6 +330,7 @@ export function GrantDetailPage() {
 
           <section className="detail-section" aria-labelledby="finance-title">
             <h2 id="finance-title">Finance</h2>
+            <p>Typ podpory podle verze výzvy: {instrumentLabel(detail.fundingInstrumentType)}</p>
             {detail.fundingScenarios.length ? (
               <div className="results-list">
                 {detail.fundingScenarios.map((scenario) => {
@@ -324,33 +338,40 @@ export function GrantDetailPage() {
                   return (
                     <article className="grant-card" key={scenario.id}>
                       <h3>{scenario.name}</h3>
-                      <p>{fundingSummary(scenario)}</p>
-                      <dl className="facts">
-                        <div>
-                          <dt>Míra podpory</dt>
-                          <dd>
-                            {scenario.supportRateMinBps !== null
-                              ? `${formatRate(scenario.supportRateMinBps)} – `
-                              : ""}
-                            {formatRate(scenario.supportRateMaxBps)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Maximální dotace</dt>
-                          <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
-                        </div>
-                        <div>
-                          <dt>Režim platby</dt>
-                          <dd>{scenario.paymentMode ?? "Není uvedeno"}</dd>
-                        </div>
-                      </dl>
+                      <p><strong>Typ podpory: {instrumentLabel(scenario.instrumentType)}</strong></p>
+                      {scenario.instrumentType !== "GRANT" || detail.fundingInstrumentType !== "GRANT" ? (
+                        <p className="fine-print">Tento scénář nemá potvrzený čistě grantový typ. Grantové částky a procenta nepoužíváme jako výpočet úvěru, záruky ani vlastních zdrojů; podmínky a cash-flow ověřte u poskytovatele.</p>
+                      ) : (
+                        <>
+                          <p>{fundingSummary(scenario)}</p>
+                          <dl className="facts">
+                            <div>
+                              <dt>Míra podpory</dt>
+                              <dd>
+                                {scenario.supportRateMinBps !== null
+                                  ? `${formatRate(scenario.supportRateMinBps)} – `
+                                  : ""}
+                                {formatRate(scenario.supportRateMaxBps)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Maximální dotace</dt>
+                              <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
+                            </div>
+                            <div>
+                              <dt>Režim platby</dt>
+                              <dd>{scenario.paymentMode ?? "Není uvedeno"}</dd>
+                            </div>
+                          </dl>
+                        </>
+                      )}
                       {evidence ? (
                         <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
                           Doklad financování: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
                         </a> · {verificationLabel(evidence.verificationStatus)}</p>
                       ) : (
-                        <p className="fine-print">Samostatný doklad financování není připojen; ověřte částky a podmínky v oficiálním zdroji.</p>
+                        <p className="fine-print">Samostatný doklad financování není připojen; ověřte typ nástroje a podmínky v oficiálním zdroji.</p>
                       )}
                     </article>
                   );
@@ -494,7 +515,7 @@ export function GrantDetailPage() {
 
       <div className="sticky-action">
         <a className="button button--primary button-link" href={projectHref}>
-          Chci tuto dotaci
+          {nonGrant ? "Prověřit tuto podporu" : "Chci tuto dotaci"}
         </a>
         {primarySource ? (
           <a

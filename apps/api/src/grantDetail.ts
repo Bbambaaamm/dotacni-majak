@@ -35,6 +35,7 @@ export interface GrantDeadlineDetail {
 export interface GrantFundingScenarioDetail {
   id: string;
   name: string;
+  instrumentType: "GRANT" | "LOAN" | "GUARANTEE" | "EQUITY" | "MIXED" | "OTHER";
   currencyCode: string;
   supportRateMinBps: number | null;
   supportRateMaxBps: number | null;
@@ -107,6 +108,7 @@ export interface GrantDetailResponse {
   applicationUrl: string | null;
   officialDetailUrl: string | null;
   currencyCode: string | null;
+  fundingInstrumentType: GrantFundingScenarioDetail["instrumentType"];
   provider: GrantProviderDetail;
   programme: GrantProgrammeDetail;
   sources: GrantSourceRef[];
@@ -140,6 +142,7 @@ interface BaseRow {
   application_url: string | null;
   official_detail_url: string | null;
   currency_code: string | null;
+  funding_instrument_type: GrantFundingScenarioDetail["instrumentType"];
   programme_id: string;
   programme_name: string;
   funding_origin: string;
@@ -171,6 +174,7 @@ interface DeadlineRow {
 interface FundingRow {
   id: string;
   name: string;
+  instrument_type: GrantFundingScenarioDetail["instrumentType"];
   currency_code: string;
   support_rate_min_bps: number | null;
   support_rate_max_bps: number | null;
@@ -278,6 +282,7 @@ export async function getGrantDetail(
         v.application_url,
         v.official_detail_url,
         v.currency_code,
+        v.funding_instrument_type,
         pr.id AS programme_id,
         pr.name AS programme_name,
         pr.funding_origin,
@@ -342,7 +347,7 @@ export async function getGrantDetail(
       db,
       `
         SELECT
-          id, name, currency_code,
+          id, name, instrument_type, currency_code,
           support_rate_min_bps, support_rate_max_bps,
           grant_amount_min_minor, grant_amount_max_minor,
           project_cost_min_minor, project_cost_max_minor,
@@ -468,6 +473,7 @@ export async function getGrantDetail(
     applicationUrl: base.application_url,
     officialDetailUrl: base.official_detail_url,
     currencyCode: base.currency_code,
+    fundingInstrumentType: base.funding_instrument_type,
     provider: {
       id: base.provider_id,
       name: base.provider_name,
@@ -491,6 +497,7 @@ export async function getGrantDetail(
     fundingScenarios: fundingRows.map((row) => ({
       id: row.id,
       name: row.name,
+      instrumentType: row.instrument_type,
       currencyCode: row.currency_code,
       supportRateMinBps: row.support_rate_min_bps,
       supportRateMaxBps: row.support_rate_max_bps,

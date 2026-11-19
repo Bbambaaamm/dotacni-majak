@@ -19,6 +19,7 @@ export interface GrantDeadlineDetail {
 export interface GrantFundingScenarioDetail {
   id: string;
   name: string;
+  instrumentType: "GRANT" | "LOAN" | "GUARANTEE" | "EQUITY" | "MIXED" | "OTHER";
   currencyCode: string;
   supportRateMinBps: number | null;
   supportRateMaxBps: number | null;
@@ -91,6 +92,7 @@ export interface GrantDetailResponse {
   applicationUrl: string | null;
   officialDetailUrl: string | null;
   currencyCode: string | null;
+  fundingInstrumentType: GrantFundingScenarioDetail["instrumentType"];
   provider: {
     id: string;
     name: string;

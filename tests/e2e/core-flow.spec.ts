@@ -450,6 +450,35 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("non-grant instrument remains a loan in real D1/API and mobile detail", async ({ page, request }) => {
+  const response = await request.get("http://127.0.0.1:8787/grants/grant%3Ae2e%3Aplanned");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { fundingInstrumentType: string; fundingScenarios: Array<{ instrumentType: string; grantAmountMaxMinor: number }> };
+  expect(detail.fundingInstrumentType).toBe("LOAN");
+  expect(detail.fundingScenarios).toEqual(expect.arrayContaining([
+    expect.objectContaining({ instrumentType: "LOAN", grantAmountMaxMinor: 1234500 }),
+    expect.objectContaining({ instrumentType: "GRANT", grantAmountMaxMinor: 9876500 }),
+  ]));
+  expect(detail.fundingScenarios).toHaveLength(2);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Aplanned");
+  const finance = page.getByRole("region", { name: "Finance" });
+  await expect(finance.getByText("Typ podpory: Úvěr")).toBeVisible();
+  await expect(finance.getByText("Typ podpory: Dotace / příspěvek")).toBeVisible();
+  await expect(finance).toContainText("Typ podpory podle verze výzvy: Úvěr");
+  await expect(page.getByRole("link", { name: "Prověřit tuto podporu" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  await expect(finance).toContainText("Grantové částky a procenta nepoužíváme jako výpočet úvěru");
+  await expect(finance.getByText("Maximální dotace")).toHaveCount(0);
+  await expect(finance).not.toContainText("12 345");
+  await expect(finance).not.toContainText("98 765");
+  await expect(finance).not.toContainText("70 %");
+  await expect(finance.getByText("Samostatný doklad financování není připojen")).toHaveCount(2);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-definitive", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
