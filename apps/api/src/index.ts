@@ -97,6 +97,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/search") {
       try {
         if (url.searchParams.getAll("status").length > 1) throw new SearchInputError("INVALID_STATUS", 400);
+        if (url.searchParams.getAll("deadline").length > 1) throw new SearchInputError("INVALID_DEADLINE", 400);
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw === null ? 20 : Number(limitRaw);
         const result = await searchGrants(
@@ -105,6 +106,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           limit,
           url.searchParams.get("cursor"),
           url.searchParams.get("status"),
+          url.searchParams.get("deadline"),
         );
         return json(result, { status: 200 });
       } catch (error) {

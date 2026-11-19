@@ -34,10 +34,12 @@ export async function searchGrants(
   signal?: AbortSignal,
   cursor?: string,
   status?: "OPEN" | "PLANNED" | "ANNOUNCED",
+  deadline?: "KNOWN" | "UNKNOWN",
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
   if (status) params.set("status", status);
+  if (deadline) params.set("deadline", deadline);
   const response = await fetch(`/api/search?${params.toString()}`, {
     method: "GET",
     headers: { accept: "application/json" },

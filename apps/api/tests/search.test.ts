@@ -3,7 +3,7 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/env";
 import { searchGrants } from "../src/search";
 
 type Row = { grant_call_version_id: string; grant_call_id: string; title: string;
-  summary: string; status: string; submission_close_at: null; provider_name: string;
+  summary: string; status: string; submission_close_at: string | null; provider_name: string;
   official_detail_url: null; rank: number };
 
 function row(id: number, rank = 0): Row {
@@ -24,8 +24,12 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
           expect(sql).toContain("d.status IN (?, ?, ?)");
           const selectedStatus = sql.includes("AND d.status = ?") ? values[4] : null;
+          const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
+            sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
-            .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) && (!selectedStatus || r.status === selectedStatus))
+            .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
+              (!selectedStatus || r.status === selectedStatus) &&
+              (!deadline || (r.submission_close_at === null) === (deadline === "UNKNOWN")))
             .slice().sort((a, b) => a.rank - b.rank || a.grant_call_version_id.localeCompare(b.grant_call_version_id));
           const after = sql.includes("WHERE rank > ?") ? values.slice(-4, -1) : null;
           const filtered = after ? candidates.filter((r) => r.rank > Number(after[0]) ||
@@ -96,6 +100,30 @@ describe("search cursor", () => {
     await expect(searchGrants(db, "koupaliště", 1, planned.nextCursor)).rejects.toMatchObject({ code: "INVALID_CURSOR" });
     for (const status of ["CLOSED", "", "open", "ALL", "PLANNED "]) {
       await expect(searchGrants(db, "koupaliště", 1, null, status)).rejects.toMatchObject({ code: "INVALID_STATUS" });
+    }
+  });
+
+  it("filters known and missing deadlines across both phases before pagination, binding the cursor", async () => {
+    const direct = Array.from({ length: 24 }, (_, i) => row(i + 1, i));
+    direct[22] = { ...direct[22], submission_close_at: "2027-05-01T00:00:00Z" };
+    const expanded = [{ ...row(100), submission_close_at: "2027-07-01T00:00:00Z" }, row(101)];
+    const db = database(direct, expanded);
+    const first = await searchGrants(db, "koupaliště", 1, null, null, "KNOWN");
+    expect(first.results.map((r) => r.grantCallVersionId)).toEqual(["v-023"]);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await searchGrants(db, "koupaliště", 1, first.nextCursor, null, "KNOWN");
+    expect(second.results).toEqual([expect.objectContaining({ grantCallVersionId: "v-100", matchKind: "ONTOLOGY" })]);
+    expect(second.nextCursor).toBeNull();
+    const unknown = await searchGrants(db, "koupaliště", 50, null, null, "UNKNOWN");
+    expect(unknown.results).toHaveLength(24);
+    expect(unknown.results.every((result) => result.submissionCloseAt === null)).toBe(true);
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, "UNKNOWN"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    for (const deadline of ["ALL", "", "known", "KNOWN ", "OVERDUE"]) {
+      await expect(searchGrants(db, "koupaliště", 1, null, null, deadline))
+        .rejects.toMatchObject({ code: "INVALID_DEADLINE" });
     }
   });
 
