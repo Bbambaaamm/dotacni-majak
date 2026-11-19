@@ -32,12 +32,13 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav a dostupnost termínu se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
-  await page.getByLabel("Poskytovatel").selectOption("E2E test provider A");
+  await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
+  await page.getByRole("button", { name: "Použít poskytovatele" }).click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
-  await expect(page.getByLabel("Poskytovatel")).toHaveValue("ALL");
+  await expect(page.getByLabel("Přesný název poskytovatele")).toHaveValue("");
 
   const first = await request.get("/api/search?intent=strankovani&limit=1&status=OPEN");
   expect(first.status()).toBe(200);
@@ -61,7 +62,7 @@ test("global deadline availability finds a later-page call and remains bound to 
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await page.getByLabel("Stav výzvy").selectOption("OPEN");
-  await expect(page.getByText("Zvolenému stavu a dostupnosti termínu neodpovídá žádná aktivní výzva pro váš záměr.")).toBeVisible();
+  await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
   await page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" }).click();
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
@@ -81,6 +82,31 @@ test("global deadline availability finds a later-page call and remains bound to 
   const invalid = await request.get("/api/search?intent=strankovani&deadline=KNOWN&deadline=UNKNOWN");
   expect(invalid.status()).toBe(400);
   expect(await invalid.json()).toEqual({ error: "INVALID_DEADLINE" });
+});
+
+test("provider absent from first page is found by exact name across real D1 and cursor is bound", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.locator("#loaded-providers option[value='E2E test provider B']")).toHaveCount(0);
+  await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider B");
+  await page.getByLabel("Přesný název poskytovatele").press("Enter");
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider B" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider B" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  const first = await request.get("/api/search?intent=strankovani&limit=1&provider=E2E%20test%20provider%20A");
+  expect(first.status()).toBe(200);
+  const { nextCursor } = await first.json() as { nextCursor: string | null };
+  expect(nextCursor).toBeTruthy();
+  const changed = await request.get(`/api/search?intent=strankovani&limit=1&provider=E2E%20test%20provider%20B&cursor=${encodeURIComponent(nextCursor!)}`);
+  expect(changed.status()).toBe(400);
+  expect(await changed.json()).toEqual({ error: "INVALID_CURSOR" });
+  const duplicate = await request.get("/api/search?intent=strankovani&provider=A&provider=B");
+  expect(duplicate.status()).toBe(400);
+  expect(await duplicate.json()).toEqual({ error: "INVALID_PROVIDER" });
 });
 
 test("real D1 cursor crosses from direct to ontology without replaying direct matches", async ({ request }) => {
@@ -126,7 +152,9 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   ).toHaveCount(0);
   await expect(page.locator(".section-heading").getByText("1 výsledků.")).toBeVisible();
 
-  await page.getByLabel("Poskytovatel").selectOption("E2E test provider A");
+  await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
+  await page.getByRole("button", { name: "Použít poskytovatele" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
   await page.getByRole("link", { name: "Zobrazit detail" }).click();
 
   await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen$/);
@@ -182,7 +210,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE");
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
-  await expect(page.getByText("Zvolenému stavu a dostupnosti termínu neodpovídá žádná aktivní výzva pro váš záměr.")).toBeVisible();
+  await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();
   await page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" }).click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
@@ -196,7 +224,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav a dostupnost termínu se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])

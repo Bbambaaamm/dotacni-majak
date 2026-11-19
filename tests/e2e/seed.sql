@@ -149,7 +149,7 @@ INSERT INTO grant_search_documents(
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
   current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
-SELECT 'grant:e2e:page:' || i,'e2e-programme-open','E2E-PAGE-' || i,
+SELECT 'grant:e2e:page:' || i,CASE WHEN i = 25 THEN 'e2e-programme-planned' ELSE 'e2e-programme-open' END,'E2E-PAGE-' || i,
   'e2e-page-' || i,NULL,CASE WHEN i = 25 THEN 'PLANNED' ELSE 'OPEN' END,
   CASE WHEN i = 25 THEN 'E2E pozdější plánovaná výzva' ELSE 'E2E stránkování ' || i END,
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
