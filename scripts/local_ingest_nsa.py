@@ -11,13 +11,13 @@ sys.path.insert(0, str(ROOT / "connectors" / "nsa" / "src"))
 sys.path.insert(0, str(ROOT / "pipelines" / "ingestion" / "src"))
 
 from dotacni_majak_ingestion.collection import collect_searchable_grants
-from dotacni_majak_ingestion.local_publish import render_import_sql
 from dotacni_majak_ingestion.normalization import (
     NsaGrantNormalizer,
     canonical_status as _canonical_status,
     record_content_hash,
 )
 from dotacni_majak_nsa import NsaAdapter
+from local_trusted_publish import publish_grants_to_local_d1
 
 
 _NORMALIZER = NsaGrantNormalizer()
@@ -45,28 +45,25 @@ async def collect(limit: int | None, raw_dir: Path):
         timeout_seconds=30,
         max_response_bytes=25 * 1024 * 1024,
     )
-    return list(result.grants), list(result.failures)
+    return list(result.grants), list(result.failures), result.discovered
 
 
 async def async_main(args: argparse.Namespace) -> None:
-    output = Path(args.output).resolve()
     raw_dir = Path(args.raw_dir).resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    grants, failures = await collect(args.limit, raw_dir)
-    captured_at = datetime.now(timezone.utc).isoformat()
-    sql = render_import_sql(
+    grants, failures, discovered = await collect(args.limit, raw_dir)
+    summary = publish_grants_to_local_d1(
         grants,
-        source_id="source:nsa",
-        source_code="NSA",
-        source_name="Národní sportovní agentura",
+        raw_dir=raw_dir,
+        persist_root=Path(args.db_root).resolve(),
         adapter_version=NsaAdapter.descriptor.adapter_version,
-        captured_at=captured_at,
+        now=datetime.now(timezone.utc),
+        discovered_count=discovered,
+        collection_error_count=len(failures),
     )
-    output.write_text(sql, encoding="utf-8")
 
-    print(f"SQL={output}")
-    print(f"GRANTS={len(grants)}")
+    print(f"DB={summary.database_path}")
+    print(f"GRANTS={summary.grants}")
+    print(f"SEARCH_EVENTS={summary.search_events_delivered}")
     print(f"FAILURES={len(failures)}")
     for failure in failures:
         print(f"WARNING={failure}", file=sys.stderr)
@@ -74,11 +71,12 @@ async def async_main(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fetch current NSA calls and produce idempotent local D1 import SQL."
+        description="Fetch current NSA calls and publish through the trusted local D1 pipeline."
     )
     parser.add_argument(
-        "--output",
-        default=str(ROOT / ".local" / "nsa-import.sql"),
+        "--db-root",
+        default=str(ROOT / ".wrangler" / "local"),
+        help="Wrangler --persist-to root containing the migrated local D1 database.",
     )
     parser.add_argument(
         "--raw-dir",

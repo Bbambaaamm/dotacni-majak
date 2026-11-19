@@ -175,6 +175,7 @@ class SqliteCanonicalStagingRepository:
         ingestion_run_id: str | None = None,
         retry: bool = False,
         now: datetime | None = None,
+        commit: bool = True,
     ) -> StagedCanonicalCandidate:
         if not external_id.strip():
             raise ValueError("external_id must not be empty")
@@ -197,7 +198,8 @@ class SqliteCanonicalStagingRepository:
         payload_json = self._payload_json(payload)
         timestamp = _utc(now).isoformat()
 
-        self.connection.execute("BEGIN IMMEDIATE")
+        if commit:
+            self.connection.execute("BEGIN IMMEDIATE")
         try:
             existing = self._select_one("c.id = ?", (candidate_id,))
             if existing is None:
@@ -227,7 +229,27 @@ class SqliteCanonicalStagingRepository:
                         timestamp,
                     ),
                 )
-            elif existing.state is not StagingState.PUBLISHED:
+            elif existing.state is StagingState.PUBLISHED:
+                self.connection.execute(
+                    """UPDATE canonical_staging_items
+                       SET source_run_id = COALESCE(?, source_run_id),
+                           ingestion_run_id = COALESCE(?, ingestion_run_id),
+                           canonical_identity = ?,
+                           payload_json = ?,
+                           provenance_status = ?,
+                           updated_at = ?
+                       WHERE id = ?""",
+                    (
+                        source_run_id,
+                        ingestion_run_id,
+                        canonical_identity,
+                        payload_json,
+                        provenance_status.value,
+                        timestamp,
+                        candidate_id,
+                    ),
+                )
+            else:
                 if retry:
                     self.connection.execute(
                         """UPDATE canonical_staging_items
@@ -272,9 +294,11 @@ class SqliteCanonicalStagingRepository:
                             candidate_id,
                         ),
                     )
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
         candidate = self.get(candidate_id)
@@ -289,6 +313,7 @@ class SqliteCanonicalStagingRepository:
         *,
         error: str | None = None,
         now: datetime | None = None,
+        commit: bool = True,
     ) -> StagedCanonicalCandidate:
         candidate = self.get(candidate_id)
         if candidate is None:
@@ -323,7 +348,8 @@ class SqliteCanonicalStagingRepository:
         )
         if result.rowcount != 1:
             raise RuntimeError("staging validation transition failed")
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
         updated = self.get(candidate_id)
         if updated is None:
             raise RuntimeError("staging candidate disappeared")

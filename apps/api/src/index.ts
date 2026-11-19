@@ -21,6 +21,8 @@ import {
   setProjectWatchEnabled,
 } from "./watchAccess";
 import { SearchInputError, searchGrants } from "./search";
+import { notificationsProjectId, projectNotifications } from "./notifications";
+import { authorizeProjectWorkspace, createWorkspace, listWorkspaces, readWorkspace, updateWorkspaceTask, workspacePath } from "./workspaceAccess";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
@@ -44,6 +46,16 @@ function projectSharePath(pathname: string): { projectId: string; shareId?: stri
 function projectOwnerPath(pathname: string): { projectId: string; action: "rotate" | "revoke" } | null {
   const match = pathname.match(/^\/projects\/(prj_[a-f0-9]{32})\/owner\/(rotate|revoke)$/);
   return match ? { projectId: match[1], action: match[2] as "rotate" | "revoke" } : null;
+}
+
+async function workspaceBody(request: Request): Promise<Record<string, unknown>> {
+  if (Number(request.headers.get("content-length")) > 4096) throw new ApiInputError("REQUEST_TOO_LARGE", 413);
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > 4096) throw new ApiInputError("REQUEST_TOO_LARGE", 413);
+  let body: unknown;
+  try { body = JSON.parse(text); } catch { throw new ApiInputError("INVALID_JSON"); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiInputError("INVALID_WORKSPACE_INPUT");
+  return body as Record<string, unknown>;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -142,7 +154,39 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       );
     }
 
+    const workspaceRoute = workspacePath(url.pathname);
+    if (workspaceRoute) {
+      const token = bearerToken(request);
+      if (!token) return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      const { projectId, workspaceId, taskId } = workspaceRoute;
+      if (!workspaceId && request.method === "POST") {
+        await authorizeProjectWorkspace(projectId, token, env);
+        const body = await workspaceBody(request);
+        if (typeof body.grantCallId !== "string") throw new ApiInputError("INVALID_GRANT_CALL");
+        return json(await createWorkspace(projectId, token, body.grantCallId, env), { status: 201 });
+      }
+      if (!workspaceId && (request.method === "GET" || request.method === "HEAD")) {
+        return json(await listWorkspaces(projectId, token, env));
+      }
+      if (workspaceId && !taskId && (request.method === "GET" || request.method === "HEAD")) {
+        return json(await readWorkspace(projectId, token, workspaceId, env));
+      }
+      if (workspaceId && taskId && request.method === "PATCH") {
+        await authorizeProjectWorkspace(projectId, token, env);
+        const body = await workspaceBody(request);
+        if (typeof body.status !== "string") throw new ApiInputError("INVALID_TASK_STATUS");
+        return json(await updateWorkspaceTask(projectId, token, workspaceId, taskId, body.status, env));
+      }
+      return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+    }
+
     const watchProjectId = projectWatchPath(url.pathname);
+    const notificationProjectId = notificationsProjectId(url.pathname);
+    if (notificationProjectId && (request.method === "GET" || request.method === "HEAD")) {
+      const owner = bearerToken(request);
+      if (!owner) return json({ error: "OWNER_CAPABILITY_INVALID" }, { status: 404 });
+      return json(await projectNotifications(notificationProjectId, owner, env));
+    }
     if (watchProjectId) {
       const owner = bearerToken(request);
       if (!owner) {

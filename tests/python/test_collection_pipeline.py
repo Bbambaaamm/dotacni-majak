@@ -144,7 +144,28 @@ class CollectionPipelineTest(unittest.IsolatedAsyncioTestCase):
                     limit=2,
                 )
         self.assertEqual(len(result.grants), 2)
+        self.assertEqual(result.discovered, 2)
         self.assertEqual(result.pages, 1)
+
+    async def test_fetch_failure_is_counted_in_discovered_and_failures(self):
+        class PartiallyFailingAdapter(FakeAdapter):
+            async def fetch_record(self, ctx, item, validators=None):
+                if item.external_id == "b":
+                    return RecordFetchResult(state=FetchState.GONE)
+                return await super().fetch_record(ctx, item, validators)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch(
+                "dotacni_majak_ingestion.collection.GuardedHttpClient",
+                return_value=DummyHttp(),
+            ):
+                result = await collect_searchable_grants(
+                    adapter=PartiallyFailingAdapter(),
+                    normalizer=FakeNormalizer(), raw_dir=Path(tmp),
+                )
+        self.assertEqual(result.discovered, 3)
+        self.assertEqual(len(result.grants), 2)
+        self.assertEqual(len(result.failures), 1)
 
 
 if __name__ == "__main__":

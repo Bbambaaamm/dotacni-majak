@@ -21,6 +21,10 @@ describe("shared project client", () => {
     expect(apiUrl("/share/x", "http://localhost:8787")).toContain("localhost");
   });
 
+  it("uses the same-origin API proxy by default", () => {
+    expect(apiUrl("/projects", "")).toBe("/api/projects");
+  });
+
   it("maps unknown/revoked share to not-found", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ error: "SHARE_NOT_FOUND" }), { status: 404 }),

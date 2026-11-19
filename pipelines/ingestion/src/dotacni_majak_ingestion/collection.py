@@ -87,11 +87,10 @@ async def collect_searchable_grants(
             for item in page.items:
                 if item.external_id in seen_external_ids:
                     continue
-                seen_external_ids.add(item.external_id)
-                discovered += 1
-
                 if limit is not None and len(grants) >= limit:
                     break
+                seen_external_ids.add(item.external_id)
+                discovered += 1
 
                 print(
                     f"[{descriptor.code} {len(grants) + 1}/"

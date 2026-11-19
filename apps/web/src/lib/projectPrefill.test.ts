@@ -11,6 +11,7 @@ describe("project prefill", () => {
     ).toEqual({
       intent: "Rekonstrukce tenisových kurtů",
       autoWatch: true,
+      grantCallId: null,
     });
   });
 
@@ -18,6 +19,7 @@ describe("project prefill", () => {
     expect(projectPrefillFromSearch("?intent=Koupali%C5%A1t%C4%9B")).toEqual({
       intent: "Koupaliště",
       autoWatch: false,
+      grantCallId: null,
     });
   });
 
