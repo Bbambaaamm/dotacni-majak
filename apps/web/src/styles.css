@@ -245,6 +245,12 @@ button:focus-visible {
     padding-bottom: 4px;
   }
 
+  .site-header__inner > nav {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
   .action-row {
     align-items: stretch;
     flex-direction: column;
@@ -254,6 +260,10 @@ button:focus-visible {
     width: 100%;
   }
 }
+
+.projects-page { min-width: 0; width: 100%; }
+.projects-page > *, .projects-page .share-card > * { min-width: 0; }
+.projects-page .share-card { overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

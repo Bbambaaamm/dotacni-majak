@@ -95,3 +95,13 @@ Eligibility UNKNOWN a finance NEEDS_INFORMATION se převádějí na konkrétní 
 
 ## Dokumenty
 Persistence model ukládá pouze metadata/storage_ref. Samotné bezpečné upload/storage řeší samostatná security/deployment vrstva.
+# Kontroly integrity a mobilního zobrazení
+
+Čtení pracovního prostoru odmítne neúspěšný nebo prázdný výsledek načtení
+uložených úkolů jako `503 WORKSPACE_UNAVAILABLE`. Chybějící checklist není
+příprava se 100% dokončením. Regresní testy používají skutečný SQLite s úplnými
+migracemi a simulují ztrátu úkolů i neúspěšný D1 výsledek.
+
+Prohlížečový tok se ověřuje také při šířce 390 px včetně axe. Mobilní navigace
+a pracovní karty mají omezenou šířku, takže dlouhé identifikátory ani změny
+verzí nerozšiřují celou stránku.
