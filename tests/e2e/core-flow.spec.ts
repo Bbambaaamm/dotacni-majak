@@ -137,6 +137,52 @@ test("inclusive cutoff filters real D1 beyond first page without declaring missi
   expect((await boundary.json()).results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-planned" })]);
 });
 
+test("global date ordering moves a later-page deadline first and paginates missing dates safely", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toHaveCount(0);
+  await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.locator(".grant-card h3").first()).toHaveText("E2E pozdější plánovaná výzva");
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const firstResponse = await request.get("/api/search?intent=strankovani&sort=DEADLINE_LATEST&limit=1");
+  expect(firstResponse.status()).toBe(200);
+  const first = await firstResponse.json() as { results: Array<{ grantCallVersionId: string }>; nextCursor: string };
+  expect(first.results[0].grantCallVersionId).toBe("gcv-e2e-page-25");
+  const next = await request.get(`/api/search?intent=strankovani&sort=DEADLINE_LATEST&limit=1&cursor=${encodeURIComponent(first.nextCursor)}`);
+  expect(next.status()).toBe(200);
+  expect((await next.json()).results[0].submissionCloseAt).toBeNull();
+  const changed = await request.get(`/api/search?intent=strankovani&sort=DEADLINE&limit=1&cursor=${encodeURIComponent(first.nextCursor)}`);
+  expect(changed.status()).toBe(400);
+  expect(await changed.json()).toEqual({ error: "INVALID_CURSOR" });
+  const invalid = await request.get("/api/search?intent=strankovani&sort=DEADLINE&sort=RELEVANCE");
+  expect(invalid.status()).toBe(400);
+  expect(await invalid.json()).toEqual({ error: "INVALID_SORT" });
+});
+
+test("date ordering retains direct and ontology match labels across null-date cursor boundaries", async ({ request }) => {
+  for (const sort of ["DEADLINE", "DEADLINE_LATEST"]) {
+    let cursor: string | null = null;
+    const results: Array<{ grantCallVersionId: string; matchKind: string; submissionCloseAt: string | null }> = [];
+    do {
+      const response = await request.get(`/api/search?intent=koupali%C5%A1t%C4%9B&sort=${sort}&limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      expect(response.status()).toBe(200);
+      const page = await response.json() as { results: typeof results; nextCursor: string | null };
+      results.push(...page.results);
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(results.map((row) => [row.grantCallVersionId, row.matchKind, row.submissionCloseAt])).toEqual([
+      ["gcv-e2e-page-1", "DIRECT", null],
+      ["gcv-e2e-page-2", "ONTOLOGY", null],
+      ["gcv-e2e-page-3", "ONTOLOGY", null],
+    ]);
+  }
+});
+
 test("real D1 cursor crosses from direct to ontology without replaying direct matches", async ({ request }) => {
   const firstResponse = await request.get("/api/search?intent=koupali%C5%A1t%C4%9B&limit=1");
   expect(firstResponse.status()).toBe(200);
@@ -233,9 +279,9 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(planned).toBeVisible();
   await expect(open).toBeVisible();
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
-  await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE_LATEST");
+  await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE_LATEST");
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E otevřená výzva");
-  await page.getByLabel("Řazení načtených výsledků").selectOption("DEADLINE");
+  await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
   expect(await page.locator(".results-list .grant-card h3").first().textContent()).toContain("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();

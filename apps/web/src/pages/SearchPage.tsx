@@ -55,19 +55,20 @@ export function SearchPage() {
   const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
   const [closesBy, setClosesBy] = useState("");
   const [closesByDraft, setClosesByDraft] = useState("");
-  const [sortOrder, setSortOrder] = useState("RELEVANCE");
+  const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">("RELEVANCE");
 
   const loadedResults = data?.results ?? [];
   const providerOptions = [
     ...new Set(loadedResults.map((grant) => grant.providerName)),
   ].sort((a, b) => a.localeCompare(b, "cs-CZ"));
-  const filteredResults = loadedResults.slice().sort((a, b) => {
-    if (sortOrder === "RELEVANCE") return 0;
-    if (!a.submissionCloseAt) return b.submissionCloseAt ? 1 : 0;
-    if (!b.submissionCloseAt) return -1;
-    const difference = Date.parse(a.submissionCloseAt) - Date.parse(b.submissionCloseAt);
-    return sortOrder === "DEADLINE_LATEST" ? -difference : difference;
-  });
+  const filteredResults = loadedResults;
+  function changeSort(next: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST") {
+    if (next === sortOrder) return;
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setSortOrder(next);
+  }
   function changeStatus(next: StatusFilter) {
     moreController.current?.abort();
     setData(null);
@@ -129,7 +130,7 @@ export function SearchPage() {
     setMoreError(null);
 
     searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter,
-      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined)
+      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder)
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
@@ -142,7 +143,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, sortOrder]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -154,7 +155,7 @@ export function SearchPage() {
     try {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
-        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined);
+        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -278,7 +279,7 @@ export function SearchPage() {
                 Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
                 Filtr data zahrnuje zvolený kalendářní den (UTC); neznámý termín v něm není zahrnut. Nezaručuje, že výzva stále přijímá žádosti.
                 Nápověda názvů poskytovatelů je jen z načtené sady; můžete zadat i jiný přesný název.
-                Řazení se vztahuje pouze na načtenou sadu. Způsobilost a financování se
+                Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
             </div>
@@ -333,9 +334,9 @@ export function SearchPage() {
               <button type="submit">Použít datum uzávěrky</button>
             </form>
             <label>
-              Řazení načtených výsledků
-              <select aria-label="Řazení načtených výsledků" value={sortOrder}
-                onChange={(event) => setSortOrder(event.target.value)}>
+              Řazení všech odpovídajících výsledků
+              <select aria-label="Řazení všech odpovídajících výsledků" value={sortOrder}
+                onChange={(event) => changeSort(event.target.value as "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST")}>
                 <option value="RELEVANCE">Původní pořadí relevance</option>
                 <option value="DEADLINE">Nejbližší uvedený termín</option>
                 <option value="DEADLINE_LATEST">Nejpozdější uvedený termín</option>

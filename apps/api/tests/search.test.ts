@@ -178,6 +178,38 @@ describe("search cursor", () => {
     }
   });
 
+  it("preserves a non-NULL but unparseable source deadline when sorting", async () => {
+    const invalid = { ...row(1), submission_close_at: "31.12.2027", close_sort: null, match_phase: 0 };
+    const db: D1DatabaseLike = {
+      prepare(sql) {
+        const statement: D1PreparedStatementLike = {
+          bind() { return statement; },
+          async first<T>() { return { count: 1 } as T; },
+          async all<T>() {
+            expect(sql).toContain("julianday(d.submission_close_at) AS close_sort");
+            return { success: true, results: [invalid] as T[] };
+          },
+          async run<T>() { return { success: true, results: [] as T[] }; },
+        };
+        return statement;
+      },
+      async batch() { return []; },
+    };
+    const result = await searchGrants(db, "strankovani", 20, null, null, "KNOWN", null, null, "DEADLINE");
+    expect(result.results).toEqual([expect.objectContaining({ submissionCloseAt: "31.12.2027" })]);
+  });
+
+  it("rejects invalid sort values and cannot reuse a relevance cursor for date order", async () => {
+    const db = database([row(1), row(2)], []);
+    const first = await searchGrants(db, "strankovani", 1);
+    for (const invalid of ["", "UNKNOWN", "DEADLINE ", "deadline", "ASC"]) {
+      await expect(searchGrants(db, "strankovani", 1, null, null, null, null, null, invalid))
+        .rejects.toMatchObject({ code: "INVALID_SORT" });
+    }
+    await expect(searchGrants(db, "strankovani", 1, first.nextCursor, null, null, null, null, "DEADLINE"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+  });
+
   it("continues a pre-cutoff cursor when no cutoff is selected, but never under a cutoff", async () => {
     const db = database([row(1), row(2)], []);
     const first = await searchGrants(db, "strankovani", 1);

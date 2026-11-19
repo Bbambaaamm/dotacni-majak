@@ -37,6 +37,7 @@ export async function searchGrants(
   deadline?: "KNOWN" | "UNKNOWN",
   provider?: string,
   closesBy?: string,
+  sort?: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST",
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -44,6 +45,7 @@ export async function searchGrants(
   if (deadline) params.set("deadline", deadline);
   if (provider) params.set("provider", provider);
   if (closesBy) params.set("closesBy", closesBy);
+  if (sort && sort !== "RELEVANCE") params.set("sort", sort);
   const response = await fetch(`/api/search?${params.toString()}`, {
     method: "GET",
     headers: { accept: "application/json" },
