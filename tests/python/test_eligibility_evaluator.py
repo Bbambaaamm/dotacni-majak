@@ -155,6 +155,32 @@ class EligibilityTruthTableTest(unittest.TestCase):
         self.assertEqual(result.root_result, ConditionResult.FAIL)
         self.assertEqual(result.status, EligibilityStatus.NEEDS_REVIEW)
 
+    def test_not_or_uses_pass_condition_verification_for_failure(self):
+        def evaluate(verification):
+            root = RuleGroup(
+                "root", GroupOperator.NOT, (
+                    RuleGroup("choice", GroupOperator.OR, (
+                        condition(
+                            "first", APPLICANT_TYPE, ConditionOperator.EQ,
+                            "MUNICIPALITY", verification_status=verification,
+                        ),
+                        condition(
+                            "second", APPLICANT_TYPE, ConditionOperator.EQ,
+                            "REGION",
+                        ),
+                    )),
+                ),
+            )
+            return self.evaluator.evaluate(
+                complete_verified(root), {APPLICANT_TYPE.key: "MUNICIPALITY"}
+            )
+
+        unverified = evaluate(VerificationStatus.AUTO_EXTRACTED)
+        self.assertEqual(unverified.root_result, ConditionResult.FAIL)
+        self.assertEqual(unverified.status, EligibilityStatus.NEEDS_REVIEW)
+        verified = evaluate(VerificationStatus.VERIFIED)
+        self.assertEqual(verified.status, EligibilityStatus.INELIGIBLE)
+
     def test_missing_value_needs_information(self):
         root = RuleGroup(
             "root",
