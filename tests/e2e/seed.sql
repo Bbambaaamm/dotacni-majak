@@ -76,7 +76,7 @@ INSERT INTO source_records(
   first_seen_at,last_seen_at,presence_state,missing_run_count,content_hash
 ) VALUES
   ('e2e-sr-open','e2e-source-open','E2E-OPEN','https://example.invalid/e2e/open',
-   'GRANT_CALL','grant:e2e:open','2026-09-20T08:00:00Z','2026-09-26T20:00:00Z','SEEN',0,
+   'GRANT_CALL','grant:e2e:open','2026-09-20T08:00:00Z','2026-10-01T09:00:00Z','SEEN',0,
    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
   ('e2e-sr-planned','e2e-source-planned','E2E-PLANNED','https://example.invalid/e2e/planned',
    'GRANT_CALL','grant:e2e:planned','2026-09-20T08:00:00Z','2026-09-26T20:00:00Z','SEEN',0,

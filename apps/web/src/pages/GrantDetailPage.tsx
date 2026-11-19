@@ -272,10 +272,11 @@ export function GrantDetailPage() {
                 <dd>{formatDate(detail.capturedAt)}</dd>
               </div>
               <div>
-                <dt>Poslední kontrola zdroje</dt>
+                <dt>Poslední pozorování záznamu u zdroje</dt>
                 <dd>{lastSeenLabel(detail)}</dd>
               </div>
             </dl>
+            <p className="fine-print">Pozorování záznamu nepotvrzuje, že podmínky této verze byly znovu ověřeny. Před podáním zkontrolujte oficiální zdroj.</p>
           </section>
 
           <section className="detail-section" aria-labelledby="deadline-title">
@@ -426,7 +427,7 @@ export function GrantDetailPage() {
                     {source.sourceName} ↗
                   </a>
                   <br />
-                  <small>Kontrolováno {formatDate(source.lastSeenAt)}</small>
+                  <small>Pozorováno {formatDate(source.lastSeenAt)}</small>
                 </li>
               ))}
             </ul>

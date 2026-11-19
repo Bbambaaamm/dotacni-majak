@@ -580,15 +580,35 @@ test("detail does not present version capture as a source check when no source r
   const facts = page.locator(".detail-section .facts").first();
   await expect(facts.locator("div").filter({ has: page.locator("dt", { hasText: "Verze výzvy zachycena" }) }).first())
     .toContainText("26. září 2026");
-  await expect(facts.locator("div").filter({ has: page.locator("dt", { hasText: "Poslední kontrola zdroje" }) }).first())
+  await expect(facts.locator("div").filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first())
     .toContainText("Není doložena");
   await expect(page.getByText("Zdrojový odkaz zatím není v indexu dostupný")).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.getByRole("button", { name: "Vytvořit projekt" }).click();
+  await expect(page.getByRole("heading", { name: "Příprava žádosti · Dotáhne" })).toBeVisible();
+  const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {
+    projectId: string; ownerCapability: string;
+  });
+  const base = `/api/projects/${owner.projectId}/workspaces`;
+  const headers = { authorization: `Bearer ${owner.ownerCapability}` };
+  const list = await page.request.get(base, { headers });
+  expect(list.status()).toBe(200);
+  const [{ id }] = (await list.json()).workspaces as Array<{ id: string }>;
+  const workspace = await page.request.get(`${base}/${id}`, { headers });
+  expect(workspace.status()).toBe(200);
+  expect((await workspace.json()).versionReview).toMatchObject({
+    currentCapturedAt: "2026-09-26T20:00:00Z", sourceCheckedAt: null,
+  });
 
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
   await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
   const sourcedFacts = page.locator(".detail-section .facts").first();
-  await expect(sourcedFacts.locator("div").filter({ has: page.locator("dt", { hasText: "Poslední kontrola zdroje" }) }).first())
+  await expect(sourcedFacts.locator("div").filter({ has: page.locator("dt", { hasText: "Verze výzvy zachycena" }) }).first())
     .toContainText("26. září 2026");
+  await expect(sourcedFacts.locator("div").filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first())
+    .toContainText("1. října 2026");
+  await expect(page.getByText("Pozorování záznamu nepotvrzuje, že podmínky této verze byly znovu ověřeny.", { exact: false })).toBeVisible();
 });
 
 test("mobile result filters, deadline order and chips use the real API without implying eligibility", async ({ page }) => {
