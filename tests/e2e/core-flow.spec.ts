@@ -431,6 +431,37 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
 });
 
+test("detail API outage stays fail-closed and retry recovers from real D1", async ({ page }) => {
+  const path = "/dotace/grant%3Ae2e%3Aopen";
+  let unavailable = true;
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (unavailable) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "DETAIL_UNAVAILABLE" }) });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Oficiální zdroje" })).toHaveCount(0);
+  unavailable = false;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /E2E oficiální zdroj A/ })).toHaveAttribute("href", "https://example.invalid/e2e/open");
+  await expect(page.getByRole("button", { name: "Zkusit načíst detail znovu" })).toHaveCount(0);
+});
+
+test("missing detail is not presented as a transient outage", async ({ page }) => {
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", (route) => route.fulfill({
+    status: 404, contentType: "application/json", body: JSON.stringify({ error: "NOT_FOUND" }),
+  }));
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  await expect(page.getByRole("heading", { name: "Tuto dotační výzvu jsme v aktuálním indexu nenašli." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zkusit načíst detail znovu" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+});
+
 test("detail distinguishes a normalized deadline with evidence from a source-version fallback", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aplanned");
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });

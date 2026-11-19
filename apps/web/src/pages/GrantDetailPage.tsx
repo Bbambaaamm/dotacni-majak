@@ -129,15 +129,20 @@ export function GrantDetailPage() {
   const [error, setError] = useState<string | null>(
     grantCallId ? null : "Neplatná adresa dotační výzvy.",
   );
+  const [retry, setRetry] = useState(0);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!grantCallId) return;
     const controller = new AbortController();
     setLoading(true);
+    setDetail(null);
     setError(null);
+    setNotFound(false);
 
     fetchGrantDetail(grantCallId, controller.signal)
       .then((value) => {
+        if (controller.signal.aborted) return;
         setDetail(value);
         setLoading(false);
       })
@@ -151,6 +156,7 @@ export function GrantDetailPage() {
         )
           ? reason.status
           : 0;
+        setNotFound(status === 404);
         setError(
           status === 404
             ? "Tuto dotační výzvu jsme v aktuálním indexu nenašli."
@@ -160,7 +166,7 @@ export function GrantDetailPage() {
       });
 
     return () => controller.abort();
-  }, [grantCallId]);
+  }, [grantCallId, retry]);
 
   if (loading) {
     return (
@@ -186,6 +192,11 @@ export function GrantDetailPage() {
             <h1>{error ?? "Tuto výzvu teď neumíme zobrazit."}</h1>
             <p>Neznámý nebo nedostupný údaj nevydáváme za ověřenou skutečnost.</p>
           </div>
+          {!notFound && grantCallId ? (
+            <button className="button button--primary" type="button" onClick={() => setRetry((count) => count + 1)}>
+              Zkusit načíst detail znovu
+            </button>
+          ) : null}
           <a className="button button--secondary button-link" href="/hledat">
             Zpět na vyhledávání
           </a>
