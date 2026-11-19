@@ -21,7 +21,11 @@ export interface GrantSearchResponse {
   results: GrantSearchResult[];
   expandedTerms: string[];
   indexState: "READY" | "EMPTY";
+  nextCursor: string | null;
 }
+
+type Phase = "DIRECT" | "ONTOLOGY";
+interface SearchCursor { v: 1; intent: string; limit: number; phase: Phase; rank: number; id: string }
 
 interface SearchRow {
   grant_call_version_id: string;
@@ -37,10 +41,33 @@ interface SearchRow {
 
 export class SearchInputError extends Error {
   constructor(
-    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG",
+    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG" | "INVALID_LIMIT" | "INVALID_CURSOR",
     public readonly status: number,
   ) {
     super(code);
+  }
+}
+
+function encodeCursor(cursor: SearchCursor): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(cursor));
+  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function decodeCursor(raw: string | null, intent: string, limit: number): SearchCursor | null {
+  if (raw === null) return null;
+  try {
+    if (!raw || raw.length > 2048 || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error();
+    const bytes = Uint8Array.from(atob(raw.replaceAll("-", "+").replaceAll("_", "/")), (c) => c.charCodeAt(0));
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (!value || typeof value !== "object") throw new Error();
+    const c = value as SearchCursor;
+    if (c.v !== 1 || c.intent !== intent || c.limit !== limit ||
+      (c.phase !== "DIRECT" && c.phase !== "ONTOLOGY") ||
+      typeof c.rank !== "number" || !Number.isFinite(c.rank) ||
+      typeof c.id !== "string" || !c.id || c.id.length > 512 || encodeCursor(c) !== raw) throw new Error();
+    return c;
+  } catch {
+    throw new SearchInputError("INVALID_CURSOR", 400);
   }
 }
 
@@ -79,11 +106,12 @@ async function queryFts(
   db: D1DatabaseLike,
   query: string,
   limit: number,
+  after: SearchCursor | null,
+  excludeDirectQuery?: string,
 ): Promise<SearchRow[]> {
   if (!query) return [];
 
-  const sql = `
-    SELECT
+  const sql = `WITH ranked AS (SELECT
       d.grant_call_version_id,
       g.id AS grant_call_id,
       d.title,
@@ -106,13 +134,17 @@ async function queryFts(
       ON p.id = pr.provider_id
     WHERE grant_search_fts MATCH ?
       AND d.status IN (?, ?, ?)
-    ORDER BY rank ASC, d.grant_call_version_id ASC
+      ${excludeDirectQuery ? "AND d.grant_call_version_id NOT IN (SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?)" : ""}
+    ) SELECT * FROM ranked
+    ${after ? "WHERE rank > ? OR (rank = ? AND grant_call_version_id > ?)" : ""}
+    ORDER BY rank ASC, grant_call_version_id ASC
     LIMIT ?
   `;
 
   const result = await db
     .prepare(sql)
-    .bind(query, ...ACTIVE_STATUSES, limit)
+    .bind(query, ...ACTIVE_STATUSES, ...(excludeDirectQuery ? [excludeDirectQuery] : []),
+      ...(after ? [after.rank, after.rank, after.id] : []), limit)
     .all<SearchRow>();
 
   return result.results ?? [];
@@ -136,9 +168,11 @@ export async function searchGrants(
   db: D1DatabaseLike,
   rawIntent: string | null,
   limit = 20,
+  rawCursor: string | null = null,
 ): Promise<GrantSearchResponse> {
   const intent = normalizeSearchIntent(rawIntent);
-  const boundedLimit = Math.min(Math.max(limit, 1), 50);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new SearchInputError("INVALID_LIMIT", 400);
+  const cursor = decodeCursor(rawCursor, intent, limit);
 
   const countRow = await db
     .prepare("SELECT COUNT(*) AS count FROM grant_search_documents")
@@ -150,26 +184,36 @@ export async function searchGrants(
       results: [],
       expandedTerms: expandIntentTerms(intent),
       indexState,
+      nextCursor: null,
     };
   }
 
   const directQuery = buildDirectFtsQuery(intent);
-  const directRows = await queryFts(db, directQuery, boundedLimit);
-
-  const results = directRows.map((row) => toResult(row, "DIRECT"));
-  const seen = new Set(results.map((result) => result.grantCallVersionId));
+  const directRows = cursor?.phase === "ONTOLOGY" ? [] :
+    await queryFts(db, directQuery, limit + 1, cursor);
+  const selectedDirect = directRows.slice(0, limit);
+  const results = selectedDirect.map((row) => toResult(row, "DIRECT"));
+  let lastRow = selectedDirect.at(-1);
+  let lastPhase: Phase = "DIRECT";
+  let hasMore = directRows.length > limit;
 
   const expandedTerms = expandIntentTerms(intent);
-  if (results.length < boundedLimit && expandedTerms.length) {
+  if (!hasMore && expandedTerms.length) {
     const expandedQuery = buildExpandedFtsQuery(expandedTerms);
-    const expandedRows = await queryFts(db, expandedQuery, boundedLimit);
-    for (const row of expandedRows) {
-      if (seen.has(row.grant_call_version_id)) continue;
+    const remaining = limit - results.length;
+    const expandedRows = await queryFts(db, expandedQuery, remaining + 1,
+      cursor?.phase === "ONTOLOGY" ? cursor : null, directQuery || undefined);
+    for (const row of expandedRows.slice(0, remaining)) {
       results.push(toResult(row, "ONTOLOGY"));
-      seen.add(row.grant_call_version_id);
-      if (results.length >= boundedLimit) break;
+      lastRow = row;
+      lastPhase = "ONTOLOGY";
     }
+    hasMore = expandedRows.length > remaining;
+    // A full direct page followed by an ontology match resumes from its last direct row.
+    if (remaining === 0 && hasMore) lastPhase = "DIRECT";
   }
 
-  return { intent, results, expandedTerms, indexState };
+  return { intent, results, expandedTerms, indexState,
+    nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, phase: lastPhase,
+      rank: lastRow.rank, id: lastRow.grant_call_version_id }) : null };
 }

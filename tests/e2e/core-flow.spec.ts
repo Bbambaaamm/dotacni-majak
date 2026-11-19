@@ -2,6 +2,42 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("real D1 search loads more than 20 distinct results and retries a failed later page", async ({ page }) => {
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByText("Načteno 20 výsledků", { exact: false })).toBeVisible();
+  let failOnce = true;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    if (failOnce) {
+      failOnce = false;
+      await route.fulfill({ status: 503, contentType: "application/json",
+        body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
+  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  await expect(page.getByText("Načteno 25 výsledků", { exact: false })).toBeVisible();
+  expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
+});
+
+test("real D1 cursor crosses from direct to ontology without replaying direct matches", async ({ request }) => {
+  const firstResponse = await request.get("/api/search?intent=koupali%C5%A1t%C4%9B&limit=1");
+  expect(firstResponse.status()).toBe(200);
+  const first = await firstResponse.json() as { results: Array<{ grantCallVersionId: string; matchKind: string }>; nextCursor: string | null };
+  expect(first.results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-page-1", matchKind: "DIRECT" })]);
+  expect(first.nextCursor).toBeTruthy();
+  const secondResponse = await request.get(`/api/search?intent=koupali%C5%A1t%C4%9B&limit=1&cursor=${encodeURIComponent(first.nextCursor!)}`);
+  expect(secondResponse.status()).toBe(200);
+  const second = await secondResponse.json() as { results: Array<{ grantCallVersionId: string; matchKind: string }>; nextCursor: string | null };
+  expect(second.results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-page-2", matchKind: "ONTOLOGY" })]);
+  expect(second.nextCursor).toBeNull();
+});
+
 test("non-sport intent -> real API results -> filters -> detail -> provenance", async ({ page }) => {
   await page.goto("/");
 
@@ -10,7 +46,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
 
   await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce/);
   await expect(page.getByRole("heading", { name: "Nalezené možnosti" })).toBeVisible();
-  await expect(page.getByText("2 výsledků.")).toBeVisible();
+  await expect(page.locator(".section-heading").getByText("2 výsledků.")).toBeVisible();
 
   await expect(
     page.getByText(

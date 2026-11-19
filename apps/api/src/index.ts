@@ -97,11 +97,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/search") {
       try {
         const limitRaw = url.searchParams.get("limit");
-        const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 20;
+        const limit = limitRaw === null ? 20 : Number(limitRaw);
         const result = await searchGrants(
           env.DB,
           url.searchParams.get("intent"),
-          Number.isFinite(limit) ? limit : 20,
+          limit,
+          url.searchParams.get("cursor"),
         );
         return json(result, { status: 200 });
       } catch (error) {
