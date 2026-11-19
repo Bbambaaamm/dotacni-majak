@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
@@ -49,6 +49,21 @@ export function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
+  const filterPanel = useRef<HTMLDetailsElement | null>(null);
+  const mobileFiltersOpen = useRef(false);
+  const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
+    filterPanel.current = node;
+    if (node) node.open = window.matchMedia("(min-width: 801px)").matches || mobileFiltersOpen.current;
+  }, []);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 801px)");
+    const update = () => {
+      mobileFiltersOpen.current = false;
+      if (filterPanel.current) filterPanel.current.open = desktop.matches;
+    };
+    desktop.addEventListener("change", update);
+    return () => desktop.removeEventListener("change", update);
+  }, []);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [providerFilter, setProviderFilter] = useState("");
   const [providerDraft, setProviderDraft] = useState("");
@@ -302,7 +317,20 @@ export function SearchPage() {
             </a>
           </div>
 
-          <details className="filter-panel" open>
+          <details className="filter-panel" ref={attachFilterPanel}
+            onToggle={(event) => {
+              if (!window.matchMedia("(min-width: 801px)").matches) {
+                mobileFiltersOpen.current = event.currentTarget.open;
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !filterPanel.current?.open ||
+                  window.matchMedia("(min-width: 801px)").matches) return;
+              event.preventDefault();
+              mobileFiltersOpen.current = false;
+              filterPanel.current.open = false;
+              filterPanel.current.querySelector("summary")?.focus();
+            }}>
             <summary>Upravit filtry a řazení</summary>
             <div className="result-filters" aria-label="Filtrovat výsledky">
             {data.facets === null ? <p className="fine-print" role="status">Počty pro filtry nejsou dostupné, protože hledání má příliš mnoho shod. Filtry můžete dál používat.</p> : null}
