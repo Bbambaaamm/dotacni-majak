@@ -163,6 +163,12 @@ describe("applicant profile types", () => {
     ).toBe(false);
   });
 
+  it("accepts canonical optional field-source metadata when omitted", () => {
+    const source = { sourceKind: "USER", observedAt: NOW, verificationStatus: "USER_DECLARED" };
+    expect(isFieldSource(source)).toBe(true);
+    expect(isApplicantProfile(minimalProfile({ fieldSources: { applicantType: source } }))).toBe(true);
+  });
+
   it("rejects a field source with an unknown verificationStatus", () => {
     expect(
       isFieldSource({
@@ -229,7 +235,8 @@ describe("applicant profile creation helpers", () => {
     expect(profile.fieldSources.ico?.sourceKind).toBe("ARES");
     expect(profile.fieldSources.ico?.sourceReference).toBe(ARES_SOURCE);
     expect(profile.fieldSources.ico?.observedAt).toBe(NOW);
-    expect(profile.fieldSources.ico?.verificationStatus).toBe("VERIFIED");
+    expect(profile.fieldSources.ico?.verificationStatus).toBe("AUTO_EXTRACTED");
+    expect(profile.fieldSources.ico?.verifiedAt).toBeNull();
   });
 
   it("createMinimalIndividualProfile contains no personal identifying attributes", () => {
@@ -402,17 +409,17 @@ describe("LocalApplicantProfileStore", () => {
     expect(restored?.id).toBe("wrapped");
   });
 
-  it("get returns null and clears storage for corrupted JSON", () => {
+  it("get returns null without deleting corrupted JSON", () => {
     const storage = new MemoryStorage();
     storage.setItem(APPLICANT_PROFILE_STORAGE_KEY, "not-valid-json{{{");
     const store = new LocalApplicantProfileStore(storage);
 
     expect(store.get()).toBeNull();
     expect(store.has()).toBe(false);
-    expect(storage.getItem(APPLICANT_PROFILE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(APPLICANT_PROFILE_STORAGE_KEY)).toBe("not-valid-json{{{");
   });
 
-  it("get returns null and clears storage for a profile that fails validation", () => {
+  it("get returns null without deleting a profile that fails validation", () => {
     const storage = new MemoryStorage();
     storage.setItem(
       APPLICANT_PROFILE_STORAGE_KEY,
@@ -444,7 +451,7 @@ describe("LocalApplicantProfileStore", () => {
 
     expect(store.get()).toBeNull();
     expect(store.has()).toBe(false);
-    expect(storage.getItem(APPLICANT_PROFILE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(APPLICANT_PROFILE_STORAGE_KEY)).not.toBeNull();
   });
 
   it("save throws InvalidProfileError for an invalid IČO", () => {
@@ -492,7 +499,7 @@ describe("LocalApplicantProfileStore", () => {
     expect(retrieved.fieldSources.ico?.sourceKind).toBe("ARES");
     expect(retrieved.fieldSources.ico?.sourceReference).toBe(ARES_SOURCE);
     expect(retrieved.fieldSources.ico?.observedAt).toBe(NOW);
-    expect(retrieved.fieldSources.ico?.verificationStatus).toBe("VERIFIED");
+    expect(retrieved.fieldSources.ico?.verificationStatus).toBe("AUTO_EXTRACTED");
   });
 
   it("deduplicates czNaceCodes on save", () => {
@@ -524,5 +531,52 @@ describe("LocalApplicantProfileStore", () => {
 
   it("store exposes a stable schema version constant", () => {
     expect(APPLICANT_PROFILE_SCHEMA_VERSION).toBe("1.0.0");
+  });
+
+  it("rejects malformed nullable fields and unknown personal properties", () => {
+    for (const bad of [
+      { organisationName: 42 },
+      { municipalityPopulation: "3200" },
+      { vatStatus: "INVALID" },
+      { municipalityPopulationAsOf: "2026-02-31" },
+      { createdAt: "2026-02-31T12:00:00Z" },
+      { fieldSources: { ico: { ...makeAresFields(), observedAt: "2026-02-31T12:00:00Z" } } },
+      { personalIdentifier: "must-not-persist" },
+      { fieldSources: { ico: { ...makeAresFields(), personalIdentifier: "private" } } },
+    ]) {
+      const candidate = minimalProfile(bad);
+      expect(isApplicantProfile(candidate)).toBe(false);
+      const store = new LocalApplicantProfileStore(new MemoryStorage());
+      expect(() => store.save(candidate)).toThrow();
+      expect(store.import(JSON.stringify(candidate))).toBeNull();
+      expect(store.has()).toBe(false);
+    }
+  });
+
+  it("does not manufacture population provenance for an absent value", () => {
+    const profile = createMinimalIndividualProfile({
+      id: "unknown-population", sourceReference: "user", observedAt: NOW,
+    });
+    expect(profile.municipalityPopulation).toBeNull();
+    expect(profile.fieldSources.municipalityPopulation).toBeUndefined();
+  });
+
+  it("preserves unknown-version data for recovery rather than deleting it", () => {
+    const storage = new MemoryStorage();
+    const raw = JSON.stringify(minimalProfile({ schemaVersion: "2.0.0" }));
+    storage.setItem(APPLICANT_PROFILE_STORAGE_KEY, raw);
+    const store = new LocalApplicantProfileStore(storage);
+    expect(store.get()).toBeNull();
+    expect(storage.getItem(APPLICANT_PROFILE_STORAGE_KEY)).toBe(raw);
+  });
+
+  it("propagates a failed write on valid import", () => {
+    const storage: ProfileStorage = {
+      getItem: () => null,
+      removeItem: () => {},
+      setItem: () => { throw new Error("storage unavailable"); },
+    };
+    const store = new LocalApplicantProfileStore(storage);
+    expect(() => store.import(JSON.stringify(minimalProfile()))).toThrow("storage unavailable");
   });
 });

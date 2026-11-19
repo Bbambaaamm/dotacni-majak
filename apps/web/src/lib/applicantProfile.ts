@@ -78,7 +78,7 @@ export class ExportImportError extends ApplicantProfileError {
 // ---------------------------------------------------------------------------
 
 const ICO_RE = /^[0-9]{8}$/;
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+const ISO_DATETIME_RE = /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const APPLICANT_TYPE_VALUES: ReadonlySet<ApplicantProfileType> = new Set([
@@ -150,37 +150,37 @@ function isNonEmptyString(value: unknown): value is string {
 /** Helper to read a nullable string field from a parsed JSON object.
  *  Returns null when the field is absent, null, or not a string.
  */
-function readNullableString(
-  obj: Record<string, unknown>,
-  key: string,
-): string | null {
-  const v = obj[key];
-  if (v === null || v === undefined) return null;
-  if (typeof v !== "string") return null; // invalid shape
-  return v;
+const PROFILE_KEYS = new Set([
+  "schemaVersion", "id", "applicantType", "applicantTypeId", "ico",
+  "organisationName", "legalFormCode", "municipalityCode", "municipalityName",
+  "regionCode", "seatGeographyId", "municipalityPopulation",
+  "municipalityPopulationAsOf", "vatStatus", "organisationSize",
+  "publicPrivateStatus", "nonprofitStatus", "czNaceCodes", "fieldSources",
+  "createdAt", "updatedAt",
+]);
+const FIELD_SOURCE_KEYS = new Set([
+  "sourceKind", "sourceReference", "observedAt", "verifiedAt",
+  "verificationStatus", "evidenceId",
+]);
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
-/** Helper to read a nullable integer field. */
-function readNullableInteger(
-  obj: Record<string, unknown>,
-  key: string,
-): number | null {
-  const v = obj[key];
-  if (v === null || v === undefined) return null;
-  if (typeof v !== "number" || !Number.isInteger(v)) return null;
-  return v;
+function isNullableEnum(value: unknown, allowed: ReadonlySet<string>): boolean {
+  return value === null || (typeof value === "string" && allowed.has(value));
 }
 
-/** Helper to read a nullable enum field. */
-function readNullableEnum<T extends string>(
-  obj: Record<string, unknown>,
-  key: string,
-  allowed: ReadonlySet<T>,
-): T | null {
-  const v = obj[key];
-  if (v === null || v === undefined) return null;
-  if (typeof v !== "string" || !allowed.has(v as T)) return null;
-  return v as T;
+function isIsoDate(value: unknown): boolean {
+  if (typeof value !== "string" || !ISO_DATE_RE.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function isIsoDateTime(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const match = ISO_DATETIME_RE.exec(value);
+  return Boolean(match && isIsoDate(match[1]) && !Number.isNaN(Date.parse(value)));
 }
 
 interface RawProfile {
@@ -211,143 +211,37 @@ interface RawProfile {
 export function isApplicantProfile(value: unknown): value is ApplicantProfile {
   if (!value || typeof value !== "object") return false;
   const p = value as RawProfile;
-
-  // schemaVersion must match the store's expected version exactly.
+  // Local profiles are complete even where the canonical schema allows optional fields.
+  if (Object.keys(p).length !== PROFILE_KEYS.size
+    || Object.keys(p).some((key) => !PROFILE_KEYS.has(key))) return false;
   if (p.schemaVersion !== APPLICANT_PROFILE_SCHEMA_VERSION) return false;
-  if (!isNonEmptyString(p.id as unknown)) return false;
-  if (
-    typeof p.applicantType !== "string" ||
-    !APPLICANT_TYPE_VALUES.has(p.applicantType as ApplicantProfileType)
-  )
-    return false;
-
-  if (
-    p.applicantTypeId !== undefined &&
-    p.applicantTypeId !== null &&
-    !isNonEmptyString(p.applicantTypeId as unknown)
-  )
-    return false;
-
-  if (p.ico === null) {
-    // ok
-  } else if (typeof p.ico === "string" && ICO_RE.test(p.ico)) {
-    // ok
-  } else {
-    return false;
+  if (!isNonEmptyString(p.id)) return false;
+  if (typeof p.applicantType !== "string"
+    || !APPLICANT_TYPE_VALUES.has(p.applicantType as ApplicantProfileType)) return false;
+  if (!isNullableString(p.applicantTypeId)
+    || (p.applicantTypeId !== null && !p.applicantTypeId)) return false;
+  if (p.ico !== null && (typeof p.ico !== "string" || !ICO_RE.test(p.ico))) return false;
+  for (const key of ["organisationName", "legalFormCode", "municipalityCode",
+    "municipalityName", "regionCode", "seatGeographyId"] as const) {
+    if (!isNullableString(p[key])) return false;
   }
-
-  {
-    const orgName = readNullableString(p, "organisationName");
-    if (orgName === null) {
-      // ok — field is absent from raw; treat as null
-    } else if (!orgName) {
-      return false;
-    }
-  }
-  {
-    const legalForm = readNullableString(p, "legalFormCode");
-    if (legalForm === null) {
-      // ok
-    } else if (!legalForm) {
-      return false;
-    }
-  }
-  {
-    const muniCode = readNullableString(p, "municipalityCode");
-    if (muniCode === null) {
-      // ok
-    } else if (!muniCode) {
-      return false;
-    }
-  }
-  {
-    const muniName = readNullableString(p, "municipalityName");
-    if (muniName === null) {
-      // ok
-    } else if (!muniName) {
-      return false;
-    }
-  }
-  {
-    const regionCode = readNullableString(p, "regionCode");
-    if (regionCode === null) {
-      // ok
-    } else if (!regionCode) {
-      return false;
-    }
-  }
-  {
-    const seatGeo = readNullableString(p, "seatGeographyId");
-    if (seatGeo === null) {
-      // ok
-    } else if (!seatGeo) {
-      return false;
-    }
-  }
-
-  {
-    const pop = readNullableInteger(p, "municipalityPopulation");
-    if (pop === null) {
-      // ok
-    } else if (pop < 0) {
-      return false;
-    }
-  }
-  {
-    const popAsOf = readNullableString(p, "municipalityPopulationAsOf");
-    if (popAsOf === null) {
-      // ok
-    } else if (!ISO_DATE_RE.test(popAsOf)) {
-      return false;
-    }
-  }
-
-  {
-    const vat = readNullableEnum(p, "vatStatus", VAT_STATUS_VALUES);
-    if (vat === null) {
-      // ok
-    }
-  }
-  {
-    const size = readNullableEnum(p, "organisationSize", ORGANISATION_SIZE_VALUES);
-    if (size === null) {
-      // ok
-    }
-  }
-  {
-    const pp = readNullableEnum(
-      p,
-      "publicPrivateStatus",
-      PUBLIC_PRIVATE_VALUES,
-    );
-    if (pp === null) {
-      // ok
-    }
-  }
-  {
-    const np = readNullableEnum(p, "nonprofitStatus", NONPROFIT_VALUES);
-    if (np === null) {
-      // ok
-    }
-  }
-
-  // czNaceCodes must be an array of unique non-empty strings.
-  {
-    const codes = p.czNaceCodes;
-    if (!Array.isArray(codes)) return false;
-    const seen = new Set<string>();
-    for (const code of codes) {
-      if (!isNonEmptyString(code)) return false;
-      if (seen.has(code)) return false;
-      seen.add(code);
-    }
-  }
-
+  if (p.seatGeographyId === "") return false;
+  if (p.municipalityPopulation !== null
+    && (typeof p.municipalityPopulation !== "number"
+      || !Number.isSafeInteger(p.municipalityPopulation)
+      || p.municipalityPopulation < 0)) return false;
+  if (p.municipalityPopulationAsOf !== null
+    && !isIsoDate(p.municipalityPopulationAsOf)) return false;
+  if (!isNullableEnum(p.vatStatus, VAT_STATUS_VALUES)
+    || !isNullableEnum(p.organisationSize, ORGANISATION_SIZE_VALUES)
+    || !isNullableEnum(p.publicPrivateStatus, PUBLIC_PRIVATE_VALUES)
+    || !isNullableEnum(p.nonprofitStatus, NONPROFIT_VALUES)) return false;
+  if (!Array.isArray(p.czNaceCodes)) return false;
+  const codes = p.czNaceCodes as unknown[];
+  if (codes.some((code) => !isNonEmptyString(code))
+    || new Set(codes).size !== codes.length) return false;
   if (!isFieldSourcesObject(p.fieldSources)) return false;
-
-  if (!ISO_DATETIME_RE.test(p.createdAt as string)) return false;
-  if (!ISO_DATETIME_RE.test(p.updatedAt as string)) return false;
-
+  if (!isIsoDateTime(p.createdAt) || !isIsoDateTime(p.updatedAt)) return false;
   return true;
 }
 
@@ -357,7 +251,7 @@ function isFieldSourcesObject(
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const map = value as Record<string, unknown>;
   for (const key of Object.keys(map)) {
-    if (!/^^[A-Za-z][A-Za-z0-9]*$/.test(key)) return false;
+    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) return false;
     if (!isFieldSource(map[key])) return false;
   }
   return true;
@@ -366,29 +260,16 @@ function isFieldSourcesObject(
 export function isFieldSource(value: unknown): value is FieldSource {
   if (!value || typeof value !== "object") return false;
   const s = value as Record<string, unknown>;
-
+  if (Object.keys(s).some((key) => !FIELD_SOURCE_KEYS.has(key))) return false;
   if (!SOURCE_KIND_VALUES.has(s.sourceKind as string)) return false;
-  if (
-    s.sourceReference !== null &&
-    !isNonEmptyString(s.sourceReference)
-  )
-    return false;
-  if (!ISO_DATETIME_RE.test(s.observedAt as string)) return false;
-  if (
-    s.verifiedAt !== null &&
-    !ISO_DATETIME_RE.test(s.verifiedAt as string)
-  )
-    return false;
-  if (
-    !VERIFICATION_STATUS_VALUES.has(s.verificationStatus as string)
-  )
-    return false;
-  if (
-    s.evidenceId !== null &&
-    !isNonEmptyString(s.evidenceId)
-  )
-    return false;
-
+  if (s.sourceReference !== undefined && s.sourceReference !== null
+    && !isNonEmptyString(s.sourceReference)) return false;
+  if (!isIsoDateTime(s.observedAt)) return false;
+  if (s.verifiedAt !== undefined && s.verifiedAt !== null
+    && !isIsoDateTime(s.verifiedAt)) return false;
+  if (!VERIFICATION_STATUS_VALUES.has(s.verificationStatus as string)) return false;
+  if (s.evidenceId !== undefined && s.evidenceId !== null
+    && !isNonEmptyString(s.evidenceId)) return false;
   return true;
 }
 
@@ -400,8 +281,7 @@ export function isFieldSource(value: unknown): value is FieldSource {
  *
  *  The caller is responsible for the provenance semantics of each field.
  *  This helper does NOT validate the profile shape; validation happens at
- *  `save()` time. Prefer `createApplicantProfileForSave()` when constructing
- *  a profile that will be persisted.
+ *  `save()` time.
  */
 export function createApplicantProfile(input: {
   id: string;
@@ -476,8 +356,8 @@ export function createApplicantProfileFromAresResolution(input: {
       sourceKind: "ARES",
       sourceReference: input.sourceReference,
       observedAt: input.observedAt,
-      verifiedAt: input.observedAt,
-      verificationStatus: "VERIFIED",
+      verifiedAt: null,
+      verificationStatus: "AUTO_EXTRACTED",
       evidenceId: null,
     },
   };
@@ -537,7 +417,7 @@ export function createMinimalIndividualProfile(input: {
         evidenceId: null,
       };
     }
-    if (input.municipalityPopulation !== null) {
+    if (input.municipalityPopulation !== null && input.municipalityPopulation !== undefined) {
       fieldSources.municipalityPopulation = {
         sourceKind: "USER",
         sourceReference: input.sourceReference,
@@ -584,8 +464,8 @@ export function createMinimalIndividualProfile(input: {
  *
  *  Design principles:
  *  - UNKNOWN != FAIL: a missing profile returns `null`, never throws.
- *  - Corrupt/unknown-version data is treated as absent (cleared) rather than
- *    trusted.
+ *  - Corrupt/unknown-version data is not trusted or silently deleted. The
+ *    user can still recover the raw browser storage before an explicit save.
  *  - No sensitive personal attributes are auto-filled or inferred; the profile
  *    only contains what was resolved from official sources (ARES/CZSO) or
  *    explicitly declared by the user.
@@ -600,10 +480,8 @@ export class LocalApplicantProfileStore {
     private readonly key = APPLICANT_PROFILE_STORAGE_KEY,
   ) {}
 
-  /** Returns the stored profile, or `null` when no profile is present,
-   *  the stored data is corrupted, or the embedded schemaVersion is unknown.
-   *  Corrupt/unknown-version data is cleared so a subsequent save restitches
-   *  cleanly.
+  /** Returns the stored profile, or `null` when no valid profile is present.
+   * Invalid data remains in storage for recovery; storage failures propagate.
    */
   get(): ApplicantProfile | null {
     const raw = this.storage.getItem(this.key);
@@ -613,12 +491,10 @@ export class LocalApplicantProfileStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      this.storage.removeItem(this.key);
       return null;
     }
 
     if (!isApplicantProfile(parsed)) {
-      this.storage.removeItem(this.key);
       return null;
     }
 
@@ -635,9 +511,19 @@ export class LocalApplicantProfileStore {
    *  shape is checked.
    */
   save(profile: ApplicantProfile): ApplicantProfile {
-    // Normalize deterministic fields first — e.g. deduplicate czNaceCodes —
-    // before running the shape check, so normalized output is what gets
-    // validated.
+    if (!profile || typeof profile !== "object") {
+      throw new InvalidProfileError("Expected a profile object.");
+    }
+    if (profile.schemaVersion !== APPLICANT_PROFILE_SCHEMA_VERSION) {
+      throw new SchemaVersionMismatchError(
+        APPLICANT_PROFILE_SCHEMA_VERSION,
+        String(profile.schemaVersion),
+      );
+    }
+    if (!Array.isArray(profile.czNaceCodes)
+      || profile.czNaceCodes.some((code) => !isNonEmptyString(code))) {
+      throw new InvalidProfileError("Invalid NACE codes.");
+    }
     const normalized = this.normalizeForPersistence(profile);
 
     // Schema version gate: do not trust a profile whose embedded version
@@ -692,24 +578,9 @@ export class LocalApplicantProfileStore {
     this.storage.removeItem(this.key);
   }
 
-  /** Returns `true` when a valid profile is present, `false` otherwise.
-   *  Equivalent to `this.get() !== null` but avoids the extra allocation.
-   */
+  /** Returns `true` when a valid profile is present, `false` otherwise. */
   has(): boolean {
-    const raw = this.storage.getItem(this.key);
-    if (raw === null) return false;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      this.storage.removeItem(this.key);
-      return false;
-    }
-    if (!isApplicantProfile(parsed)) {
-      this.storage.removeItem(this.key);
-      return false;
-    }
-    return true;
+    return this.get() !== null;
   }
 
   /** Serialize the current profile to a JSON string suitable for download or
@@ -759,15 +630,7 @@ export class LocalApplicantProfileStore {
       return null;
     }
 
-    try {
-      return this.save(candidate as ApplicantProfile);
-    } catch {
-      // If the incoming profile's schemaVersion mismatches, import must not
-      // throw a SchemaVersionMismatchError to the caller — the caller is
-      // likely restoring their own previously-exported data. Treat it as a
-      // no-op and return null so the caller can surface the mismatch.
-      return null;
-    }
+    return this.save(candidate);
   }
 
   // -------------------------------------------------------------------

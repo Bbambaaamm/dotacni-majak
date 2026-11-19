@@ -7,6 +7,7 @@ import { ExportSummaryPage } from "./pages/ExportSummaryPage";
 import { GrantDetailPage } from "./pages/GrantDetailPage";
 import { HomePage } from "./pages/HomePage";
 import { ProjectsPage } from "./pages/ProjectsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { SearchPage } from "./pages/SearchPage";
 import { SharedProjectPage } from "./pages/SharedProjectPage";
 import { SuggestSourcePage } from "./pages/SuggestSourcePage";
@@ -64,6 +65,9 @@ export function App() {
       break;
     case "projects":
       content = <ProjectsPage />;
+      break;
+    case "profile":
+      content = <ProfilePage />;
       break;
     case "shared-project":
       content = <SharedProjectPage />;

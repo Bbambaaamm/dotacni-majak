@@ -9,6 +9,7 @@ describe("route foundation", () => {
 
   it("resolves known route", () => {
     expect(resolveRoute("/hledat").id).toBe("search");
+    expect(resolveRoute("/profil").id).toBe("profile");
   });
 
   it("resolves dynamic grant detail route and decodes canonical id", () => {

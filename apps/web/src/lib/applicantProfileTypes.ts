@@ -40,11 +40,11 @@ export interface FieldSource {
   /** One of USER, ARES, CZSO, OTHER_OFFICIAL, DERIVED. */
   sourceKind: "USER" | "ARES" | "CZSO" | "OTHER_OFFICIAL" | "DERIVED";
   /** Optional reference to the source (e.g. ARES IČO URL, CZSO dataset id). */
-  sourceReference: string | null;
+  sourceReference?: string | null;
   /** When this field value was observed from its source (ISO-8601). */
   observedAt: string;
   /** When the field was verified by a human or process (ISO-8601), or null. */
-  verifiedAt: string | null;
+  verifiedAt?: string | null;
   /** Verification posture of this field. */
   verificationStatus:
     | "USER_DECLARED"
@@ -53,7 +53,7 @@ export interface FieldSource {
     | "VERIFIED"
     | "NEEDS_REVIEW";
   /** Optional link to a stored evidence artifact (manual upload, snapshot). */
-  evidenceId: string | null;
+  evidenceId?: string | null;
 }
 
 /** A local-first applicant profile.
