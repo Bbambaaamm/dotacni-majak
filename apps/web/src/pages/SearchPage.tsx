@@ -55,6 +55,8 @@ export function SearchPage() {
   const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
   const [closesBy, setClosesBy] = useState("");
   const [closesByDraft, setClosesByDraft] = useState("");
+  const [closesFrom, setClosesFrom] = useState("");
+  const [closesFromDraft, setClosesFromDraft] = useState("");
   const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">("RELEVANCE");
 
   const loadedResults = data?.results ?? [];
@@ -88,6 +90,8 @@ export function SearchPage() {
     if (next === "UNKNOWN") {
       setClosesBy("");
       setClosesByDraft("");
+      setClosesFrom("");
+      setClosesFromDraft("");
     }
     setDeadlineFilter(next);
   }
@@ -97,6 +101,14 @@ export function SearchPage() {
     setData(null);
     setLoading(true);
     setClosesBy(next);
+    if (next && deadlineFilter === "UNKNOWN") setDeadlineFilter("ALL");
+  }
+  function changeClosesFrom(next: string) {
+    if (next === closesFrom) return;
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setClosesFrom(next);
     if (next && deadlineFilter === "UNKNOWN") setDeadlineFilter("ALL");
   }
   function changeProvider(next: string) {
@@ -116,6 +128,7 @@ export function SearchPage() {
     providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => changeDeadline("ALL") } : null,
     closesBy ? { key: "closesBy", label: `Uzávěrka nejpozději: ${closesBy}`, clear: () => { setClosesByDraft(""); changeClosesBy(""); } } : null,
+    closesFrom ? { key: "closesFrom", label: `Uzávěrka nejdříve: ${closesFrom}`, clear: () => { setClosesFromDraft(""); changeClosesFrom(""); } } : null,
   ].filter((item): item is { key: string; label: string; clear: () => void } => item !== null);
 
   useEffect(() => {
@@ -130,7 +143,7 @@ export function SearchPage() {
     setMoreError(null);
 
     searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter,
-      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder)
+      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined)
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
@@ -143,7 +156,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, sortOrder]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -155,7 +168,7 @@ export function SearchPage() {
     try {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
-        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder);
+        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -257,7 +270,7 @@ export function SearchPage() {
       {!loading &&
       !error &&
       data?.indexState === "READY" &&
-      data.results.length === 0 && statusFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter && !closesBy ? (
+      data.results.length === 0 && statusFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter && !closesBy && !closesFrom ? (
         <ResultStatePanel
           state={{
             ...resultStateContent("NO_RESULTS"),
@@ -266,7 +279,7 @@ export function SearchPage() {
         />
       ) : null}
 
-      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy)) ? (
+      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy) || Boolean(closesFrom)) ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
@@ -276,8 +289,8 @@ export function SearchPage() {
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
                 Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
-                Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
-                Filtr data zahrnuje zvolený kalendářní den (UTC); neznámý termín v něm není zahrnut. Nezaručuje, že výzva stále přijímá žádosti.
+                Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
+                Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
                 Nápověda názvů poskytovatelů je jen z načtené sady; můžete zadat i jiný přesný název.
                 Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
@@ -330,8 +343,16 @@ export function SearchPage() {
             <form onSubmit={(event) => { event.preventDefault(); changeClosesBy(closesByDraft); }}>
               <label htmlFor="closes-by-filter">Uzávěrka nejpozději (včetně dne, UTC)</label>
               <input id="closes-by-filter" type="date" value={closesByDraft}
+                min={closesFrom || undefined}
                 onChange={(event) => setClosesByDraft(event.target.value)} />
               <button type="submit">Použít datum uzávěrky</button>
+            </form>
+            <form onSubmit={(event) => { event.preventDefault(); changeClosesFrom(closesFromDraft); }}>
+              <label htmlFor="closes-from-filter">Uzávěrka nejdříve (včetně dne, UTC)</label>
+              <input id="closes-from-filter" type="date" value={closesFromDraft}
+                max={closesBy || undefined}
+                onChange={(event) => setClosesFromDraft(event.target.value)} />
+              <button type="submit">Použít datum od</button>
             </form>
             <label>
               Řazení všech odpovídajících výsledků
@@ -354,12 +375,17 @@ export function SearchPage() {
                 </button>
               ))}
               <button type="button" className="filter-reset" onClick={() => {
+                moreController.current?.abort();
+                setData(null);
+                setLoading(true);
                 setStatusFilter("ALL");
                 setProviderFilter("");
                 setProviderDraft("");
                 setDeadlineFilter("ALL");
                 setClosesBy("");
                 setClosesByDraft("");
+                setClosesFrom("");
+                setClosesFromDraft("");
               }}>Zrušit všechny filtry</button>
             </div>
           ) : null}

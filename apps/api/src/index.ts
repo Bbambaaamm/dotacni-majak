@@ -108,6 +108,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         if (url.searchParams.getAll("deadline").length > 1) throw new SearchInputError("INVALID_DEADLINE", 400);
         if (url.searchParams.getAll("provider").length > 1) throw new SearchInputError("INVALID_PROVIDER", 400);
         if (url.searchParams.getAll("closesBy").length > 1) throw new SearchInputError("INVALID_CLOSES_BY", 400);
+        if (url.searchParams.getAll("closesFrom").length > 1) throw new SearchInputError("INVALID_CLOSES_FROM", 400);
         if (url.searchParams.getAll("sort").length > 1) throw new SearchInputError("INVALID_SORT", 400);
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw === null ? 20 : Number(limitRaw);
@@ -121,6 +122,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           url.searchParams.get("provider"),
           url.searchParams.get("closesBy"),
           url.searchParams.get("sort"),
+          url.searchParams.get("closesFrom"),
         );
         return json(result, { status: 200 });
       } catch (error) {

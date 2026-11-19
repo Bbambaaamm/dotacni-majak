@@ -27,14 +27,19 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           const provider = sql.includes("AND p.name = ?") ? values[4 + Number(Boolean(selectedStatus))] : null;
           const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
             sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
+          const dateIndex = 4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider));
+          const closesFrom = sql.includes("AND date(d.submission_close_at) >= ?") ? String(values[dateIndex]) : null;
           const closesBy = sql.includes("AND date(d.submission_close_at) <= ?") ?
-            String(values[4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider))]) : null;
+            String(values[dateIndex + Number(Boolean(closesFrom))]) : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
             .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
               (!selectedStatus || r.status === selectedStatus) &&
               (!provider || r.provider_name === provider) &&
               (!deadline || (r.submission_close_at === null) === (deadline === "UNKNOWN")) &&
-              (!closesBy || (r.submission_close_at !== null && r.submission_close_at.slice(0, 10) <= closesBy)))
+              (!(closesFrom || closesBy) || (r.submission_close_at !== null &&
+                Number.isFinite(Date.parse(r.submission_close_at)) &&
+                (!closesFrom || new Date(r.submission_close_at).toISOString().slice(0, 10) >= closesFrom) &&
+                (!closesBy || new Date(r.submission_close_at).toISOString().slice(0, 10) <= closesBy))))
             .slice().sort((a, b) => a.rank - b.rank || a.grant_call_version_id.localeCompare(b.grant_call_version_id));
           const after = sql.includes("WHERE rank > ?") ? values.slice(-4, -1) : null;
           const filtered = after ? candidates.filter((r) => r.rank > Number(after[0]) ||
@@ -178,6 +183,77 @@ describe("search cursor", () => {
     }
   });
 
+  it("filters an inclusive start across direct and ontology pages and binds both bounds", async () => {
+    const direct = Array.from({ length: 23 }, (_, i) => ({ ...row(i + 1, i),
+      submission_close_at: i === 21 ? "2027-05-01T00:00:00Z" : "2027-04-30T23:59:59Z" }));
+    const expanded = [{ ...row(100), submission_close_at: "2027-05-31T23:59:59Z" },
+      { ...row(101), submission_close_at: "2027-06-01T00:00:00Z" },
+      { ...row(102), submission_close_at: "31.05.2027" }, row(103)];
+    const db = database(direct, expanded);
+    const first = await searchGrants(db, "koupaliště", 1, null, null, null, null, "2027-05-31", null, "2027-05-01");
+    expect(first.results.map((r) => r.grantCallVersionId)).toEqual(["v-022"]);
+    const second = await searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null, "2027-05-31", null, "2027-05-01");
+    expect(second.results).toEqual([expect.objectContaining({ grantCallVersionId: "v-100", matchKind: "ONTOLOGY" })]);
+    expect(second.nextCursor).toBeNull();
+    for (const from of [null, "2027-05-02"]) {
+      await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null, "2027-05-31", null, from))
+        .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    }
+    await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null, "2027-06-01", null, "2027-05-01"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+  });
+
+  it("rejects invalid starts and reversed ranges before touching D1", async () => {
+    const db = database([], []);
+    db.prepare = () => { throw new Error("D1 was touched"); };
+    for (const value of ["", "2027-02-29", "2027-5-01", "2027-05-01T00:00:00Z"]) {
+      await expect(searchGrants(db, "test", 20, null, null, null, null, null, null, value))
+        .rejects.toMatchObject({ code: "INVALID_CLOSES_FROM", status: 400 });
+    }
+    await expect(searchGrants(db, "test", 20, null, null, null, null, "2027-04-30", null, "2027-05-01"))
+      .rejects.toMatchObject({ code: "INVALID_DEADLINE_RANGE", status: 400 });
+  });
+
+  it("applies both bounds in both date-sorted FTS phases before cursor paging", async () => {
+    for (const sort of ["DEADLINE", "DEADLINE_LATEST"] as const) {
+      let calls = 0;
+      const db: D1DatabaseLike = {
+        prepare(sql) {
+          let values: unknown[] = [];
+          const statement: D1PreparedStatementLike = {
+            bind(...args) { values = args; return statement; },
+            async first<T>() { return { count: 1 } as T; },
+            async all<T>() {
+              expect(sql).toContain("WITH matches AS");
+              expect(sql.match(/AND date\(d\.submission_close_at\) >= \?/g)).toHaveLength(2);
+              expect(sql.match(/AND date\(d\.submission_close_at\) <= \?/g)).toHaveLength(2);
+              expect(values.filter((v) => v === "2027-05-01")).toHaveLength(2);
+              expect(values.filter((v) => v === "2027-05-31")).toHaveLength(2);
+              expect(sql.indexOf("WITH matches AS")).toBeLessThan(sql.indexOf("ORDER BY (close_sort IS NULL)"));
+              calls++;
+              const rows = [
+                { ...row(1), submission_close_at: "2027-05-01T00:00:00Z", close_sort: 2461526.5, match_phase: 0 },
+                { ...row(2), submission_close_at: "2027-05-31T23:59:59Z", close_sort: 2461557.5, match_phase: 1 },
+              ];
+              return { success: true, results: (calls === 1 ? rows : rows.slice(1)) as T[] };
+            },
+            async run<T>() { return { success: true, results: [] as T[] }; },
+          };
+          return statement;
+        },
+        async batch() { return []; },
+      };
+      const first = await searchGrants(db, "koupaliště", 1, null, null, null, null,
+        "2027-05-31", sort, "2027-05-01");
+      expect(first.nextCursor).toBeTruthy();
+      const second = await searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null,
+        "2027-05-31", sort, "2027-05-01");
+      expect(second.results).toHaveLength(1);
+      await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null,
+        "2027-05-31", sort, "2027-05-02")).rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    }
+  });
+
   it("preserves a non-NULL but unparseable source deadline when sorting", async () => {
     const invalid = { ...row(1), submission_close_at: "31.12.2027", close_sort: null, match_phase: 0 };
     const db: D1DatabaseLike = {
@@ -215,10 +291,13 @@ describe("search cursor", () => {
     const first = await searchGrants(db, "strankovani", 1);
     const legacy = JSON.parse(atob(first.nextCursor!)) as Record<string, unknown>;
     delete legacy.closesBy;
+    delete legacy.closesFrom;
     const oldCursor = btoa(JSON.stringify(legacy)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
     expect((await searchGrants(db, "strankovani", 1, oldCursor)).results.map((r) => r.grantCallVersionId))
       .toEqual(["v-002"]);
     await expect(searchGrants(db, "strankovani", 1, oldCursor, null, null, null, "2027-03-31"))
+      .rejects.toMatchObject({ code: "INVALID_CURSOR" });
+    await expect(searchGrants(db, "strankovani", 1, oldCursor, null, null, null, null, null, "2027-03-01"))
       .rejects.toMatchObject({ code: "INVALID_CURSOR" });
   });
 

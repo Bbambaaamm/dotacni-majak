@@ -32,7 +32,7 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
@@ -135,6 +135,117 @@ test("inclusive cutoff filters real D1 beyond first page without declaring missi
   const boundary = await request.get("/api/search?intent=digitalizace%20obce&closesBy=2027-10-31");
   expect(boundary.status()).toBe(200);
   expect((await boundary.json()).results).toEqual([expect.objectContaining({ grantCallVersionId: "gcv-e2e-planned" })]);
+});
+
+test("inclusive start and end find a later-page D1 result on mobile and reset stale pages", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByLabel("Uzávěrka nejdříve (včetně dne, UTC)").fill("2027-05-01");
+  await page.getByRole("button", { name: "Použít datum od" }).click();
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)").fill("2027-05-01");
+  await page.getByRole("button", { name: "Použít datum uzávěrky" }).click();
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejdříve: 2027-05-01" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE_LATEST");
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await page.getByLabel("Termín podání").selectOption("UNKNOWN");
+  await expect(page.getByLabel("Uzávěrka nejdříve (včetně dne, UTC)")).toHaveValue("");
+  await expect(page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)")).toHaveValue("");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
+    const first = await request.get(`/api/search?intent=digitalizace%20obce&limit=1&closesFrom=2027-10-31&closesBy=2027-12-31&sort=${sort}`);
+    expect(first.status()).toBe(200);
+    const body = await first.json() as { results: Array<{ grantCallVersionId: string }>; nextCursor: string | null };
+    expect(body.nextCursor).toBeTruthy();
+    const second = await request.get(`/api/search?intent=digitalizace%20obce&limit=1&closesFrom=2027-10-31&closesBy=2027-12-31&sort=${sort}&cursor=${encodeURIComponent(body.nextCursor!)}`);
+    expect(second.status()).toBe(200);
+    const next = await second.json() as typeof body;
+    expect(new Set([...body.results, ...next.results].map((item) => item.grantCallVersionId))).toEqual(new Set(["gcv-e2e-open", "gcv-e2e-planned"]));
+    const changed = await request.get(`/api/search?intent=digitalizace%20obce&limit=1&closesFrom=2027-11-01&closesBy=2027-12-31&sort=${sort}&cursor=${encodeURIComponent(body.nextCursor!)}`);
+    expect(changed.status()).toBe(400);
+    expect(await changed.json()).toEqual({ error: "INVALID_CURSOR" });
+  }
+  for (const [query, code] of [
+    ["closesFrom=", "INVALID_CLOSES_FROM"],
+    ["closesFrom=2027-02-29", "INVALID_CLOSES_FROM"],
+    ["closesFrom=2027-05-01&closesFrom=2027-06-01", "INVALID_CLOSES_FROM"],
+    ["closesFrom=2027-12-31&closesBy=2027-10-31", "INVALID_DEADLINE_RANGE"],
+  ]) {
+    const response = await request.get(`/api/search?intent=strankovani&${query}`);
+    expect(response.status()).toBe(400);
+    expect(await response.json()).toEqual({ error: code });
+  }
+});
+
+test("bounded API search includes date-only source values and excludes invalid source dates", async ({ request }) => {
+  for (const bounds of ["closesFrom=2027-02-01", "closesBy=2027-05-31",
+    "closesFrom=2027-05-01&closesBy=2027-05-01"]) {
+    for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
+      const response = await request.get(`/api/search?intent=date-boundary&${bounds}&sort=${sort}`);
+      expect(response.status()).toBe(200);
+      const body = await response.json() as { results: Array<{ grantCallVersionId: string; submissionCloseAt: string | null }> };
+      expect(body.results).toEqual([expect.objectContaining({
+        grantCallVersionId: "gcv-e2e-date-only", submissionCloseAt: "2027-05-01",
+      })]);
+    }
+  }
+});
+
+test("UTC date bounds keep sub-millisecond deadlines on their actual source day", async ({ request }) => {
+  for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
+    for (const [bounds, expected] of [
+      ["closesBy=2027-05-01", "gcv-e2e-precision-before"],
+      ["closesFrom=2027-05-02", "gcv-e2e-precision-after"],
+      ["closesFrom=2027-05-01&closesBy=2027-05-01", "gcv-e2e-precision-before"],
+    ]) {
+      const response = await request.get(`/api/search?intent=precision-boundary&${bounds}&sort=${sort}`);
+      expect(response.status()).toBe(200);
+      const body = await response.json() as { results: Array<{ grantCallVersionId: string }> };
+      expect(body.results.map((row) => row.grantCallVersionId)).toEqual([expected]);
+    }
+  }
+});
+
+test("date form constraints use applied bounds while the other form has an unsent draft", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/search?")) requests.push(request.url());
+  });
+
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  const by = page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)");
+  const from = page.getByLabel("Uzávěrka nejdříve (včetně dne, UTC)");
+  await by.fill("2027-05-01");
+  await page.getByRole("button", { name: "Použít datum uzávěrky" }).click();
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejpozději: 2027-05-01" })).toBeVisible();
+  await by.fill("2027-06-01");
+  await from.fill("2027-05-15");
+  await expect(from).toHaveAttribute("max", "2027-05-01");
+  expect(await from.evaluate((input: HTMLInputElement) => input.validity.rangeOverflow)).toBe(true);
+  await page.getByRole("button", { name: "Použít datum od" }).click();
+  await page.waitForTimeout(100);
+  expect(requests.some((url) => url.includes("closesBy=2027-05-01") && url.includes("closesFrom=2027-05-15"))).toBe(false);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejpozději: 2027-05-01" })).toBeVisible();
+
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await from.fill("2027-05-15");
+  await page.getByRole("button", { name: "Použít datum od" }).click();
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejdříve: 2027-05-15" })).toBeVisible();
+  await from.fill("2027-04-01");
+  await by.fill("2027-05-01");
+  await expect(by).toHaveAttribute("min", "2027-05-15");
+  expect(await by.evaluate((input: HTMLInputElement) => input.validity.rangeUnderflow)).toBe(true);
+  await page.getByRole("button", { name: "Použít datum uzávěrky" }).click();
+  await page.waitForTimeout(100);
+  expect(requests.some((url) => url.includes("closesFrom=2027-05-15") && url.includes("closesBy=2027-05-01"))).toBe(false);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Uzávěrka nejdříve: 2027-05-15" })).toBeVisible();
 });
 
 test("global date ordering moves a later-page deadline first and paginates missing dates safely", async ({ page, request }) => {
@@ -298,7 +409,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
