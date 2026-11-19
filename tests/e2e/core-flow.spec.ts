@@ -2,6 +2,37 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("mobile instrument selector filters real API and D1 before pagination", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+  const summary = page.locator(".filter-panel summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Typ financování", { exact: true })).toBeVisible();
+  const selector = page.getByLabel("Typ financování", { exact: true });
+  await expect(selector.locator("option")).toHaveCount(7);
+  await selector.selectOption("LOAN");
+  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Zrušit filtr Typ financování: LOAN" })).toBeVisible();
+  await selector.focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".filter-panel")).not.toHaveAttribute("open");
+  await expect(summary).toBeFocused();
+  const api = await request.get("/api/search?intent=digitalizace%20obce&instrument=LOAN");
+  expect(api.status()).toBe(200);
+  expect((await api.json()).results.map((r: { grantCallVersionId: string }) => r.grantCallVersionId))
+    .toEqual(["gcv-e2e-planned"]);
+  for (const query of ["instrument=", "instrument=ALL", "instrument=LOAN&instrument=GRANT"]) {
+    const invalid = await request.get(`/api/search?intent=digitalizace%20obce&${query}`);
+    expect(invalid.status()).toBe(400);
+    expect(await invalid.json()).toEqual({ error: "INVALID_INSTRUMENT" });
+  }
+  await page.getByRole("button", { name: "Zrušit filtr Typ financování: LOAN" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+});
+
 test("unavailable facets show no counts, allow manual filters, and preserve first-page facets on load-more", async ({ page }) => {
   const result = (id: string) => ({ grantCallVersionId: id, grantCallId: id,
     title: `Facet test ${id}`, summary: "", status: "OPEN", submissionCloseAt: null,
@@ -64,7 +95,7 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
@@ -702,7 +733,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč/)).toBeVisible();
+  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])

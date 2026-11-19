@@ -111,6 +111,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         if (url.searchParams.getAll("closesBy").length > 1) throw new SearchInputError("INVALID_CLOSES_BY", 400);
         if (url.searchParams.getAll("closesFrom").length > 1) throw new SearchInputError("INVALID_CLOSES_FROM", 400);
         if (url.searchParams.getAll("sort").length > 1) throw new SearchInputError("INVALID_SORT", 400);
+        if (url.searchParams.getAll("instrument").length > 1) throw new SearchInputError("INVALID_INSTRUMENT", 400);
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw === null ? 20 : Number(limitRaw);
         const result = await searchGrants(
@@ -124,6 +125,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           url.searchParams.get("closesBy"),
           url.searchParams.get("sort"),
           url.searchParams.get("closesFrom"),
+          url.searchParams.get("instrument"),
         );
         return json(result, { status: 200 });
       } catch (error) {

@@ -13,6 +13,8 @@ import {
 import "./results.css";
 
 const STATUS_OPTIONS = ["OPEN", "PLANNED", "ANNOUNCED"] as const;
+const INSTRUMENT_OPTIONS = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"] as const;
+type InstrumentFilter = "ALL" | typeof INSTRUMENT_OPTIONS[number];
 type StatusFilter = "ALL" | typeof STATUS_OPTIONS[number];
 
 function statusLabel(status: string): string {
@@ -66,6 +68,7 @@ export function SearchPage() {
     return () => desktop.removeEventListener("change", update);
   }, []);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>("ALL");
   const [providerFilter, setProviderFilter] = useState("");
   const [providerDraft, setProviderDraft] = useState("");
   const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
@@ -93,6 +96,13 @@ export function SearchPage() {
     setProviderDraft("");
     setSortOrder("RELEVANCE");
     setStatusFilter(next);
+  }
+  function changeInstrument(next: InstrumentFilter) {
+    if (next === instrumentFilter) return;
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setInstrumentFilter(next);
   }
   function changeDeadline(next: "ALL" | "KNOWN" | "UNKNOWN") {
     moreController.current?.abort();
@@ -138,6 +148,7 @@ export function SearchPage() {
     changeProvider("");
   }
   const activeFilters = [
+    instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${instrumentFilter}`, clear: () => changeInstrument("ALL") } : null,
     statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
     providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => changeDeadline("ALL") } : null,
@@ -157,7 +168,8 @@ export function SearchPage() {
     setMoreError(null);
 
     searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter,
-      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined)
+      deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
+      instrumentFilter === "ALL" ? undefined : instrumentFilter)
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
@@ -170,7 +182,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder, retryKey]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder, instrumentFilter, retryKey]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -182,7 +194,8 @@ export function SearchPage() {
     try {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
-        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined);
+        deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
+        instrumentFilter === "ALL" ? undefined : instrumentFilter);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -287,7 +300,7 @@ export function SearchPage() {
       {!loading &&
       !error &&
       data?.indexState === "READY" &&
-      data.results.length === 0 && statusFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter && !closesBy && !closesFrom ? (
+      data.results.length === 0 && statusFilter === "ALL" && instrumentFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter && !closesBy && !closesFrom ? (
         <ResultStatePanel
           state={{
             ...resultStateContent("NO_RESULTS"),
@@ -296,7 +309,7 @@ export function SearchPage() {
         />
       ) : null}
 
-      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy) || Boolean(closesFrom)) ? (
+      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || instrumentFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy) || Boolean(closesFrom)) ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
@@ -306,7 +319,7 @@ export function SearchPage() {
                   ? `${data.results.length} výsledků.`
                   : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
                 Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
-                Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději a přesný název poskytovatele se filtrují napříč všemi odpovídajícími aktivními výzvami.
+                Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč všemi odpovídajícími aktivními výzvami.
                 Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
                 Když jsou počty dostupné, nápověda poskytovatelů zahrnuje shody i mimo načtenou stránku. Můžete zadat i jiný přesný název.
                 Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
@@ -341,6 +354,14 @@ export function SearchPage() {
             <summary>Upravit filtry a řazení</summary>
             <div className="result-filters" aria-label="Filtrovat výsledky">
             {data.facets === null ? <p className="fine-print" role="status">Počty pro filtry nejsou dostupné, protože hledání má příliš mnoho shod. Filtry můžete dál používat.</p> : null}
+            <label>
+              Typ financování
+              <select aria-label="Typ financování" value={instrumentFilter}
+                onChange={(event) => changeInstrument(event.target.value as InstrumentFilter)}>
+                <option value="ALL">Všechny typy</option>
+                {INSTRUMENT_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
+            </label>
             <label>
               Stav výzvy
               <select
@@ -417,6 +438,7 @@ export function SearchPage() {
                 setData(null);
                 setLoading(true);
                 setStatusFilter("ALL");
+                setInstrumentFilter("ALL");
                 setProviderFilter("");
                 setProviderDraft("");
                 setDeadlineFilter("ALL");

@@ -3,6 +3,8 @@ import { expandIntentTerms } from "./ontology";
 
 const TOKEN_RE = /[\p{L}\p{N}]+/gu;
 const ACTIVE_STATUSES = ["OPEN", "PLANNED", "ANNOUNCED"] as const;
+const INSTRUMENT_TYPES = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"] as const;
+type InstrumentType = typeof INSTRUMENT_TYPES[number];
 
 export interface GrantSearchResult {
   grantCallVersionId: string;
@@ -37,8 +39,8 @@ export const FACET_MATCH_LIMIT = 500;
 
 type Phase = "DIRECT" | "ONTOLOGY";
 type SearchSort = "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST";
-interface SearchCursor { v: 1; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; phase: Phase; rank: number; id: string }
-interface DateCursor { v: 2; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; sort: Exclude<SearchSort, "RELEVANCE">; closeAt: number | null; phase: Phase; rank: number; id: string }
+interface SearchCursor { v: 1; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; instrument?: InstrumentType | null; phase: Phase; rank: number; id: string }
+interface DateCursor { v: 2; intent: string; limit: number; status: SearchStatus | null; deadline: SearchDeadline | null; provider: string | null; closesBy: string | null; closesFrom?: string | null; instrument?: InstrumentType | null; sort: Exclude<SearchSort, "RELEVANCE">; closeAt: number | null; phase: Phase; rank: number; id: string }
 type SearchStatus = typeof ACTIVE_STATUSES[number];
 type SearchDeadline = "KNOWN" | "UNKNOWN";
 
@@ -56,7 +58,7 @@ interface SearchRow {
 
 export class SearchInputError extends Error {
   constructor(
-    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG" | "INVALID_LIMIT" | "INVALID_CURSOR" | "INVALID_STATUS" | "INVALID_DEADLINE" | "INVALID_PROVIDER" | "INVALID_CLOSES_BY" | "INVALID_CLOSES_FROM" | "INVALID_DEADLINE_RANGE" | "INVALID_SORT",
+    public readonly code: "INTENT_REQUIRED" | "INTENT_TOO_LONG" | "INVALID_LIMIT" | "INVALID_CURSOR" | "INVALID_STATUS" | "INVALID_DEADLINE" | "INVALID_PROVIDER" | "INVALID_CLOSES_BY" | "INVALID_CLOSES_FROM" | "INVALID_DEADLINE_RANGE" | "INVALID_SORT" | "INVALID_INSTRUMENT",
     public readonly status: number,
   ) {
     super(code);
@@ -68,7 +70,7 @@ function encodeCursor(cursor: SearchCursor | DateCursor): string {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-function decodeCursor(raw: string | null, intent: string, limit: number, status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null, closesBy: string | null, closesFrom: string | null, sort: SearchSort): SearchCursor | DateCursor | null {
+function decodeCursor(raw: string | null, intent: string, limit: number, status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null, closesBy: string | null, closesFrom: string | null, sort: SearchSort, instrument: InstrumentType | null): SearchCursor | DateCursor | null {
   if (raw === null) return null;
   try {
     if (!raw || raw.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error();
@@ -76,7 +78,7 @@ function decodeCursor(raw: string | null, intent: string, limit: number, status:
     const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object") throw new Error();
     const c = value as SearchCursor | DateCursor;
-    if (c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || (c.closesBy ?? null) !== closesBy || (c.closesFrom ?? null) !== closesFrom ||
+    if (c.intent !== intent || c.limit !== limit || c.status !== status || c.deadline !== deadline || c.provider !== provider || (c.closesBy ?? null) !== closesBy || (c.closesFrom ?? null) !== closesFrom || (c.instrument ?? null) !== instrument ||
       (c.phase !== "DIRECT" && c.phase !== "ONTOLOGY") ||
       typeof c.rank !== "number" || !Number.isFinite(c.rank) ||
       typeof c.id !== "string" || !c.id || c.id.length > 512 || encodeCursor(c) !== raw) throw new Error();
@@ -117,6 +119,12 @@ function parseProvider(value: string | null): string | null {
     throw new SearchInputError("INVALID_PROVIDER", 400);
   }
   return value;
+}
+
+function parseInstrument(value: string | null): InstrumentType | null {
+  if (value === null) return null;
+  if (INSTRUMENT_TYPES.some((type) => type === value)) return value as InstrumentType;
+  throw new SearchInputError("INVALID_INSTRUMENT", 400);
 }
 
 function parseDate(value: string | null, code: "INVALID_CLOSES_BY" | "INVALID_CLOSES_FROM"): string | null {
@@ -179,6 +187,7 @@ async function queryFts(
   provider: string | null,
   closesFrom: string | null,
   closesBy: string | null,
+  instrument: InstrumentType | null,
   excludeDirectQuery?: string,
 ): Promise<SearchRow[]> {
   if (!query) return [];
@@ -208,6 +217,7 @@ async function queryFts(
       AND d.status IN (?, ?, ?)
       ${status ? "AND d.status = ?" : ""}
       ${provider ? "AND p.name = ?" : ""}
+      ${instrument ? "AND v.funding_instrument_type = ?" : ""}
       ${deadline ? `AND d.submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
       ${dateFilters(closesFrom, closesBy)}
       ${excludeDirectQuery ? "AND d.grant_call_version_id NOT IN (SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?)" : ""}
@@ -219,7 +229,7 @@ async function queryFts(
 
   const result = await db
     .prepare(sql)
-    .bind(query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []), ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []), ...(excludeDirectQuery ? [excludeDirectQuery] : []),
+    .bind(query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []), ...(instrument ? [instrument] : []), ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []), ...(excludeDirectQuery ? [excludeDirectQuery] : []),
       ...(after ? [after.rank, after.rank, after.id] : []), limit)
     .all<SearchRow>();
 
@@ -230,11 +240,13 @@ async function queryDateSorted(
   db: D1DatabaseLike, directQuery: string, expandedQuery: string, limit: number,
   after: DateCursor | null, status: SearchStatus | null, deadline: SearchDeadline | null,
   provider: string | null, closesFrom: string | null, closesBy: string | null, sort: DateCursor["sort"],
+  instrument: InstrumentType | null,
 ): Promise<(SearchRow & { match_phase: number; close_sort: number | null })[]> {
   if (!directQuery && !expandedQuery) return [];
   const filters = `AND d.status IN (?, ?, ?)
     ${status ? "AND d.status = ?" : ""}
     ${provider ? "AND p.name = ?" : ""}
+    ${instrument ? "AND v.funding_instrument_type = ?" : ""}
     ${deadline ? `AND d.submission_close_at IS ${deadline === "KNOWN" ? "NOT " : ""}NULL` : ""}
     ${dateFilters(closesFrom, closesBy)}`;
   const select = (phase: number, exclude: boolean) => `SELECT
@@ -252,7 +264,7 @@ async function queryDateSorted(
     WHERE grant_search_fts MATCH ? ${filters}
     ${exclude ? "AND d.grant_call_version_id NOT IN (SELECT grant_call_version_id FROM grant_search_fts WHERE grant_search_fts MATCH ?)" : ""}`;
   const binding = (query: string, exclude: boolean): unknown[] => [
-    query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []),
+    query, ...ACTIVE_STATUSES, ...(status ? [status] : []), ...(provider ? [provider] : []), ...(instrument ? [instrument] : []),
     ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []), ...(exclude ? [directQuery] : []),
   ];
   const clauses = [directQuery && select(0, false),
@@ -298,7 +310,7 @@ function toResult(row: SearchRow, matchKind: "DIRECT" | "ONTOLOGY"): GrantSearch
 // over budget after removing overlap, makes all counts unavailable.
 async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
   status: SearchStatus | null, deadline: SearchDeadline | null, provider: string | null,
-  closesFrom: string | null, closesBy: string | null): Promise<SearchFacets | null> {
+  closesFrom: string | null, closesBy: string | null, instrument: InstrumentType | null): Promise<SearchFacets | null> {
   const facets: SearchFacets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
     deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };
   if (!direct && !expanded) return facets;
@@ -323,9 +335,9 @@ async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
     JOIN grant_calls g ON g.id = v.grant_call_id
     JOIN programmes pr ON pr.id = g.programme_id
     JOIN providers p ON p.id = pr.provider_id
-    WHERE d.status IN (?, ?, ?) ${dateFilters(closesFrom, closesBy)}
+    WHERE d.status IN (?, ?, ?) ${instrument ? "AND v.funding_instrument_type = ?" : ""} ${dateFilters(closesFrom, closesBy)}
   )`;
-  const bindings = [JSON.stringify([...ids]), ...ACTIVE_STATUSES,
+  const bindings = [JSON.stringify([...ids]), ...ACTIVE_STATUSES, ...(instrument ? [instrument] : []),
     ...(closesFrom ? [closesFrom] : []), ...(closesBy ? [closesBy] : []) ];
   const aggregate = `${shared} SELECT 'status' AS kind, status AS value, COUNT(*) AS count FROM eligible
       WHERE 1=1 ${provider ? "AND provider_name = ?" : ""}
@@ -363,6 +375,7 @@ export async function searchGrants(
   rawClosesBy: string | null = null,
   rawSort: string | null = null,
   rawClosesFrom: string | null = null,
+  rawInstrument: string | null = null,
 ): Promise<GrantSearchResponse> {
   const intent = normalizeSearchIntent(rawIntent);
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new SearchInputError("INVALID_LIMIT", 400);
@@ -373,7 +386,8 @@ export async function searchGrants(
   const closesFrom = parseDate(rawClosesFrom, "INVALID_CLOSES_FROM");
   if (closesFrom && closesBy && closesFrom > closesBy) throw new SearchInputError("INVALID_DEADLINE_RANGE", 400);
   const sort = parseSort(rawSort);
-  const cursor = decodeCursor(rawCursor, intent, limit, status, deadline, provider, closesBy, closesFrom, sort);
+  const instrument = parseInstrument(rawInstrument);
+  const cursor = decodeCursor(rawCursor, intent, limit, status, deadline, provider, closesBy, closesFrom, sort, instrument);
 
   const countRow = await db
     .prepare("SELECT COUNT(*) AS count FROM grant_search_documents")
@@ -395,24 +409,24 @@ export async function searchGrants(
   const directQuery = buildDirectFtsQuery(intent);
   const expandedQuery = buildExpandedFtsQuery(expandedTerms);
   const facets = cursor ? null : await queryFacets(db, directQuery, expandedQuery,
-    status, deadline, provider, closesFrom, closesBy);
+    status, deadline, provider, closesFrom, closesBy, instrument);
   if (sort !== "RELEVANCE") {
     const rows = await queryDateSorted(db, directQuery, expandedQuery, limit + 1,
-      cursor as DateCursor | null, status, deadline, provider, closesFrom, closesBy, sort);
+      cursor as DateCursor | null, status, deadline, provider, closesFrom, closesBy, sort, instrument);
     const selected = rows.slice(0, limit);
     const last = selected.at(-1);
     return { intent, results: selected.map((row) => toResult(row,
       row.match_phase === 0 ? "DIRECT" : "ONTOLOGY")),
       expandedTerms, indexState, facets,
       nextCursor: rows.length > limit && last ? encodeCursor({ v: 2, intent, limit, status, deadline,
-        provider, closesBy, closesFrom, sort, closeAt: last.close_sort,
+        provider, closesBy, closesFrom, instrument, sort, closeAt: last.close_sort,
         phase: last.match_phase === 0 ? "DIRECT" : "ONTOLOGY", rank: last.rank,
         id: last.grant_call_version_id }) : null };
   }
 
   const relevanceCursor = cursor as SearchCursor | null;
   const directRows = relevanceCursor?.phase === "ONTOLOGY" ? [] :
-    await queryFts(db, directQuery, limit + 1, relevanceCursor, status, deadline, provider, closesFrom, closesBy);
+    await queryFts(db, directQuery, limit + 1, relevanceCursor, status, deadline, provider, closesFrom, closesBy, instrument);
   const selectedDirect = directRows.slice(0, limit);
   const results = selectedDirect.map((row) => toResult(row, "DIRECT"));
   let lastRow = selectedDirect.at(-1);
@@ -422,7 +436,7 @@ export async function searchGrants(
   if (!hasMore && expandedTerms.length) {
     const remaining = limit - results.length;
     const expandedRows = await queryFts(db, expandedQuery, remaining + 1,
-      relevanceCursor?.phase === "ONTOLOGY" ? relevanceCursor : null, status, deadline, provider, closesFrom, closesBy, directQuery || undefined);
+      relevanceCursor?.phase === "ONTOLOGY" ? relevanceCursor : null, status, deadline, provider, closesFrom, closesBy, instrument, directQuery || undefined);
     for (const row of expandedRows.slice(0, remaining)) {
       results.push(toResult(row, "ONTOLOGY"));
       lastRow = row;
@@ -434,6 +448,6 @@ export async function searchGrants(
   }
 
   return { intent, results, expandedTerms, indexState, facets,
-    nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, status, deadline, provider, closesBy, closesFrom, phase: lastPhase,
+    nextCursor: hasMore && lastRow ? encodeCursor({ v: 1, intent, limit, status, deadline, provider, closesBy, closesFrom, instrument, phase: lastPhase,
       rank: lastRow.rank, id: lastRow.grant_call_version_id }) : null };
 }
