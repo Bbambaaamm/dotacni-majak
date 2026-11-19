@@ -207,6 +207,36 @@ class TrustedLocalPublishTest(unittest.TestCase):
             connection.close()
 
 
+    def test_new_capture_time_without_normalization_change_does_not_reproject(self):
+        first = publish_grants_to_local_d1(
+            [self.grant()], raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=self.at,
+        )
+        later = self.at + timedelta(hours=1)
+        self.store.put(
+            source_code="TEST", source_url=self.snapshot.source_url,
+            content=b'{"title":"Trusted local refresh"}',
+            mime_type="application/json", retrieved_at=later,
+        )
+        second = publish_grants_to_local_d1(
+            [replace(self.grant(), captured_at=later.isoformat())],
+            raw_dir=self.raw_dir, persist_root=self.persist,
+            adapter_version="test-adapter-1.0", now=later,
+        )
+        self.assertEqual(first.search_events_delivered, 1)
+        self.assertEqual(second.search_events_delivered, 0)
+        with sqlite3.connect(self.database) as connection:
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM outbox_events").fetchone()[0], 2
+            )
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM source_runs").fetchone()[0], 2
+            )
+            self.assertEqual(
+                connection.execute("SELECT last_seen_at FROM source_documents").fetchone()[0],
+                later.isoformat(),
+            )
+
     def test_reactivating_historical_raw_repoints_current_and_search(self):
         first = self.grant()
         first_summary = publish_grants_to_local_d1(

@@ -208,13 +208,6 @@ class TrustedGrantIngestor:
             "keywords": grant.keywords,
             "evidence": evidence,
         }
-        payload_json = json.dumps(
-            payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        )
         previous_payload = self.connection.execute(
             """SELECT c.payload_json
                FROM canonical_staging_items c
@@ -228,9 +221,15 @@ class TrustedGrantIngestor:
                 grant.content_hash,
             ),
         ).fetchone()
+        previous_normalized = (
+            json.loads(str(previous_payload[0])) if previous_payload is not None else None
+        )
+        if isinstance(previous_normalized, dict):
+            previous_normalized.pop("captured_at", None)
         force_reproject = (
             previous_payload is not None
-            and str(previous_payload[0]) != payload_json
+            and previous_normalized
+            != {key: value for key, value in payload.items() if key != "captured_at"}
         )
 
         candidate = self.staging.stage(
