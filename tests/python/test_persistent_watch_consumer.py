@@ -66,16 +66,29 @@ class PersistentWatchConsumerTest(unittest.TestCase):
 
     def test_each_activation_enqueues_fresh_reevaluation(self):
         self.seed_call()
-        self.db.execute("""INSERT INTO projects(id,natural_language_intent,currency_code,created_at,updated_at)
-            VALUES ('project','tenis rekonstrukce kurty','CZK','now','now')""")
+        self.db.execute("""INSERT INTO projects
+            (id,natural_language_intent,currency_code,owner_user_id,created_at,updated_at)
+            VALUES ('project','tenis rekonstrukce kurty','CZK','anonymous:project','now','now')""")
         self.db.execute("""INSERT INTO watches
             (id,watch_type,project_id,minimum_match_band,created_at,updated_at)
             VALUES ('watch','PROJECT','project','POSSIBLE','now','now')""")
         payload = {'grantCallId': 'call', 'grantCallVersionId': 'v2', 'sourceCode': 'SOURCE'}
         self.consumer._published(payload, activation_id='activation-1')
+        self.db.commit()
+        self.assertEqual(self.consumer.drain(), ['DELIVERED'])
+        self.assertEqual(self.db.execute(
+            "SELECT status FROM watch_matches WHERE watch_id='watch'"
+        ).fetchone()[0], 'NOT_RELEVANT')
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM notifications").fetchone()[0], 0)
         self.db.execute("""UPDATE grant_search_documents SET title='tenis rekonstrukce kurty'
             WHERE grant_call_version_id='v2'""")
         self.consumer._published(payload, activation_id='activation-2')
+        self.db.commit()
+        self.assertEqual(self.consumer.drain(), ['DELIVERED', 'DELIVERED'])
+        self.assertEqual(self.db.execute(
+            "SELECT COUNT(*) FROM watch_matches WHERE status='NEEDS_INFORMATION'"
+        ).fetchone()[0], 1)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM notifications").fetchone()[0], 1)
         keys = [row[0] for row in self.db.execute("""SELECT dedupe_key FROM outbox_events
             WHERE event_type='WATCH_REEVALUATION_REQUIRED' ORDER BY dedupe_key""")]
         self.assertEqual(keys, [
