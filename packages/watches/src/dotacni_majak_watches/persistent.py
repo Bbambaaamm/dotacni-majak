@@ -9,10 +9,11 @@ import json
 import hashlib
 import re
 import sqlite3
+from uuid import uuid4
 from datetime import datetime, timezone
 
 from dotacni_majak_ingestion.outbox import OutboxEventType
-from dotacni_majak_ingestion.sqlite_outbox import SqliteOutboxRepository
+from dotacni_majak_ingestion.sqlite_outbox import OutboxLeaseError, SqliteOutboxRepository
 from dotacni_majak_notifications import NotificationComposer
 from dotacni_majak_search import (
     HybridRanker, HybridSignals, MatchBand, RankedGrantMatch, build_fts_query,
@@ -25,6 +26,7 @@ class PersistentProjectWatchConsumer:
         self.db = connection
         self.db.execute("PRAGMA foreign_keys = ON")
         self.outbox = SqliteOutboxRepository(connection)
+        self.worker_id = f"project-watch-{uuid4().hex}"
 
     def drain(self) -> list[str]:
         """Process only watch-related outbox events; other consumers retain theirs."""
@@ -43,29 +45,40 @@ class PersistentProjectWatchConsumer:
             ).fetchone()
             if row is None:
                 return statuses
-            event = self.outbox.claim_by_dedupe_key(row[0], worker_id="project-watch")
+            event = self.outbox.claim_by_dedupe_key(row[0], worker_id=self.worker_id)
             if event is None:
                 return statuses
             try:
                 self.db.execute("BEGIN IMMEDIATE")
                 if event.event_type is OutboxEventType.CHANGE_DETECTION_REQUIRED:
-                    self._published(event.payload)
+                    self._published(event.payload, activation_id=event.id)
                 elif event.event_type is OutboxEventType.WATCH_REEVALUATION_REQUIRED:
                     self._reevaluate(event.payload)
                 else:
                     self._notify(event.payload)
-                self.outbox.mark_delivered(event.id, worker_id="project-watch", commit=False)
+                self.outbox.mark_delivered(event.id, worker_id=self.worker_id, commit=False)
                 self.db.commit()
                 statuses.append("DELIVERED")
             except Exception as exc:
                 self.db.rollback()
-                self.outbox.mark_failed(event.id, worker_id="project-watch", error=exc)
+                try:
+                    self.outbox.mark_failed(event.id, worker_id=self.worker_id, error=exc)
+                except OutboxLeaseError:
+                    # Another instance reclaimed an expired lease: never mutate
+                    # its state or acknowledge its work under the stale owner.
+                    statuses.append("LEASE_LOST")
+                    return statuses
                 statuses.append("FAILED")
                 return statuses  # no retry loop on the same broken event
 
-    def _published(self, payload: dict) -> None:
+    def _published(self, payload: dict, *, activation_id: str) -> None:
         call_id = payload["grantCallId"]
         version_id = payload["grantCallVersionId"]
+        current = self.db.execute(
+            "SELECT current_version_id FROM grant_calls WHERE id=?", (call_id,)
+        ).fetchone()
+        if current is not None and current[0] != version_id:
+            return  # obsolete activation: retry cannot make it current again
         row = self.db.execute(
             """SELECT v.status, s.authority FROM grant_call_versions v
                JOIN grant_calls g ON g.current_version_id=v.id
@@ -91,7 +104,7 @@ class PersistentProjectWatchConsumer:
                     aggregate_type="WATCH", aggregate_id=watch_id,
                     payload={"watchId": watch_id, "grantCallId": call_id,
                              "grantCallVersionId": version_id},
-                    dedupe_key=f"watch-reevaluate:{watch_id}:{version_id}",
+                    dedupe_key=f"watch-reevaluate:{watch_id}:{version_id}:{activation_id}",
                     commit=False,
                 )
 

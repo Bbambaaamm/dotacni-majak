@@ -30,8 +30,10 @@ outbox through matcher/composer, checks owner-only notification, follows the
 call's source link, and passes a mismatched RAW hash to the trusted ingest
 boundary to verify the failed refresh leaves canonical version, outbox count,
 and notification unchanged. The `example.invalid` source is a test fixture,
-never a live official source. Expired PROCESSING leases are recovered (unit
-regression test); unexpired leases remain owned by their worker.
+never a live official source. Expired PROCESSING leases are recovered with
+per-consumer fencing; superseded publications are acknowledged as no-ops and
+each publication activation gets a distinct reevaluation key while notifications
+retain match-level deduplication (unit regression tests).
 
 Limitations: the consumer is a bounded offline SQLite worker, not yet scheduled
 for production D1 transport; production `/api/*` routing or an explicit
