@@ -1,5 +1,6 @@
-// @ts-nocheck -- Miniflare D1 fixture follows the existing API integration-test convention.
+// @ts-expect-error -- Worker typecheck excludes Node test fixtures.
 import { readFileSync } from "node:fs";
+// @ts-expect-error -- Worker typecheck excludes Node test fixtures.
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -15,6 +16,7 @@ async function setup() {
     script: "export default { fetch() { return new Response('ok'); } }",
     d1Databases: { DB: "finance-applicant-preflight" } }));
   const db = await mf.getD1Database("DB");
+  // @ts-expect-error -- Node import.meta.dirname is present at test runtime.
   const migrations = resolve(import.meta.dirname, "../../../migrations");
   for (const file of ["0001_core_identity.sql", "0002_documents_provenance.sql",
     "0003_funding_projects_changes.sql", "0006_eligibility_rules.sql", "0007_applicant_profiles.sql",
