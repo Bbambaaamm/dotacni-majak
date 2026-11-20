@@ -74,6 +74,9 @@ export function SearchPage() {
   }, []);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>("ALL");
+  const [projectBudgetCzk, setProjectBudgetCzk] = useState("");
+  const [projectBudgetDraft, setProjectBudgetDraft] = useState("");
+  const [budgetValidation, setBudgetValidation] = useState("");
   const [providerFilter, setProviderFilter] = useState("");
   const [providerDraft, setProviderDraft] = useState("");
   const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
@@ -103,11 +106,30 @@ export function SearchPage() {
     setStatusFilter(next);
   }
   function changeInstrument(next: InstrumentFilter) {
-    if (next === instrumentFilter) return;
+    if (next === instrumentFilter && (next === "GRANT" || !projectBudgetCzk)) return;
     moreController.current?.abort();
     setData(null);
     setLoading(true);
     setInstrumentFilter(next);
+    if (next !== "GRANT") {
+      setProjectBudgetCzk("");
+      setProjectBudgetDraft("");
+      setBudgetValidation("");
+    }
+  }
+  function applyProjectBudget() {
+    const value = projectBudgetDraft;
+    if (value && (!/^(0|[1-9][0-9]{0,12})$/.test(value) || !Number.isSafeInteger(Number(value) * 100))) {
+      setBudgetValidation("Zadejte celé nezáporné koruny bez mezer a znaménka (nejvýše 13 číslic).");
+      return;
+    }
+    setBudgetValidation("");
+    if (value === projectBudgetCzk) return;
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setProjectBudgetCzk(value);
+    if (value) setInstrumentFilter("GRANT");
   }
   function changeDeadline(next: "ALL" | "KNOWN" | "UNKNOWN") {
     moreController.current?.abort();
@@ -154,6 +176,7 @@ export function SearchPage() {
   }
   const activeFilters = [
     instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${instrumentFilter}`, clear: () => changeInstrument("ALL") } : null,
+    projectBudgetCzk ? { key: "budget", label: `Náklady projektu: ${projectBudgetCzk} Kč`, clear: () => { setProjectBudgetDraft(""); setProjectBudgetCzk(""); setData(null); setLoading(true); moreController.current?.abort(); } } : null,
     statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
     providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => changeDeadline("ALL") } : null,
@@ -174,7 +197,7 @@ export function SearchPage() {
 
     searchGrants(intent, controller.signal, undefined, statusFilter === "ALL" ? undefined : statusFilter,
       deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
-      instrumentFilter === "ALL" ? undefined : instrumentFilter)
+      instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined)
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
@@ -187,7 +210,7 @@ export function SearchPage() {
       });
 
     return () => { controller.abort(); moreController.current?.abort(); };
-  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder, instrumentFilter, retryKey]);
+  }, [intent, demoState, statusFilter, deadlineFilter, providerFilter, closesBy, closesFrom, sortOrder, instrumentFilter, projectBudgetCzk, retryKey]);
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
@@ -200,7 +223,7 @@ export function SearchPage() {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
         deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
-        instrumentFilter === "ALL" ? undefined : instrumentFilter);
+        instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined);
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
@@ -305,7 +328,7 @@ export function SearchPage() {
       {!loading &&
       !error &&
       data?.indexState === "READY" &&
-      data.results.length === 0 && statusFilter === "ALL" && instrumentFilter === "ALL" && deadlineFilter === "ALL" && !providerFilter && !closesBy && !closesFrom ? (
+      data.results.length === 0 && statusFilter === "ALL" && instrumentFilter === "ALL" && !projectBudgetCzk && deadlineFilter === "ALL" && !providerFilter && !closesBy && !closesFrom ? (
         <ResultStatePanel
           state={{
             ...resultStateContent("NO_RESULTS"),
@@ -314,7 +337,7 @@ export function SearchPage() {
         />
       ) : null}
 
-      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || instrumentFilter !== "ALL" || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy) || Boolean(closesFrom)) ? (
+      {!loading && !error && data?.indexState === "READY" && (data.results.length > 0 || statusFilter !== "ALL" || instrumentFilter !== "ALL" || Boolean(projectBudgetCzk) || deadlineFilter !== "ALL" || Boolean(providerFilter) || Boolean(closesBy) || Boolean(closesFrom)) ? (
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
@@ -327,6 +350,7 @@ export function SearchPage() {
                 Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč všemi odpovídajícími aktivními výzvami.
                 Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
                 Když jsou počty dostupné, nápověda poskytovatelů zahrnuje shody i mimo načtenou stránku. Můžete zadat i jiný přesný název.
+                Rozpočet projektu filtruje pouze výzvy s doloženým grantovým scénářem v CZK a oběma hranicemi nákladů; není to výše dotace, potřeba vlastní hotovosti ani potvrzení osobní způsobilosti. Neznámé hranice z filtru vypadnou, nikoli jako zamítnutí žadatele.
                 Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
                 vyhodnocují odděleně a nejsou zde doplňovány odhadem.
               </p>
@@ -367,6 +391,16 @@ export function SearchPage() {
                 {INSTRUMENT_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
               </select>
             </label>
+            <form onSubmit={(event) => { event.preventDefault(); applyProjectBudget(); }}>
+              <label htmlFor="project-budget-filter">Náklady projektu (celé Kč)</label>
+              <input id="project-budget-filter" type="text" inputMode="numeric" autoComplete="off"
+                maxLength={13} aria-describedby={budgetValidation ? "project-budget-help project-budget-error" : "project-budget-help"}
+                aria-invalid={Boolean(budgetValidation)} value={projectBudgetDraft}
+                onChange={(event) => { setProjectBudgetDraft(event.target.value); setBudgetValidation(""); }} />
+              <button type="submit">Použít rozpočet projektu</button>
+              <p id="project-budget-help" className="fine-print">Jen doložený interval nákladů grantového projektu v CZK. Nejde o dotaci ani posouzení způsobilosti. Prázdné pole filtr zruší.</p>
+              {budgetValidation ? <p id="project-budget-error" role="alert">{budgetValidation}</p> : null}
+            </form>
             <label>
               Stav výzvy
               <select
@@ -444,6 +478,9 @@ export function SearchPage() {
                 setLoading(true);
                 setStatusFilter("ALL");
                 setInstrumentFilter("ALL");
+                setProjectBudgetCzk("");
+                setProjectBudgetDraft("");
+                setBudgetValidation("");
                 setProviderFilter("");
                 setProviderDraft("");
                 setDeadlineFilter("ALL");

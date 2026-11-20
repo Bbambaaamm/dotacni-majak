@@ -46,6 +46,7 @@ export async function searchGrants(
   sort?: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST",
   closesFrom?: string,
   instrument?: "GRANT" | "LOAN" | "GUARANTEE" | "EQUITY" | "MIXED" | "OTHER",
+  projectBudgetCzk?: string,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -55,6 +56,7 @@ export async function searchGrants(
   if (closesBy) params.set("closesBy", closesBy);
   if (closesFrom) params.set("closesFrom", closesFrom);
   if (instrument) params.set("instrument", instrument);
+  if (projectBudgetCzk) params.set("projectBudgetCzk", projectBudgetCzk);
   if (sort && sort !== "RELEVANCE") params.set("sort", sort);
   const response = await fetch(`/api/search?${params.toString()}`, {
     method: "GET",

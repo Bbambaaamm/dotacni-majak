@@ -18,7 +18,7 @@ Na šířce do 800 px je nativní panel `<details>` při prvním zobrazení výs
 
 Na chybě první stránky se výsledky bezpečně skryjí a uživatel může zkusit stejné vyhledávání znovu bez ztráty záměru; po opakované chybě zůstává fail-closed stav. Browser E2E vyvolá chybu 503, ale úspěšný retry ověřuje proti skutečnému API a seed datům v D1, nikoli proti mock response.
 
-Další bezpečně doložené finance filtry a jejich UX/E2E zůstávají v #400 otevřené. Dílčí pouze API katalogový interval projektu `projectBudgetCzk` (bez UI a osobní finance inference) dokumentuje [SEARCH_BUDGET_FILTER.md](SEARCH_BUDGET_FILTER.md). Obecné konvence pro jiné API endpointy patří do #545, nikoli do tohoto search-specifického kontraktu.
+Další bezpečně doložené finance filtry zůstávají v #400 otevřené. Katalogový interval projektu `projectBudgetCzk` včetně UI a skutečného browser E2E dokumentuje [SEARCH_BUDGET_FILTER.md](SEARCH_BUDGET_FILTER.md). Obecné konvence pro jiné API endpointy patří do #545, nikoli do tohoto search-specifického kontraktu.
 
 ## Globální facety stavu, termínu a poskytovatele
 

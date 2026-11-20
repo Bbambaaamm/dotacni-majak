@@ -7,6 +7,22 @@ afterEach(() => {
 });
 
 describe("search API client", () => {
+  it("keeps the exact project cost on the initial and cursor requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ intent: "alpha", results: [], expandedTerms: [],
+        indexState: "READY", nextCursor: null }), { status: 200 });
+    }));
+    await searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, "GRANT", "300000");
+    await searchGrants("alpha", undefined, "cursor", undefined, undefined, undefined,
+      undefined, undefined, undefined, "GRANT", "300000");
+    expect(urls).toEqual([
+      "/api/search?intent=alpha&instrument=GRANT&projectBudgetCzk=300000",
+      "/api/search?intent=alpha&cursor=cursor&instrument=GRANT&projectBudgetCzk=300000",
+    ]);
+  });
   it("preserves canonical instrument on first and continuation requests", async () => {
     const urls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
