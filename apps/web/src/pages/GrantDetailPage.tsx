@@ -255,6 +255,12 @@ export function GrantDetailPage() {
   const primarySource = detail.officialDetailUrl
     ?? detail.sources[0]?.canonicalUrl
     ?? detail.provider.officialUrl;
+  const providerHomepageOnly = Boolean(primarySource)
+    && !detail.officialDetailUrl
+    && detail.sources.length === 0;
+  const sourceActionLabel = providerHomepageOnly
+    ? "Web poskytovatele (odkaz na tuto výzvu není doložen) ↗"
+    : "Ověřit stav u poskytovatele ↗";
   const showSourceCaution = allSourcesMissing(detail.sources);
   const action = grantDetailAction(
     detail.status,
@@ -310,7 +316,7 @@ export function GrantDetailPage() {
           href={action.applicationCandidate ? projectHref : primarySource ?? "/hledat"}
           rel={!action.applicationCandidate && primarySource ? "noreferrer" : undefined}
           target={!action.applicationCandidate && primarySource ? "_blank" : undefined}>
-          {action.applicationCandidate ? action.projectLabel : primarySource ? "Ověřit stav u poskytovatele ↗" : "Hledat další výzvy"}
+          {action.applicationCandidate ? action.projectLabel : primarySource ? sourceActionLabel : "Hledat další výzvy"}
         </a>
       </section>
 
@@ -570,8 +576,13 @@ export function GrantDetailPage() {
           ) : (
             <>
               <p>Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.</p>
+              {providerHomepageOnly ? (
+                <p className="fine-print">Odkaz na konkrétní výzvu nemáme; toto je obecný web poskytovatele.</p>
+              ) : null}
               {primarySource ? (
-                <a href={primarySource} rel="noreferrer" target="_blank">Otevřít oficiální zdroj ↗</a>
+                <a href={primarySource} rel="noreferrer" target="_blank">
+                  {providerHomepageOnly ? sourceActionLabel : "Otevřít oficiální zdroj ↗"}
+                </a>
               ) : (
                 <StatusBadge kind="unknown" label="Zdrojový odkaz zatím není v indexu dostupný" />
               )}
@@ -624,7 +635,7 @@ export function GrantDetailPage() {
         ) : (
           <a className="button button--primary button-link" href={primarySource ?? "/hledat"}
             rel={primarySource ? "noreferrer" : undefined} target={primarySource ? "_blank" : undefined}>
-            {primarySource ? "Ověřit stav u poskytovatele ↗" : "Hledat další výzvy"}
+            {primarySource ? sourceActionLabel : "Hledat další výzvy"}
           </a>
         )}
         {primarySource && action.applicationCandidate ? (
@@ -633,7 +644,7 @@ export function GrantDetailPage() {
             rel="noreferrer"
             target="_blank"
           >
-            Oficiální zdroj ↗
+            {providerHomepageOnly ? sourceActionLabel : "Oficiální zdroj ↗"}
           </a>
         ) : null}
       </div>
