@@ -69,5 +69,8 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 ## Návrat z detailu do vyhledávání
 Detail přenáší v URL pouze ověřené parametry záměru, aktivních API filtrů a řazení. Zpětný odkaz obnoví filtry a první stránku výsledků novým požadavkem na API. Stránkovací kurzor ani dříve načtené stránky se neukládají a po návratu se neobnovují.
 
+## Doklady v detailu výzvy
+Detail API vrací nejvýše 100 dokladů. Pokud termín, scénář financování nebo požadavek odkazuje na `evidenceId`, který v omezeném seznamu chybí, UI uvede, že doklad není v tomto seznamu dostupný, a vyzve k ověření v oficiálním zdroji. Pouze `evidenceId: null` znamená, že samostatný doklad není připojen. Chybějícímu dokladu UI nepřiřazuje název, odkaz ani stav ověření.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

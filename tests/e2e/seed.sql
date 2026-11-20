@@ -346,6 +346,20 @@ SELECT 'e2e-fe-page-21-' || printf('%03d',i),'GRANT_CALL_VERSION','gcv-e2e-page-
   '/synthetic/' || i,'e2e-dv-page-21',i,i,'Synthetic E2E evidence ' || i,
   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z' FROM n;
 
+-- Detail items reference row 101, which the bounded API evidence list omits.
+-- Paired NULL references keep the distinct "not attached" state covered.
+INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at,timezone,description,evidence_id)
+VALUES ('e2e-deadline-page-21-referenced','gcv-e2e-page-21','PROJECT_FINISH',
+        '2027-12-31T23:59:59Z','UTC','E2E termín s odkazem na doklad 101','e2e-fe-page-21-101'),
+       ('e2e-deadline-page-21-unattached','gcv-e2e-page-21','DOCUMENT_COMPLETION',
+        '2027-11-30T23:59:59Z','UTC','E2E termín bez dokladu',NULL);
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,evidence_id)
+VALUES ('e2e-funding-page-21-referenced','gcv-e2e-page-21','E2E finance s odkazem na doklad 101','CZK','e2e-fe-page-21-101'),
+       ('e2e-funding-page-21-unattached','gcv-e2e-page-21','E2E finance bez dokladu','CZK',NULL);
+INSERT INTO grant_requirements(id,grant_call_version_id,requirement_type,title,necessity,evidence_id)
+VALUES ('e2e-req-page-21-referenced','gcv-e2e-page-21','ACTION','E2E požadavek s odkazem na doklad 101','REQUIRED','e2e-fe-page-21-101'),
+       ('e2e-req-page-21-unattached','gcv-e2e-page-21','ACTION','E2E požadavek bez dokladu','REQUIRED',NULL);
+
 -- Isolated 22-version synthetic call: only 20 versions can appear in Detail API.
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
   current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
