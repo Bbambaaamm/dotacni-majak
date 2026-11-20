@@ -27,13 +27,12 @@ async function setup() {
     for (const statement of sql.split(";").map((part: string) => part.trim()).filter(Boolean))
       await db.prepare(statement).run();
   }
-  await db.prepare("INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) VALUES ('profile-a',?,'BUSINESS',?,?)")
-    .bind(principal, asOf, asOf).run();
+  await db.prepare("INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) VALUES ('profile-a',?,'BUSINESS','2026-01-01T00:00:00Z',?)")
+    .bind(principal, asOf).run();
   await db.prepare("INSERT INTO applicant_profiles(id,user_id,applicant_type,created_at,updated_at) VALUES ('profile-b','owner-b','BUSINESS',?,?)")
     .bind(asOf, asOf).run();
-  await db.prepare("INSERT INTO source_registry(id,code,name,base_url,adapter_key,authority,retrieval_mode,refresh_minutes) VALUES ('src','SRC','Source','https://example.test','fixture','OFFICIAL','HTTP',60)").run();
-  await db.prepare("INSERT INTO source_documents(id,source_id,document_type,source_url,first_seen_at) VALUES ('doc','src','OTHER','https://example.test/doc',?)")
-    .bind(asOf).run();
+  await db.prepare("INSERT INTO source_registry(id,code,name,base_url,adapter_key,authority,retrieval_mode,refresh_minutes) VALUES ('src','ARES_PROFILE','Source','https://example.test','fixture','OFFICIAL','HTTP',60)").run();
+  await db.prepare("INSERT INTO source_documents(id,source_id,document_type,source_url,first_seen_at) VALUES ('doc','src','OTHER','https://example.test/doc','2026-01-01T00:00:00Z')").run();
   await db.prepare("INSERT INTO document_versions(id,source_document_id,sha256,retrieved_at,mime_type,object_key,extraction_status) VALUES ('dv','doc','hash','2026-01-01T00:00:00Z','text/plain','raw','EXTRACTED')").run();
   await db.prepare("INSERT INTO field_evidence(id,entity_type,entity_id,field_path,document_version_id,verification_status,created_at) VALUES ('ev','APPLICANT_ATTRIBUTE_VALUE','value-a','applicant.ico','dv','VERIFIED','2026-01-02T00:00:00Z')").run();
   await db.prepare(`INSERT INTO applicant_attribute_values(id,applicant_profile_id,attribute_definition_id,value_type,value_json,
@@ -67,6 +66,7 @@ describe("finance applicant preflight on canonical D1", () => {
       ["field_evidence", "verification_status", "NEEDS_REVIEW", "VERIFIED"],
       ["document_versions", "extraction_status", "QUARANTINED", "EXTRACTED"],
       ["source_registry", "authority", "SECONDARY", "OFFICIAL"],
+      ["source_registry", "code", "CZSO_POPULATION", "ARES_PROFILE"],
       ["applicant_attribute_values", "verification_status", "PARTIALLY_VERIFIED", "VERIFIED"],
       ["applicant_attribute_values", "source_kind", "USER", "ARES"],
       ["applicant_attribute_values", "evidence_id", null, "ev"],
@@ -102,6 +102,8 @@ describe("finance applicant preflight on canonical D1", () => {
       ["applicant_attribute_values", "observed_at", "bad", "2026-01-02T00:00:00Z"],
       ["field_evidence", "created_at", "2026-01-04T00:00:00Z", "2026-01-02T00:00:00Z"],
       ["document_versions", "retrieved_at", "2026-01-04T00:00:00Z", "2026-01-01T00:00:00Z"],
+      ["source_documents", "first_seen_at", "2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"],
+      ["applicant_profiles", "created_at", "2026-01-04T00:00:00Z", "2026-01-01T00:00:00Z"],
     ] as const) {
       await db.prepare(`UPDATE ${table} SET ${column} = ?`).bind(bad).run();
       expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "INCONSISTENT_ATTRIBUTE_TIMESTAMPS" });

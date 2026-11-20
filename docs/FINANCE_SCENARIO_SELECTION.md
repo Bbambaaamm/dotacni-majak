@@ -17,8 +17,11 @@ The caller supplies an already authenticated principal, an exact profile ID, and
 from the same snapshot. Each row must have an active applicant scalar definition,
 matching and well-formed bounded JSON type, VERIFIED official-source status, and
 VERIFIED evidence on that exact value ID and attribute key from an EXTRACTED official
-document. Missing or inconsistent observation, evidence, document retrieval, or
-verification timestamps fail closed. `asOf` is an upper consistency bound; there is
+document. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` /
+`CZSO_POPULATION` registry codes (see `data/sources`); OTHER_OFFICIAL requires
+an official registry authority but has no more specific identity binding.
+Missing or inconsistent profile creation, source first-seen, observation, evidence,
+document retrieval or verification timestamps fail closed. `asOf` is an upper consistency bound; there is
 no hard-coded maximum age or proven freshness policy. On success the result is
 `STRUCTURE_ONLY` with profile, value, and evidence IDs only. Failed checks release
 no value or evidence IDs. It never returns applicant values, a semantic `VERIFIED`

@@ -13,7 +13,8 @@ type ValueRow = {
   id: string; attribute_key: string; scope: string; data_type: string; active: number;
   value_type: string; value_json: string; value_length: number; source_kind: string; verification_status: string;
   evidence_id: string | null; observed_at: string; verified_at: string | null;
-  evidence_created_at: string | null; document_retrieved_at: string | null; trusted: number;
+  evidence_created_at: string | null; document_retrieved_at: string | null;
+  document_first_seen_at: string | null; trusted: number;
 };
 
 const scalarTypes = new Set(["STRING", "ENUM", "GEO_ID", "INTEGER", "NUMBER", "BOOLEAN", "MONEY_MINOR", "PERCENT_BPS"]);
@@ -52,16 +53,19 @@ export async function preflightFinanceApplicantValues(
     return result("ERROR", "INVALID_PREFLIGHT_INPUT");
   let rows;
   try { rows = await db.batch([
-    db.prepare("SELECT id FROM applicant_profiles WHERE id = ? AND user_id = ? LIMIT 1").bind(profileId, principal),
+    db.prepare("SELECT id, created_at FROM applicant_profiles WHERE id = ? AND user_id = ? LIMIT 1").bind(profileId, principal),
     db.prepare(`SELECT av.id, a.attribute_key, a.scope, a.data_type, a.active, av.value_type,
         substr(av.value_json, 1, 4097) AS value_json, length(av.value_json) AS value_length,
         av.source_kind, av.verification_status, av.evidence_id,
         av.observed_at, av.verified_at, fe.created_at AS evidence_created_at,
-        dv.retrieved_at AS document_retrieved_at,
+        dv.retrieved_at AS document_retrieved_at, sd.first_seen_at AS document_first_seen_at,
         CASE WHEN fe.entity_type = 'APPLICANT_ATTRIBUTE_VALUE' AND fe.entity_id = av.id
           AND fe.field_path = a.attribute_key AND fe.verification_status = 'VERIFIED'
           AND dv.extraction_status = 'EXTRACTED'
-          AND sr.authority IN ('OFFICIAL', 'OFFICIAL_OPEN_DATA') THEN 1 ELSE 0 END AS trusted
+          AND sr.authority IN ('OFFICIAL', 'OFFICIAL_OPEN_DATA')
+          AND (av.source_kind = 'OTHER_OFFICIAL'
+            OR (av.source_kind = 'ARES' AND sr.code = 'ARES_PROFILE')
+            OR (av.source_kind = 'CZSO' AND sr.code = 'CZSO_POPULATION')) THEN 1 ELSE 0 END AS trusted
       FROM applicant_attribute_values av
       JOIN applicant_profiles p ON p.id = av.applicant_profile_id AND p.user_id = ?
       LEFT JOIN attribute_definitions a ON a.id = av.attribute_definition_id
@@ -72,8 +76,9 @@ export async function preflightFinanceApplicantValues(
       WHERE av.applicant_profile_id = ? ORDER BY av.id LIMIT 129`).bind(principal, profileId),
   ]); } catch { return result("ERROR", "SNAPSHOT_READ_FAILED"); }
   if (rows.length !== 2 || rows.some((row) => !row.success)) return result("ERROR", "SNAPSHOT_READ_FAILED");
-  const profiles = rows[0].results ?? [];
+  const profiles = (rows[0].results ?? []) as { id: string; created_at: string }[];
   if (profiles.length !== 1) return result("NEEDS_INFORMATION", "PROFILE_NOT_OWNED");
+  const profileCreated = instant(profiles[0].created_at);
   const values = (rows[1].results ?? []) as ValueRow[];
   if (values.length > 128) return result("ERROR", "ATTRIBUTE_LIMIT_EXCEEDED");
   if (!values.length) return result("NEEDS_INFORMATION", "NO_ATTRIBUTE_VALUES");
@@ -87,10 +92,12 @@ export async function preflightFinanceApplicantValues(
     const verified = instant(row.verified_at);
     const created = instant(row.evidence_created_at);
     const retrieved = instant(row.document_retrieved_at);
-    // An official snapshot may be retrieved after the fact's effective observation date.
-    // Require only that the evidence exists before verification and the cutoff.
-    if (observed === null || verified === null || created === null || retrieved === null
-      || retrieved > created || retrieved > verified || observed > verified || created > verified || verified > cutoff)
+    const firstSeen = instant(row.document_first_seen_at);
+    // A source fact's effective observation date can precede its retrieval.
+    if (profileCreated === null || observed === null || verified === null || created === null
+      || retrieved === null || firstSeen === null || profileCreated > created || profileCreated > verified
+      || firstSeen > retrieved || retrieved > created || retrieved > verified
+      || observed > verified || created > verified || verified > cutoff)
       return result("NEEDS_INFORMATION", "INCONSISTENT_ATTRIBUTE_TIMESTAMPS");
   }
   return { status: "STRUCTURE_ONLY", reason: "OWNED_OFFICIAL_ATTRIBUTE_REFERENCES_ONLY",
