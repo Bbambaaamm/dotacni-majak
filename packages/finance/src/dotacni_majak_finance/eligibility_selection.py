@@ -81,7 +81,9 @@ def select_from_eligibility(
     evaluation = evaluator.evaluate(rule_set, values)
     if evaluation.rule_set_id != rule_set.id:
         return blocked("RULE_SET_ID_MISMATCH")
-    if evaluation.root_result is ConditionResult.ERROR:
+    if evaluation.root_result is ConditionResult.ERROR or any(
+        item.result is ConditionResult.ERROR for item in evaluation.condition_results
+    ):
         return blocked("ELIGIBILITY_EVALUATION_ERROR")
 
     conditions = {item.condition_id: item for item in evaluation.condition_results}
@@ -118,11 +120,21 @@ def select_from_eligibility(
         else:
             group_results[group_id] = ScenarioApplicability.UNKNOWN
 
-    # Unlinked scenarios cannot inherit FundingScenario's legacy PASS default for
-    # personalized advice. The selection result retains the canonical scenario.
+    # Stored applicability has no per-applicant evidence at this boundary.
+    # In particular, an inherited FAIL must not exclude a competing scenario
+    # when its linked group is UNKNOWN. Only an evidenced group FAIL may do so.
     candidates = [
-        replace(item.scenario, applicability=ScenarioApplicability.UNKNOWN)
-        if item.scenario.condition_group_id is None else item.scenario
+        replace(
+            item.scenario,
+            applicability=(
+                ScenarioApplicability.PASS
+                if item.scenario.condition_group_id is not None
+                and item.scenario.applicability is ScenarioApplicability.PASS
+                and group_results.get(item.scenario.condition_group_id)
+                in (ScenarioApplicability.PASS, ScenarioApplicability.FAIL)
+                else ScenarioApplicability.UNKNOWN
+            ),
+        )
         for item in scenarios
     ]
     status, selected, reasons = finance_engine.select_scenario(

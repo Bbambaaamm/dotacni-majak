@@ -14,8 +14,8 @@ from dotacni_majak_eligibility import (
     RuleGroup, RuleSet, VerificationStatus,
 )
 from dotacni_majak_finance import (
-    FinanceEngine, FinanceStatus, FundingScenario, VersionedFundingScenario,
-    select_from_eligibility,
+    FinanceEngine, FinanceStatus, FundingScenario, ScenarioApplicability,
+    VersionedFundingScenario, select_from_eligibility,
 )
 
 
@@ -138,6 +138,46 @@ class VerifiedFinanceSelectionTest(unittest.TestCase):
         unlinked = VersionedFundingScenario(FundingScenario("unlinked", "CZK"), "version-1")
         result = self.select(scenarios=[unlinked])
         self.assertEqual(result.status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertIsNone(result.scenario)
+
+    def test_stored_fail_cannot_exclude_scenario_without_verified_group(self):
+        stored_fail = VersionedFundingScenario(
+            FundingScenario("club-rate", "CZK", condition_group_id="club",
+                            applicability=ScenarioApplicability.FAIL),
+            "version-1",
+        )
+        result = self.select(
+            scenarios=[self.scenarios[0], stored_fail],
+            evidence={"is-municipality": "evidence:1"},
+        )
+        self.assertEqual(result.status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertIsNone(result.scenario)
+        # Even a real group PASS cannot turn an unverified stored FAIL into
+        # exclusion; an evidenced group FAIL can exclude the same scenario.
+        passing = self.select(
+            scenarios=[self.scenarios[0], stored_fail],
+            values={"applicant.type": "SPORTS_CLUB"},
+        )
+        self.assertEqual(passing.status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertIsNone(passing.scenario)
+        failed_group = self.select(scenarios=[self.scenarios[0], stored_fail])
+        self.assertEqual(failed_group.status, FinanceStatus.COMPLETE)
+        self.assertEqual(failed_group.scenario.id, "municipality-rate")
+
+    def test_masked_condition_error_blocks_even_if_root_passes(self):
+        number = AttributeDefinition("age", "project.age", AttributeDataType.INTEGER)
+        malformed = RuleSet("rule-set-1", RuleGroup("root", GroupOperator.OR, (
+            self.root.children[0],
+            RuleCondition("bad-range", number, ConditionOperator.BETWEEN, [10, 1]),
+        )), CompletenessStatus.COMPLETE, VerificationStatus.VERIFIED)
+        result = self.select(
+            rule_set=malformed,
+            scenarios=[self.scenarios[0]],
+            values={"applicant.type": "MUNICIPALITY", "project.age": 5},
+            evidence={"is-municipality": "evidence:1", "bad-range": "evidence:3"},
+        )
+        self.assertEqual(result.status, FinanceStatus.ERROR)
+        self.assertEqual(result.reason_codes, ("ELIGIBILITY_EVALUATION_ERROR",))
         self.assertIsNone(result.scenario)
 
     def test_duplicate_scenarios_and_unknown_group_never_select(self):
