@@ -35,6 +35,7 @@ export interface GrantDeadlineDetail {
 export interface GrantFundingScenarioDetail {
   id: string;
   name: string;
+  conditionGroupId: string | null;
   instrumentType: "GRANT" | "LOAN" | "GUARANTEE" | "EQUITY" | "MIXED" | "OTHER";
   currencyCode: string;
   supportRateMinBps: number | null;
@@ -174,6 +175,7 @@ interface DeadlineRow {
 interface FundingRow {
   id: string;
   name: string;
+  condition_group_id: string | null;
   instrument_type: GrantFundingScenarioDetail["instrumentType"];
   currency_code: string;
   support_rate_min_bps: number | null;
@@ -347,7 +349,7 @@ export async function getGrantDetail(
       db,
       `
         SELECT
-          id, name, instrument_type, currency_code,
+          id, name, condition_group_id, instrument_type, currency_code,
           support_rate_min_bps, support_rate_max_bps,
           grant_amount_min_minor, grant_amount_max_minor,
           project_cost_min_minor, project_cost_max_minor,
@@ -497,6 +499,7 @@ export async function getGrantDetail(
     fundingScenarios: fundingRows.map((row) => ({
       id: row.id,
       name: row.name,
+      conditionGroupId: row.condition_group_id,
       instrumentType: row.instrument_type,
       currencyCode: row.currency_code,
       supportRateMinBps: row.support_rate_min_bps,
