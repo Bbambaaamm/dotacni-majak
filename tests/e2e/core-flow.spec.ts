@@ -19,6 +19,7 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
     const card = page.locator(".grant-card");
     await expect(card.getByRole("heading", { name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
     await expect(card.getByRole("link", { name: /Oficiální zdroj/ })).toHaveCount(0);
+    await expect(card.getByRole("note")).toContainText("chybějící odkaz neznamená zrušení výzvy");
     await card.getByRole("link", { name: /Zobrazit detail/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Web poskytovatele/ }).first()).toHaveAttribute("href", "https://example.invalid/provider-a");
@@ -904,6 +905,9 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.locator(".grant-card").getByRole("link", { name: /Oficiální zdroj/ }))
+    .toHaveAttribute("href", "https://example.invalid/e2e/open");
+  await expect(page.locator(".grant-card").getByRole("note")).toHaveCount(0);
   await page.getByRole("link", { name: "Zobrazit detail" }).click();
 
   await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen\?intent=digitalizace%20obce&status=OPEN&provider=E2E\+test\+provider\+A$/);

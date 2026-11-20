@@ -637,6 +637,12 @@ export function SearchPage() {
                     </a>
                   ) : null}
                 </div>
+                {!safeOfficialUrl(grant.officialDetailUrl) ? (
+                  <p className="fine-print" role="note">
+                    Přímý odkaz na oficiální stránku této výzvy není dostupný. Ověřte údaje
+                    a dostupné zdroje v detailu; chybějící odkaz neznamená zrušení výzvy.
+                  </p>
+                ) : null}
 
                 <RelevanceFeedback
                   grantCallVersionId={grant.grantCallVersionId}
