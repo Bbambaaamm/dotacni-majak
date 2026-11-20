@@ -10,6 +10,7 @@ import {
   type GrantDetailResponse,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
+import { buildIntentSearchUrl, readIntentFromSearch } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
@@ -143,6 +144,7 @@ function lastSeenLabel(detail: GrantDetailResponse): string {
 }
 
 export function GrantDetailPage() {
+  const backToSearchHref = buildIntentSearchUrl(readIntentFromSearch(window.location.search));
   const grantCallId = useMemo(
     () => grantCallIdFromWebPath(window.location.pathname),
     [],
@@ -205,7 +207,7 @@ export function GrantDetailPage() {
   if (loading) {
     return (
       <article className="detail-page" aria-live="polite">
-        <a href="/hledat" className="back-link">← Zpět na výsledky</a>
+        <a href={backToSearchHref} className="back-link">← Zpět na výsledky</a>
         <section className="next-action" aria-busy="true">
           <div>
             <p className="eyebrow">Načítáme detail</p>
@@ -224,7 +226,7 @@ export function GrantDetailPage() {
   if (error || !detail) {
     return (
       <article className="detail-page">
-        <a href="/hledat" className="back-link">← Zpět na výsledky</a>
+        <a href={backToSearchHref} className="back-link">← Zpět na výsledky</a>
         <section className="next-action" role="alert">
           <div>
             <p className="eyebrow">Detail není dostupný</p>
@@ -239,7 +241,7 @@ export function GrantDetailPage() {
               Zkusit načíst detail znovu
             </button>
           ) : null}
-          <a className="button button--secondary button-link" href="/hledat">
+          <a className="button button--secondary button-link" href={backToSearchHref}>
             Zpět na vyhledávání
           </a>
         </section>
@@ -262,7 +264,7 @@ export function GrantDetailPage() {
 
   return (
     <article className="detail-page">
-      <a href="/hledat" className="back-link">← Zpět na výsledky</a>
+      <a href={backToSearchHref} className="back-link">← Zpět na výsledky</a>
 
       <header className="detail-hero">
         <div className="action-row">
