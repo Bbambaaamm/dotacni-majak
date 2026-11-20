@@ -93,4 +93,30 @@ describe("finance provenance on canonical D1", () => {
     await db.prepare("INSERT INTO eligibility_rule_sets(id,grant_call_version_id,name,completeness_status,verification_status) VALUES ('rs2','v1','Other','COMPLETE','VERIFIED')").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "RULE_SET_NOT_UNIQUE" });
   });
+  it("does not certify malformed, inactive, project or unsupported rule operands even with official evidence", async () => {
+    const db = await setup();
+    const changes = [
+      ["rule_conditions", "expected_value_json", "not-json", '"MUNICIPALITY"'],
+      ["rule_conditions", "expected_value_json", "42", '"MUNICIPALITY"'],
+      ["rule_conditions", "expected_value_json", "null", '"MUNICIPALITY"'],
+      ["rule_conditions", "condition_operator", "GEO_WITHIN", "EQ"],
+      ["attribute_definitions", "active", 0, 1],
+      ["attribute_definitions", "data_type", "DATE", "ENUM"],
+    ] as const;
+    for (const [table, column, invalid, original] of changes) {
+      await db.prepare(`UPDATE ${table} SET ${column}=?`).bind(invalid).run();
+      expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND",
+        scenarioIds: [], conditionEvidenceIds: {} });
+      await db.prepare(`UPDATE ${table} SET ${column}=?`).bind(original).run();
+      expect((await read(db)).status).toBe("VERIFIED");
+    }
+    await db.prepare("UPDATE attribute_definitions SET scope='PROJECT', attribute_key='project.type'").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND" });
+    await db.prepare("UPDATE attribute_definitions SET scope='APPLICANT', attribute_key='applicant.type'").run();
+    expect((await read(db)).status).toBe("VERIFIED");
+    await db.prepare("UPDATE rule_conditions SET condition_operator='IN', expected_value_json='[]'").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND" });
+    await db.prepare("UPDATE rule_conditions SET expected_value_json='[\"MUNICIPALITY\"]'").run();
+    expect((await read(db)).status).toBe("VERIFIED");
+  });
 });

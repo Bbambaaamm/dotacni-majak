@@ -13,8 +13,37 @@ export type FinanceProvenance = {
 type Version = { id: string; verification_status: string };
 type SetRow = { id: string; completeness_status: string; verification_status: string };
 type Group = { id: string; parent_group_id: string | null };
-type Condition = { id: string; rule_group_id: string; evidence_id: string | null; verification_status: string; trusted: number };
+type Condition = { id: string; rule_group_id: string; evidence_id: string | null; verification_status: string; trusted: number;
+  attribute_key: string; scope: string; data_type: string; active: number; condition_operator: string;
+  expected_value_json: string; blocking: number; unknown_policy: string };
 type Scenario = { id: string; condition_group_id: string | null; trusted: number };
+
+// Finance may use only the deterministic scalar applicant-rule subset supported by
+// the eligibility evaluator. Unsupported operands are not proven by source evidence.
+const scalarTypes = new Set(["STRING", "ENUM", "GEO_ID", "INTEGER", "NUMBER", "BOOLEAN", "MONEY_MINOR", "PERCENT_BPS"]);
+const operators = new Set(["EQ", "NEQ", "IN", "NOT_IN", "LT", "LTE", "GT", "GTE", "EXISTS", "NOT_EXISTS"]);
+function validOperand(value: unknown, type: string): boolean {
+  if (["STRING", "ENUM", "GEO_ID"].includes(type)) return typeof value === "string";
+  if (["INTEGER", "MONEY_MINOR", "PERCENT_BPS"].includes(type)) return typeof value === "number" && Number.isSafeInteger(value);
+  if (type === "NUMBER") return typeof value === "number" && Number.isFinite(value);
+  return type === "BOOLEAN" && typeof value === "boolean";
+}
+function supportedCondition(c: Condition): boolean {
+  if (c.scope !== "APPLICANT" || c.active !== 1 || typeof c.attribute_key !== "string" || !c.attribute_key.startsWith("applicant.")
+    || !scalarTypes.has(c.data_type) || !operators.has(c.condition_operator)
+    || ![0, 1].includes(c.blocking) || !["PROPAGATE", "NOT_APPLICABLE"].includes(c.unknown_policy)
+    || typeof c.expected_value_json !== "string" || c.expected_value_json.length > 4096
+    || (["LT", "LTE", "GT", "GTE"].includes(c.condition_operator)
+      && !["INTEGER", "NUMBER", "MONEY_MINOR", "PERCENT_BPS"].includes(c.data_type))) return false;
+  try {
+    const expected: unknown = JSON.parse(c.expected_value_json);
+    if (["EXISTS", "NOT_EXISTS"].includes(c.condition_operator)) return expected === null;
+    if (["IN", "NOT_IN"].includes(c.condition_operator))
+      return Array.isArray(expected) && expected.length > 0 && expected.length <= 64
+        && expected.every((value: unknown) => validOperand(value, c.data_type));
+    return validOperand(expected, c.data_type);
+  } catch { return false; }
+}
 
 export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallId: string): Promise<FinanceProvenance> {
   const result = (status: FinanceProvenance["status"], reason: string, versionId: string | null = null,
@@ -35,6 +64,8 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
     db.prepare(`SELECT id, parent_group_id FROM rule_groups
       WHERE rule_set_id = (${ruleSetSql}) ORDER BY id LIMIT 65`).bind(grantCallId),
     db.prepare(`SELECT c.id, c.rule_group_id, c.evidence_id, c.verification_status,
+      a.attribute_key, a.scope, a.data_type, a.active, c.condition_operator,
+      c.expected_value_json, c.blocking, c.unknown_policy,
       CASE WHEN EXISTS (SELECT 1 FROM field_evidence fe
         JOIN document_versions dv ON dv.id = fe.document_version_id
         JOIN source_documents sd ON sd.id = dv.source_document_id
@@ -45,6 +76,7 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
           AND sd.grant_call_id = ? AND sr.authority IN ('OFFICIAL','OFFICIAL_OPEN_DATA'))
         THEN 1 ELSE 0 END AS trusted
       FROM rule_conditions c JOIN rule_groups g ON g.id = c.rule_group_id
+      LEFT JOIN attribute_definitions a ON a.id = c.attribute_definition_id
       WHERE g.rule_set_id = (${ruleSetSql}) ORDER BY c.id LIMIT 129`)
       .bind(grantCallId, grantCallId, grantCallId),
     db.prepare(`SELECT fs.id, fs.condition_group_id,
@@ -98,6 +130,8 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
   if (conditions.some((c) => !byGroup.has(c.rule_group_id) || c.verification_status !== "VERIFIED" || c.trusted !== 1 || !c.evidence_id)
     || scenarios.some((s) => s.trusted !== 1))
     return result("NEEDS_INFORMATION", "UNVERIFIED_OFFICIAL_EVIDENCE", versionId, ruleSetId);
+  if (conditions.some((c) => !supportedCondition(c)))
+    return result("NEEDS_INFORMATION", "UNSUPPORTED_RULE_OPERAND", versionId, ruleSetId);
   return { status: "VERIFIED", reason: "VERSION_BOUND_OFFICIAL_EVIDENCE", versionId, ruleSetId,
     scenarioIds: scenarios.map((s) => s.id),
     conditionEvidenceIds: Object.fromEntries(conditions.map((c) => [c.id, c.evidence_id!])),
