@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
@@ -48,10 +49,13 @@ class FundingScenario:
     project_cost_max_minor: int | None = None
     payment_mode: PaymentMode = PaymentMode.UNKNOWN
     advance_payment_allowed: bool | None = None
+    condition_group_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
             raise ValueError("scenario id must not be empty")
+        if self.condition_group_id is not None and not self.condition_group_id:
+            raise ValueError("condition_group_id must not be empty")
         if len(self.currency_code) != 3 or not self.currency_code.isupper():
             raise ValueError("currency_code must be ISO-like uppercase code")
         for name, value in (
@@ -137,47 +141,100 @@ class FinanceEngine:
     def select_scenario(
         self,
         scenarios: list[FundingScenario] | tuple[FundingScenario, ...],
+        *,
+        group_results: Mapping[str, ScenarioApplicability] | None = None,
     ) -> tuple[FinanceStatus, FundingScenario | None, tuple[str, ...]]:
-        passed = [
-            scenario
-            for scenario in scenarios
-            if scenario.applicability is ScenarioApplicability.PASS
-        ]
-        unknown = [
-            scenario
-            for scenario in scenarios
-            if scenario.applicability is ScenarioApplicability.UNKNOWN
-        ]
+        """Select only when no other scenario could still apply.
 
-        if len(passed) == 1:
-            return FinanceStatus.COMPLETE, passed[0], ()
+        Linked condition groups must be evaluated by the deterministic eligibility
+        engine and passed in explicitly. Missing results stay UNKNOWN; the finance
+        selector does not interpret rule expressions or infer applicant attributes.
+        """
+        if len({scenario.id for scenario in scenarios}) != len(scenarios):
+            return FinanceStatus.ERROR, None, ("DUPLICATE_SCENARIO_ID",)
+
+        passed: list[FundingScenario] = []
+        unknown: list[FundingScenario] = []
+        missing_group = False
+        for scenario in scenarios:
+            applicability = scenario.applicability
+            if not isinstance(applicability, ScenarioApplicability):
+                return FinanceStatus.ERROR, None, ("INVALID_SCENARIO_APPLICABILITY",)
+            if scenario.condition_group_id is not None:
+                group_result = (
+                    group_results.get(scenario.condition_group_id)
+                    if group_results is not None
+                    else None
+                )
+                if group_result is None:
+                    missing_group = True
+                    group_result = ScenarioApplicability.UNKNOWN
+                if not isinstance(group_result, ScenarioApplicability):
+                    return FinanceStatus.ERROR, None, ("INVALID_CONDITION_GROUP_RESULT",)
+                if (
+                    applicability is ScenarioApplicability.FAIL
+                    or group_result is ScenarioApplicability.FAIL
+                ):
+                    applicability = ScenarioApplicability.FAIL
+                elif (
+                    applicability is ScenarioApplicability.UNKNOWN
+                    or group_result is ScenarioApplicability.UNKNOWN
+                ):
+                    applicability = ScenarioApplicability.UNKNOWN
+            if applicability is ScenarioApplicability.PASS:
+                passed.append(scenario)
+            elif applicability is ScenarioApplicability.UNKNOWN:
+                unknown.append(scenario)
 
         if len(passed) > 1:
             return (
-                FinanceStatus.NEEDS_INFORMATION,
-                None,
+                FinanceStatus.NEEDS_INFORMATION, None,
                 ("MULTIPLE_APPLICABLE_SCENARIOS",),
             )
-
         if unknown:
-            return (
-                FinanceStatus.NEEDS_INFORMATION,
-                None,
-                ("SCENARIO_APPLICABILITY_UNKNOWN",),
+            reason = (
+                "SCENARIO_CONDITION_GROUP_RESULT_MISSING"
+                if missing_group else "SCENARIO_APPLICABILITY_UNKNOWN"
             )
-
-        return (
-            FinanceStatus.SCENARIO_NOT_APPLICABLE,
-            None,
-            ("NO_APPLICABLE_SCENARIO",),
-        )
+            return FinanceStatus.NEEDS_INFORMATION, None, (reason,)
+        if passed:
+            return FinanceStatus.COMPLETE, passed[0], ()
+        return FinanceStatus.SCENARIO_NOT_APPLICABLE, None, ("NO_APPLICABLE_SCENARIO",)
 
     def evaluate(
         self,
         project: ProjectFinanceInput,
         scenario: FundingScenario,
+        *,
+        group_result: ScenarioApplicability | None = None,
     ) -> FinanceEvaluation:
         reasons: list[str] = []
+        if scenario.condition_group_id is not None:
+            if group_result is None or group_result is ScenarioApplicability.UNKNOWN:
+                reason = (
+                    "SCENARIO_CONDITION_GROUP_RESULT_MISSING"
+                    if group_result is None else "SCENARIO_APPLICABILITY_UNKNOWN"
+                )
+                return self._result(
+                    FinanceStatus.NEEDS_INFORMATION,
+                    scenario,
+                    project,
+                    reasons=(reason,),
+                )
+            if not isinstance(group_result, ScenarioApplicability):
+                return self._result(
+                    FinanceStatus.ERROR,
+                    scenario,
+                    project,
+                    reasons=("INVALID_CONDITION_GROUP_RESULT",),
+                )
+            if group_result is ScenarioApplicability.FAIL:
+                return self._result(
+                    FinanceStatus.SCENARIO_NOT_APPLICABLE,
+                    scenario,
+                    project,
+                    reasons=("SCENARIO_CONDITIONS_FAIL",),
+                )
 
         if scenario.instrument_type is not FundingInstrumentType.GRANT:
             return self._result(
