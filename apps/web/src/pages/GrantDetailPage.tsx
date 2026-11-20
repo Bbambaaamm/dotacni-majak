@@ -594,6 +594,16 @@ export function GrantDetailPage() {
                   </li>
                 ))}
               </ul>
+              {!recordSource && !versionSource ? (
+                <>
+                  <p className="fine-print">Odkaz na konkrétní výzvu není bezpečně dostupný; {providerSource
+                    ? "toto je pouze obecný web poskytovatele."
+                    : "aktuální podmínky ověřte přímo u poskytovatele."}</p>
+                  {providerSource ? (
+                    <p><a href={providerSource} rel="noreferrer" target="_blank">{sourceActionLabel}</a></p>
+                  ) : null}
+                </>
+              ) : null}
             </>
           ) : (
             <>
