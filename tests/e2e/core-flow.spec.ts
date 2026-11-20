@@ -73,6 +73,39 @@ test("applied results filters survive refresh and link sharing against real D1",
   }
 });
 
+test("filtered empty state can clear all controls and retry real D1 search", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const filteredUrl = `/hledat?${new URLSearchParams({ intent, status: "OPEN", provider: "E2E test provider B", sort: "DEADLINE" })}`;
+  const filtered = await request.get(`/api/search?${new URL(filteredUrl, "http://localhost").searchParams}`);
+  expect(filtered.status()).toBe(200);
+  expect((await filtered.json()).results).toHaveLength(0);
+  const unfiltered = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&sort=DEADLINE`);
+  expect(unfiltered.status()).toBe(200);
+  expect((await unfiltered.json()).results).toHaveLength(2);
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(filteredUrl);
+    const empty = page.locator(".filter-empty");
+    await expect(empty).toContainText("Zkuste některý filtr upravit nebo zrušit");
+    await expect(page.locator(".grant-card")).toHaveCount(0);
+    const clear = empty.getByRole("button", { name: "Zrušit všechny filtry a hledat znovu" });
+    await clear.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".grant-card")).toHaveCount(2);
+    await expect(empty).toHaveCount(0);
+    await expect(page.locator(".filter-panel summary")).toBeFocused();
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("intent")).toBe(intent);
+    expect(params.get("sort")).toBe("DEADLINE");
+    expect(params.has("status")).toBe(false);
+    expect(params.has("provider")).toBe(false);
+    await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toHaveValue("DEADLINE");
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("project-cost filter uses verified grant scenarios in real D1 on desktop and mobile", async ({ page, request }) => {
   const intent = "digitalizace obce";
   const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=300000`);
