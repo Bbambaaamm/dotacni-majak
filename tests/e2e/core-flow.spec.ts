@@ -266,14 +266,20 @@ test("detail distinguishes omitted referenced evidence from unattached items at 
   await page.goto("/dotace/grant%3Ae2e%3Apage%3A21");
   await expect(page.getByRole("heading", { name: "E2E stránkování 21" })).toBeVisible();
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
-  await expect(deadlines.getByText("Doklad termínu je uveden, ale není dostupný v omezeném seznamu dokladů", { exact: false })).toBeVisible();
-  await expect(deadlines.getByText("Samostatný doklad termínu není připojen", { exact: false })).toBeVisible();
+  await expect(deadlines.locator("li").filter({ hasText: "E2E termín s odkazem" }))
+    .toContainText("Doklad termínu je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(deadlines.locator("li").filter({ hasText: "E2E termín bez dokladu" }))
+    .toContainText("Samostatný doklad termínu není připojen");
   const finance = page.getByRole("region", { name: "Finance" });
-  await expect(finance.getByText("Doklad financování je uveden, ale není dostupný v omezeném seznamu dokladů", { exact: false })).toBeVisible();
-  await expect(finance.getByText("Samostatný doklad financování není připojen", { exact: false })).toBeVisible();
+  await expect(finance.locator("article.grant-card").filter({ hasText: "E2E finance s odkazem" }))
+    .toContainText("Doklad financování je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(finance.locator("article.grant-card").filter({ hasText: "E2E finance bez dokladu" }))
+    .toContainText("Samostatný doklad financování není připojen");
   const requirements = page.getByRole("region", { name: "Požadavky a přílohy" });
-  await expect(requirements.getByText("Doklad požadavku je uveden, ale není dostupný v omezeném seznamu dokladů", { exact: false })).toBeVisible();
-  await expect(requirements.getByText("Samostatný doklad požadavku není připojen", { exact: false })).toBeVisible();
+  await expect(requirements.locator("li").filter({ hasText: "E2E požadavek s odkazem" }))
+    .toContainText("Doklad požadavku je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(requirements.locator("li").filter({ hasText: "E2E požadavek bez dokladu" }))
+    .toContainText("Samostatný doklad požadavku není připojen");
   for (const section of [deadlines, finance, requirements]) {
     await expect(section.getByRole("link", { name: /Doklad (termínu|financování|požadavku):/ })).toHaveCount(0);
   }
