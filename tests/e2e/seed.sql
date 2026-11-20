@@ -281,3 +281,30 @@ INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported
   eligible_costs,keywords,status,submission_close_at,updated_at)
 SELECT id,title,summary,'precision-boundary','','precision-boundary',status,submission_close_at,
   '2026-09-26T20:00:00Z' FROM grant_call_versions WHERE id LIKE 'gcv-e2e-precision-%';
+
+-- Canonical status boundaries for detail actions; no source-record disappearance is involved.
+INSERT INTO providers(id,name,provider_type,official_url)
+VALUES ('e2e-provider-no-url','E2E provider bez odkazu','NATIONAL',NULL);
+INSERT INTO programmes(id,provider_id,name,funding_origin,official_url)
+VALUES ('e2e-programme-no-url','e2e-provider-no-url','E2E program bez odkazu','CZ_NATIONAL',NULL);
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+SELECT 'grant:e2e:status:' || lower(status),
+  CASE WHEN status='ARCHIVED' THEN 'e2e-programme-no-url' ELSE programme_id END,
+  'E2E-STATUS-' || status,
+  'e2e-status-' || lower(status),NULL,status,'E2E stav ' || status,
+  first_seen_at,first_published_at,created_at,updated_at
+FROM grant_calls JOIN (SELECT 'PAUSED' AS status UNION ALL SELECT 'CLOSED' UNION ALL SELECT 'CANCELLED'
+  UNION ALL SELECT 'ANNOUNCED' UNION ALL SELECT 'ARCHIVED') ON id='grant:e2e:page:20';
+
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-status-' || lower(current_status),id,1,'2026-09-26T20:00:00Z',current_title,
+  'Testovací kanonický stav.',current_status,
+  CASE WHEN current_status='ARCHIVED' THEN NULL ELSE 'https://example.invalid/e2e/status/' || lower(current_status) END,
+  'CZK','e2e-v1',printf('%064d',300 + CASE current_status WHEN 'PAUSED' THEN 1 WHEN 'CLOSED' THEN 2
+    WHEN 'CANCELLED' THEN 3 WHEN 'ANNOUNCED' THEN 4 ELSE 5 END),
+  'VERIFIED','2026-09-26T20:00:00Z' FROM grant_calls WHERE id LIKE 'grant:e2e:status:%';
+
+UPDATE grant_calls SET current_version_id='gcv-e2e-status-' || lower(current_status)
+WHERE id LIKE 'grant:e2e:status:%';
