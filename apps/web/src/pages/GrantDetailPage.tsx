@@ -509,7 +509,12 @@ export function GrantDetailPage() {
 
           {detail.versions.length > 1 ? (
             <details className="detail-section">
-              <summary>Historie verzí ({detail.versions.length})</summary>
+              <summary>Historie verzí ({detail.versions.length}{detail.versions.length === 20 ? " zobrazených" : ""})</summary>
+              {detail.versions.length === 20 ? (
+                <p className="fine-print" role="status">
+                  Detail API vrací nejvýše 20 verzí. Mohou existovat starší verze; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
+                </p>
+              ) : null}
               <ul>
                 {detail.versions.map((version) => (
                   <li key={version.id}>

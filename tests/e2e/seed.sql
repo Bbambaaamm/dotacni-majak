@@ -326,3 +326,20 @@ INSERT INTO field_evidence(id,entity_type,entity_id,field_path,document_version_
 SELECT 'e2e-fe-page-21-' || printf('%03d',i),'GRANT_CALL_VERSION','gcv-e2e-page-21',
   '/synthetic/' || i,'e2e-dv-page-21',i,i,'Synthetic E2E evidence ' || i,
   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z' FROM n;
+
+-- Isolated 22-version synthetic call: only 20 versions can appear in Detail API.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+VALUES ('grant:e2e:history','e2e-programme-open','E2E-HISTORY','e2e-history',NULL,
+  'OPEN','E2E historie verzí','2026-09-01T20:00:00Z','2026-09-01T20:00:00Z',
+  '2026-09-01T20:00:00Z','2026-09-26T20:00:00Z');
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 22)
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-history-' || i,'grant:e2e:history',i,
+  '2026-09-26T20:00:00Z','E2E historie verzí',
+  'Syntetické verze pouze pro ověření omezení historie.', 'OPEN',
+  'https://example.invalid/e2e/history','CZK','e2e-v1',printf('%064d',500 + i),
+  'VERIFIED','2026-09-26T20:00:00Z' FROM n;
+UPDATE grant_calls SET current_version_id='gcv-e2e-history-22'
+WHERE id='grant:e2e:history';
