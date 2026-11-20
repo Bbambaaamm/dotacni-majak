@@ -8,6 +8,11 @@ from .engine import (
     ProjectFinanceInput,
     ScenarioApplicability,
 )
+from .eligibility_selection import (
+    VerifiedScenarioSelection,
+    VersionedFundingScenario,
+    select_from_eligibility,
+)
 from .precision import (
     CurrencyMismatchError,
     CurrencyRegistry,
@@ -29,6 +34,9 @@ __all__ = [
     "PaymentMode",
     "ProjectFinanceInput",
     "ScenarioApplicability",
+    "VerifiedScenarioSelection",
+    "VersionedFundingScenario",
+    "select_from_eligibility",
     # precision library
     "CurrencyMismatchError",
     "CurrencyRegistry",
