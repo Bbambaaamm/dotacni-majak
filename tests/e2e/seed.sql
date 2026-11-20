@@ -243,7 +243,8 @@ INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,titl
 SELECT 'gcv-e2e-date-' || kind,'grant:e2e:date:' || kind,1,'2026-09-26T20:00:00Z',
   CASE WHEN kind = 'offset' THEN 'E2E offset výzva' ELSE 'E2E date ' || kind END,
   CASE WHEN kind = 'offset' THEN 'offsetonlyfixture' ELSE 'date-boundary fixture' END,'OPEN',close_at,
-  'https://example.invalid/e2e/date/' || kind,'CZK','e2e-v1',printf('%064d',100 + ordinal),
+  CASE WHEN kind = 'only' THEN NULL ELSE 'https://example.invalid/e2e/date/' || kind END,
+  'CZK','e2e-v1',printf('%064d',100 + ordinal),
   'VERIFIED','2026-09-26T20:00:00Z'
 FROM (SELECT 'only' AS kind,'2027-05-01' AS close_at,1 AS ordinal
   UNION ALL SELECT 'invalid','2027-02-30',2

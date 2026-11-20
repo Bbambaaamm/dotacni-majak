@@ -1104,6 +1104,35 @@ test("detail distinguishes a normalized deadline with evidence from a source-ver
   await expect(page.getByRole("link", { name: /E2E oficiální zdroj B/ })).toBeVisible();
 });
 
+test("provider homepage fallback never masquerades as evidence for a grant call", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aonly");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    sources: unknown[]; officialDetailUrl: string | null;
+    provider: { officialUrl: string | null };
+  };
+  expect(detail.sources).toEqual([]);
+  expect(detail.officialDetailUrl).toBeNull();
+  expect(detail.provider.officialUrl).toBe("https://example.invalid/provider-a");
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/dotace/grant%3Ae2e%3Adate%3Aonly");
+    await expect(page.getByRole("heading", { level: 1, name: "E2E date only" })).toBeVisible();
+    const providerLink = page.getByRole("link", { name: "Web poskytovatele (odkaz na tuto výzvu není doložen) ↗" });
+    await expect(providerLink).toHaveCount(2);
+    await expect(page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
+    for (const link of await providerLink.all()) {
+      await expect(link).toHaveAttribute("href", detail.provider.officialUrl!);
+      await expect(link).toHaveAttribute("target", "_blank");
+    }
+    await expect(page.locator(".evidence-card")).toContainText("Odkaz na konkrétní výzvu nemáme; toto je obecný web poskytovatele.");
+    await expect(page.locator(".evidence-card").getByRole("link", { name: /Otevřít oficiální zdroj/ })).toHaveCount(0);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("detail does not present version capture as a source check when no source record exists", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aonly");
   expect(response.status()).toBe(200);
