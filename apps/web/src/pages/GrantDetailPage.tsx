@@ -282,8 +282,11 @@ export function GrantDetailPage() {
           <h2 id="detail-next">{action.heading}</h2>
           <p>{action.explanation}</p>
         </div>
-        <a className="button button--primary button-link" href={projectHref}>
-          {action.projectLabel}
+        <a className="button button--primary button-link"
+          href={action.applicationCandidate ? projectHref : primarySource ?? "/hledat"}
+          rel={!action.applicationCandidate && primarySource ? "noreferrer" : undefined}
+          target={!action.applicationCandidate && primarySource ? "_blank" : undefined}>
+          {action.applicationCandidate ? action.projectLabel : primarySource ? "Ověřit stav u poskytovatele ↗" : "Hledat další výzvy"}
         </a>
       </section>
 
@@ -565,9 +568,9 @@ export function GrantDetailPage() {
             {nonGrant ? "Prověřit tuto podporu" : "Chci tuto dotaci"}
           </a>
         ) : (
-          <a className="button button--primary button-link" href={primarySource ?? projectHref}
+          <a className="button button--primary button-link" href={primarySource ?? "/hledat"}
             rel={primarySource ? "noreferrer" : undefined} target={primarySource ? "_blank" : undefined}>
-            {primarySource ? "Ověřit stav u poskytovatele ↗" : action.projectLabel}
+            {primarySource ? "Ověřit stav u poskytovatele ↗" : "Hledat další výzvy"}
           </a>
         )}
         {primarySource && action.applicationCandidate ? (

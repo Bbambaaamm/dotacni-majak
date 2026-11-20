@@ -17,7 +17,7 @@ describe("detail next action follows canonical status, not source presence", () 
     (status) => {
       const action = grantDetailAction(status, true, 2);
       expect(action.applicationCandidate).toBe(false);
-      expect(action.projectLabel).toBe("Uložit k projektu pro sledování");
+      expect(action.projectLabel).toBeNull();
       expect(action.explanation).not.toContain("Máme 2 strukturovaných požadavků");
     },
   );

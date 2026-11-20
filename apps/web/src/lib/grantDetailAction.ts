@@ -18,35 +18,35 @@ export function grantDetailAction(status: string, requirementsKnown: boolean, re
       return {
         heading: "Ověřte u poskytovatele, kdy začne příjem žádostí.",
         explanation: "Výzva je plánovaná nebo vyhlášená, nikoli označená jako otevřená. Termín a úplné podmínky ověřte v oficiálním zdroji; způsobilost tím není potvrzena.",
-        projectLabel: "Uložit k projektu pro sledování",
+        projectLabel: null,
         applicationCandidate: false,
       };
     case "PAUSED":
       return {
         heading: "Příjem je pozastaven. Ověřte, zda a kdy se obnoví.",
         explanation: "Podle zachycené verze nelze předpokládat, že lze právě podat žádost. Aktuální stav a podmínky ověřte u poskytovatele.",
-        projectLabel: "Uložit k projektu pro sledování",
+        projectLabel: null,
         applicationCandidate: false,
       };
     case "CLOSED":
       return {
         heading: "Příjem skončil. Ověřte případné další kolo u poskytovatele.",
         explanation: "Zachycená výzva není otevřená pro nové žádosti. Další kolo ani možnost podání nepředpokládáme bez oficiálního potvrzení.",
-        projectLabel: "Uložit k projektu pro sledování",
+        projectLabel: null,
         applicationCandidate: false,
       };
     case "CANCELLED":
       return {
         heading: "Výzva byla zrušena. Ověřte rozhodnutí u poskytovatele.",
         explanation: "Zrušení je stav zachycené verze, ne závěr ze zmizení z výpisu. Nepokračujte v přípravě žádosti bez nové oficiální výzvy.",
-        projectLabel: "Uložit k projektu pro sledování",
+        projectLabel: null,
         applicationCandidate: false,
       };
     default:
       return {
         heading: "Stav výzvy není potvrzen. Ověřte jej u poskytovatele.",
         explanation: "Neznámý nebo archivní stav není potvrzení možnosti podat žádost ani posouzení způsobilosti.",
-        projectLabel: "Uložit k projektu pro sledování",
+        projectLabel: null,
         applicationCandidate: false,
       };
   }

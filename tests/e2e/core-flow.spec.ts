@@ -903,15 +903,27 @@ test("canonical paused/closed/cancelled and pre-open detail never offer an activ
     const id = status === "PLANNED" ? "grant:e2e:planned" : `grant:e2e:status:${status.toLowerCase()}`;
     const response = await request.get(`/api/grants/${encodeURIComponent(id)}`);
     expect(response.status()).toBe(200);
-    const detail = await response.json() as { status: string; officialDetailUrl: string };
+    const detail = await response.json() as { status: string; officialDetailUrl: string | null };
     expect(detail.status).toBe(status);
     await page.goto(`/dotace/${encodeURIComponent(id)}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.locator(".next-action")).toContainText("poskytovatele");
     await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
-    await expect(page.locator(".next-action").getByRole("link", { name: "Uložit k projektu pro sledování" })).toBeVisible();
-    await expect(page.locator(".sticky-action").getByRole("link", { name: "Ověřit stav u poskytovatele ↗" }))
-      .toHaveAttribute("href", detail.officialDetailUrl);
+    if (status === "ARCHIVED") {
+      expect(detail.officialDetailUrl).toBeNull();
+      await expect(page.locator(".next-action").getByRole("link", { name: "Hledat další výzvy" }))
+        .toHaveAttribute("href", "/hledat");
+      await expect(page.locator(".sticky-action").getByRole("link", { name: "Hledat další výzvy" }))
+        .toHaveAttribute("href", "/hledat");
+    } else {
+      expect(detail.officialDetailUrl).toBeTruthy();
+      const officialUrl = detail.officialDetailUrl!;
+      await expect(page.locator(".next-action").getByRole("link", { name: "Ověřit stav u poskytovatele ↗" }))
+        .toHaveAttribute("href", officialUrl);
+      await expect(page.locator(".sticky-action").getByRole("link", { name: "Ověřit stav u poskytovatele ↗" }))
+        .toHaveAttribute("href", officialUrl);
+    }
+    await expect(page.locator(".next-action").getByRole("link", { name: /projekt|žádost/i })).toHaveCount(0);
     expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }
