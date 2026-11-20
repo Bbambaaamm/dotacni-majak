@@ -85,6 +85,32 @@ test("detail shows every returned evidence row and discloses the API cap", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("detail discloses bounded version history from real D1/API on mobile", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Ahistory");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    versionId: string;
+    versions: Array<{ id: string; versionNumber: number; isCurrent: boolean }>;
+  };
+  expect(detail.versionId).toBe("gcv-e2e-history-22");
+  expect(detail.versions).toHaveLength(20);
+  expect(detail.versions[0]).toMatchObject({ versionNumber: 22, isCurrent: true });
+  expect(detail.versions[19]).toMatchObject({ versionNumber: 3, isCurrent: false });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Ahistory");
+  await expect(page.getByRole("heading", { name: "E2E historie verzí" })).toBeVisible();
+  const history = page.locator("details.detail-section").filter({ hasText: "Historie verzí" });
+  await history.getByText("Historie verzí (20 zobrazených)").click();
+  await expect(history.getByRole("status")).toContainText("Mohou existovat starší verze");
+  await expect(history.locator("li")).toHaveCount(20);
+  await expect(history.locator("li").first()).toContainText("Verze 22");
+  await expect(history.locator("li").last()).toContainText("Verze 3");
+  await expect(history.locator("li").filter({ hasText: /^Verze 2 ·/ })).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("grant detail reports source presence without changing OPEN status", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const cases = [
