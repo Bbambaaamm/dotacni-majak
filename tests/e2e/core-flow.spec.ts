@@ -239,18 +239,50 @@ test("detail error return preserves the explicit search intent without a redirec
   await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce$/);
 });
 
-test("detail shows every returned evidence row and discloses the API cap", async ({ page, request }) => {
+test("detail distinguishes omitted referenced evidence from unattached items at the API cap", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A21");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { evidence: Array<{ id: string; sourceUrl: string }> };
+  const detail = await response.json() as {
+    evidence: Array<{ id: string; sourceUrl: string }>;
+    deadlines: Array<{ id: string; evidenceId: string | null }>;
+    fundingScenarios: Array<{ id: string; evidenceId: string | null }>;
+    requirements: Array<{ id: string; evidenceId: string | null }>;
+  };
   expect(detail.evidence).toHaveLength(100);
   expect(detail.evidence[0]).toMatchObject({ id: "e2e-fe-page-21-001",
     sourceUrl: "https://example.invalid/e2e/page/21-evidence" });
   expect(detail.evidence[99]?.id).toBe("e2e-fe-page-21-100");
+  expect(detail.evidence.map((item) => item.id)).not.toContain("e2e-fe-page-21-101");
+  for (const [items, prefix] of [
+    [detail.deadlines, "e2e-deadline-page-21"],
+    [detail.fundingScenarios, "e2e-funding-page-21"],
+    [detail.requirements, "e2e-req-page-21"],
+  ] as const) {
+    expect(items.find((item) => item.id === `${prefix}-referenced`)?.evidenceId).toBe("e2e-fe-page-21-101");
+    expect(items.find((item) => item.id === `${prefix}-unattached`)?.evidenceId).toBeNull();
+  }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Apage%3A21");
   await expect(page.getByRole("heading", { name: "E2E stránkování 21" })).toBeVisible();
+  const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+  await expect(deadlines.locator("li").filter({ hasText: "E2E termín s odkazem" }))
+    .toContainText("Doklad termínu je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(deadlines.locator("li").filter({ hasText: "E2E termín bez dokladu" }))
+    .toContainText("Samostatný doklad termínu není připojen");
+  const finance = page.getByRole("region", { name: "Finance" });
+  await expect(finance.locator("article.grant-card").filter({ hasText: "E2E finance s odkazem" }))
+    .toContainText("Doklad financování je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(finance.locator("article.grant-card").filter({ hasText: "E2E finance bez dokladu" }))
+    .toContainText("Samostatný doklad financování není připojen");
+  const requirements = page.getByRole("region", { name: "Požadavky a přílohy" });
+  await expect(requirements.locator("li").filter({ hasText: "E2E požadavek s odkazem" }))
+    .toContainText("Doklad požadavku je uveden, ale není dostupný v omezeném seznamu dokladů");
+  await expect(requirements.locator("li").filter({ hasText: "E2E požadavek bez dokladu" }))
+    .toContainText("Samostatný doklad požadavku není připojen");
+  for (const section of [deadlines, finance, requirements]) {
+    await expect(section.getByRole("link", { name: /Doklad (termínu|financování|požadavku):/ })).toHaveCount(0);
+  }
   const panel = page.getByRole("complementary", { name: "Oficiální zdroje" });
   await panel.getByText("Konkrétní evidence (100 zobrazených)").click();
   await expect(panel.getByRole("status")).toContainText("Mohou existovat další");

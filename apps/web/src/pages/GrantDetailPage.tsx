@@ -379,6 +379,8 @@ export function GrantDetailPage() {
                           Doklad termínu: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
                         </OfficialSourceLink></p>
+                      ) : deadline.evidenceId !== null ? (
+                        <p className="fine-print">Doklad termínu je uveden, ale není dostupný v omezeném seznamu dokladů; ověřte jej v oficiálním zdroji.</p>
                       ) : (
                         <p className="fine-print">Samostatný doklad termínu není připojen; ověřte jej v oficiálním zdroji.</p>
                       )}
@@ -447,6 +449,8 @@ export function GrantDetailPage() {
                           Doklad financování: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
                         </OfficialSourceLink> · {verificationLabel(evidence.verificationStatus)}</p>
+                      ) : scenario.evidenceId !== null ? (
+                        <p className="fine-print">Doklad financování je uveden, ale není dostupný v omezeném seznamu dokladů; ověřte typ nástroje a podmínky v oficiálním zdroji.</p>
                       ) : (
                         <p className="fine-print">Samostatný doklad financování není připojen; ověřte typ nástroje a podmínky v oficiálním zdroji.</p>
                       )}
@@ -500,6 +504,8 @@ export function GrantDetailPage() {
                           Doklad požadavku: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
                         </OfficialSourceLink> · {verificationLabel(evidence.verificationStatus)}</p>
+                      ) : requirement.evidenceId !== null ? (
+                        <p className="fine-print">Doklad požadavku je uveden, ale není dostupný v omezeném seznamu dokladů; ověřte jej v oficiálním zdroji.</p>
                       ) : (
                         <p className="fine-print">Samostatný doklad požadavku není připojen; ověřte jej v oficiálním zdroji.</p>
                       )}
