@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import {
   createRelevanceFeedback,
@@ -9,6 +9,7 @@ import "./RelevanceFeedback.css";
 
 interface RelevanceFeedbackProps {
   grantCallVersionId: string;
+  grantTitle?: string;
   projectId?: string | null;
   matcherVersion: string;
 }
@@ -24,9 +25,11 @@ const choices: readonly {
 
 export function RelevanceFeedback({
   grantCallVersionId,
+  grantTitle,
   projectId = null,
   matcherVersion,
 }: RelevanceFeedbackProps) {
+  const headingId = useId();
   const [saved, setSaved] = useState<RelevanceJudgment | null>(null);
 
   function submit(judgment: RelevanceJudgment) {
@@ -45,9 +48,9 @@ export function RelevanceFeedback({
   }
 
   return (
-    <section className="relevance-feedback" aria-labelledby="feedback-title">
+    <section className="relevance-feedback" aria-labelledby={headingId}>
       <div>
-        <h4 id="feedback-title">Je tato možnost relevantní pro váš projekt?</h4>
+        <h4 id={headingId}>Je tato možnost relevantní pro váš projekt?</h4>
         <p>
           Pomáháte nám měřit kvalitu vyhledávání. Odpověď nemění oficiální
           podmínky ani vaše vyhodnocení způsobilosti.
@@ -56,6 +59,7 @@ export function RelevanceFeedback({
       <div className="relevance-feedback__choices">
         {choices.map((choice) => (
           <button
+            aria-label={grantTitle ? `${choice.label} — relevance výzvy ${grantTitle}` : undefined}
             aria-pressed={saved === choice.judgment}
             className="button button--secondary"
             key={choice.judgment}
