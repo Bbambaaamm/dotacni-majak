@@ -5,3 +5,5 @@ URL uložená v canonical verzi, source recordu, evidenci nebo profilu poskytova
 Primární odkaz detailu vybírá bezpečnou URL verze, poté bezpečnou URL zdrojového záznamu a až pak web poskytovatele. Pokud zbývá pouze web poskytovatele, text výslovně říká, že konkrétní odkaz na výzvu není doložen. Chybějící či vadný odkaz není důkaz zrušení, nezpůsobilosti ani neexistence výzvy. Uživatel má ověřit aktuální podmínky u poskytovatele.
 
 Unit testy pokrývají povolené a odmítnuté URL. Browser regresní test používá syntetickou nebezpečnou URL ve skutečném D1 seed záznamu a ověřuje API, desktop/mobil, absenci klikacího nebezpečného odkazu, bezpečný fallback, axe a reflow. Ostatní legitimní odkazy ověřují existující full-stack scénáře.
+
+Pokud detail má zdrojový záznam, ale jeho URL i URL zachycené verze jsou nebezpečné nebo chybějí, panel „Oficiální zdroje“ zachová informaci o pozorování, ale nepředstírá klikací doklad. Výslovně označí případný bezpečný web poskytovatele za obecný rozcestník, nikoli odkaz na výzvu; není-li ani ten dostupný, žádný náhradní odkaz nevytváří. Syntetický D1/browser test pokrývá nepovolenou URL v obou vrstvách a navigaci přes web poskytovatele.

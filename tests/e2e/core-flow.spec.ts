@@ -11,7 +11,10 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
   expect(results[0].officialDetailUrl).toBe("javascript:alert(1)");
   const detail = await request.get(`/api/grants/${encodeURIComponent(results[0].grantCallId)}`);
   expect(detail.status()).toBe(200);
-  expect((await detail.json() as { officialDetailUrl: string | null }).officialDetailUrl).toBe("javascript:alert(1)");
+  expect((await detail.json() as { officialDetailUrl: string | null; sources: Array<{ canonicalUrl: string }> })).toMatchObject({
+    officialDetailUrl: "javascript:alert(1)",
+    sources: [{ canonicalUrl: "javascript:alert(2)" }],
+  });
 
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 844 });
@@ -22,7 +25,11 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
     await expect(card.getByRole("note")).toContainText("chybějící odkaz neznamená zrušení výzvy");
     await card.getByRole("link", { name: /Zobrazit detail/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Web poskytovatele/ }).first()).toHaveAttribute("href", "https://example.invalid/provider-a");
+    const sources = page.locator(".evidence-card");
+    await expect(sources).toContainText("E2E oficiální zdroj A");
+    await expect(sources).toContainText("Odkaz na konkrétní výzvu není bezpečně dostupný; toto je pouze obecný web poskytovatele.");
+    await expect(sources.getByRole("link", { name: /Web poskytovatele/ })).toHaveAttribute("href", "https://example.invalid/provider-a");
+    await expect(sources.getByRole("link", { name: /E2E oficiální zdroj A/ })).toHaveCount(0);
     expect(await page.locator('a[href^="javascript:"]').count()).toBe(0);
     expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
