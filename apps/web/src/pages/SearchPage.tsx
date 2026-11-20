@@ -148,9 +148,6 @@ export function SearchPage() {
   }
   function changeStatus(next: StatusFilter) {
     beginFilterSearch();
-    setProviderFilter("");
-    setProviderDraft("");
-    setSortOrder("RELEVANCE");
     setStatusFilter(next);
   }
   function changeInstrument(next: InstrumentFilter) {
@@ -177,9 +174,6 @@ export function SearchPage() {
   }
   function changeDeadline(next: "ALL" | "KNOWN" | "UNKNOWN") {
     beginFilterSearch();
-    setProviderFilter("");
-    setProviderDraft("");
-    setSortOrder("RELEVANCE");
     if (next === "UNKNOWN") {
       setClosesBy("");
       setClosesByDraft("");
@@ -203,7 +197,6 @@ export function SearchPage() {
   function changeProvider(next: string) {
     if (next === providerFilter) return;
     beginFilterSearch();
-    setSortOrder("RELEVANCE");
     setProviderFilter(next);
   }
   function clearProvider() {

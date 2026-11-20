@@ -320,8 +320,10 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
-  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
-  await expect(page.getByLabel("Přesný název poskytovatele")).toHaveValue("");
+  await expect(page.locator(".filter-empty")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toHaveCount(0);
+  await expect(page.getByLabel("Přesný název poskytovatele")).toHaveValue("E2E test provider A");
+  await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider A" })).toBeVisible();
 
   const first = await request.get("/api/search?intent=strankovani&limit=1&status=OPEN");
   expect(first.status()).toBe(200);
@@ -335,6 +337,53 @@ test("global status finds a later-page planned result and rejects a changed curs
   expect(await closed.json()).toEqual({ error: "INVALID_STATUS" });
   const defaultSearch = await request.get("/api/search?intent=rekonstrukce%20tenisov%C3%BDch%20kurt%C5%AF");
   expect((await defaultSearch.json()).results).toEqual([]);
+});
+
+test("status, deadline and provider preserve independent controls across real D1 searches", async ({ page }) => {
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const searchRequests: URL[] = [];
+    const recordSearch = (request: { url: () => string }) => {
+      if (request.url().includes("/api/search?")) searchRequests.push(new URL(request.url()));
+    };
+    page.on("request", recordSearch);
+    await page.goto("/hledat?intent=digitalizace%20obce");
+    await expect(page.locator(".grant-card")).toHaveCount(2);
+    if (width === 390) await page.locator(".filter-panel summary").click();
+
+    await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+    await expect(page.locator(".grant-card")).toHaveCount(2);
+    await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider B");
+    await page.getByRole("button", { name: "Použít poskytovatele" }).click();
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+    await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toHaveValue("DEADLINE");
+
+    await page.getByLabel("Stav výzvy").selectOption("PLANNED");
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+    await page.getByLabel("Termín podání").selectOption("KNOWN");
+    await expect(page.locator(".grant-card")).toHaveCount(1);
+    await page.getByLabel("Stav výzvy").selectOption("OPEN");
+    await expect(page.locator(".filter-empty")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider B" })).toBeVisible();
+    await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
+    await page.getByRole("button", { name: "Použít poskytovatele" }).click();
+    await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    await page.getByLabel("Termín podání").selectOption("UNKNOWN");
+    await expect(page.locator(".filter-empty")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider A" })).toBeVisible();
+    await expect(page.getByLabel("Přesný název poskytovatele")).toHaveValue("E2E test provider A");
+    await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toHaveValue("DEADLINE");
+    const last = searchRequests.at(-1)?.searchParams;
+    expect(last?.get("status")).toBe("OPEN");
+    expect(last?.get("deadline")).toBe("UNKNOWN");
+    expect(last?.get("provider")).toBe("E2E test provider A");
+    expect(last?.get("sort")).toBe("DEADLINE");
+    expect(last?.has("cursor")).toBe(false);
+    if (width === 390) {
+      expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    }
+    page.off("request", recordSearch);
+  }
 });
 
 test("global deadline availability finds a later-page call and remains bound to the cursor", async ({ page, request }) => {
