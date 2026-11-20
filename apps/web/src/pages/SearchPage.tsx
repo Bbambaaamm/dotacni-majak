@@ -46,6 +46,9 @@ export function SearchPage() {
   const moreController = useRef<AbortController | null>(null);
   const filterPanel = useRef<HTMLDetailsElement | null>(null);
   const retryButton = useRef<HTMLButtonElement | null>(null);
+  const loadMoreButton = useRef<HTMLButtonElement | null>(null);
+  const paginationStatus = useRef<HTMLDivElement | null>(null);
+  const pendingPaginationFocus = useRef(false);
   const pendingFilterFocus = useRef<string | null>(null);
   const mobileFiltersOpen = useRef(false);
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
@@ -84,6 +87,7 @@ export function SearchPage() {
   const providerOptions = data?.facets?.providers ?? [];
   const filteredResults = loadedResults;
   function beginFilterSearch() {
+    pendingPaginationFocus.current = false;
     const active = document.activeElement;
     if (active instanceof HTMLElement) {
       pendingFilterFocus.current = active.dataset.filterFocus
@@ -109,6 +113,14 @@ export function SearchPage() {
       ?? document.querySelector<HTMLElement>(".result-state-panel__actions a, .next-action a");
     target?.focus();
   }, [data, error, loading]);
+  useLayoutEffect(() => {
+    if (!pendingPaginationFocus.current || loadingMore || !data) return;
+    pendingPaginationFocus.current = false;
+    if (data.nextCursor) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement && active.isConnected) return;
+    paginationStatus.current?.focus();
+  }, [data, loadingMore]);
   function changeSort(next: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST") {
     if (next === sortOrder) return;
     beginFilterSearch();
@@ -224,6 +236,7 @@ export function SearchPage() {
 
   async function loadMore() {
     if (!data?.nextCursor || loadingMore) return;
+    pendingPaginationFocus.current = document.activeElement === loadMoreButton.current;
     const cursor = data.nextCursor;
     const controller = new AbortController();
     moreController.current = controller;
@@ -604,12 +617,13 @@ export function SearchPage() {
               </article>
             ))}
           </div>
-          <div aria-live="polite" role="status">
+          <div ref={paginationStatus} tabIndex={-1} aria-live="polite" role="status">
             Načteno {data.results.length} výsledků{data.nextCursor ? "; další mohou být dostupné." : "."}
           </div>
           {moreError ? <p role="alert">Další výsledky se nepodařilo načíst. Dosud načtené výsledky zůstávají zobrazené. {moreError}</p> : null}
           {data.nextCursor ? (
-            <button className="button button--secondary" type="button" onClick={loadMore} disabled={loadingMore}>
+            <button ref={loadMoreButton} className="button button--secondary" type="button" onClick={loadMore}
+              aria-disabled={loadingMore} aria-busy={loadingMore}>
               {loadingMore ? "Načítáme další výsledky…" : moreError ? "Zkusit načíst další znovu" : "Načíst další výsledky"}
             </button>
           ) : null}
