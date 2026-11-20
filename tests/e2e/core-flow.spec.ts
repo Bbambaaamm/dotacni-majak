@@ -295,14 +295,27 @@ test("detail distinguishes omitted referenced evidence from unattached items at 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
-test("detail discloses bounded version history from real D1/API on mobile", async ({ page, request }) => {
+test("detail discloses bounded versions, sources and changes from real D1/API on mobile", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Ahistory");
   expect(response.status()).toBe(200);
   const detail = await response.json() as {
     versionId: string;
+    status: string;
     versions: Array<{ id: string; versionNumber: number; isCurrent: boolean }>;
+    sources: Array<{ canonicalUrl: string; presenceState: string }>;
+    changes: Array<{ id: string; fieldPath: string }>;
   };
   expect(detail.versionId).toBe("gcv-e2e-history-22");
+  expect(detail.status).toBe("OPEN");
+  expect(detail.sources).toHaveLength(20);
+  expect(detail.sources.map((source) => source.canonicalUrl)).toEqual(
+    Array.from({ length: 20 }, (_, index) => `https://example.invalid/e2e/history/source/${20 - index}`),
+  );
+  expect(detail.sources.every((source) => source.presenceState === "CONFIRMED_MISSING")).toBe(true);
+  expect(detail.changes).toHaveLength(20);
+  expect(detail.changes.map((change) => change.id)).toEqual(
+    Array.from({ length: 20 }, (_, index) => `e2e-change-history-${String(21 - index).padStart(2, "0")}`),
+  );
   expect(detail.versions).toHaveLength(20);
   expect(detail.versions[0]).toMatchObject({ versionNumber: 22, isCurrent: true });
   expect(detail.versions[19]).toMatchObject({ versionNumber: 3, isCurrent: false });
@@ -310,6 +323,19 @@ test("detail discloses bounded version history from real D1/API on mobile", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Ahistory");
   await expect(page.getByRole("heading", { name: "E2E historie verzí" })).toBeVisible();
+  await expect(page.locator(".detail-hero").getByText("Otevřeno v zachycené verzi")).toBeVisible();
+  await expect(page.locator(".source-presence-caution")).toContainText("Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
+  await expect(page.locator(".source-presence-caution")).toContainText("Další zdrojové záznamy mohou být mimo zobrazený seznam.");
+  const sources = page.getByRole("complementary", { name: "Oficiální zdroje" });
+  await expect(sources.getByRole("status")).toContainText("včetně záznamů se stavem „viděn“");
+  await expect(sources.locator(":scope > ul > li")).toHaveCount(20);
+  await expect(sources.getByRole("link", { name: "E2E oficiální zdroj A ↗" })).toHaveCount(20);
+  const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (20 zobrazených)" }) });
+  await expect(changes.getByRole("status")).toContainText("Mohou existovat další změny");
+  await expect(changes.locator("li")).toHaveCount(20);
+  await expect(changes.locator("li").first()).toContainText("/e2e/history/change/21");
+  await expect(changes.locator("li").last()).toContainText("/e2e/history/change/02");
+  await expect(changes.getByText("/e2e/history/change/01")).toHaveCount(0);
   const history = page.locator("details.detail-section").filter({ hasText: "Historie verzí" });
   await history.getByText("Historie verzí (20 zobrazených)").click();
   await expect(history.getByRole("status")).toContainText("Mohou existovat starší verze");

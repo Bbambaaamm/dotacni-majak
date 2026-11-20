@@ -376,3 +376,23 @@ SELECT 'gcv-e2e-history-' || i,'grant:e2e:history',i,
   'VERIFIED','2026-09-26T20:00:00Z' FROM n;
 UPDATE grant_calls SET current_version_id='gcv-e2e-history-22'
 WHERE id='grant:e2e:history';
+
+-- Detail source and change limits: the 21st source is SEEN but sorts after 20 missing records.
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 21)
+INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
+  first_seen_at,last_seen_at,presence_state,missing_run_count)
+SELECT 'e2e-sr-history-' || printf('%02d',i),'e2e-source-open',
+  'E2E-HISTORY-' || printf('%02d',i),
+  'https://example.invalid/e2e/history/source/' || i,'GRANT_CALL','grant:e2e:history',
+  '2026-09-01T20:00:00Z',
+  CASE WHEN i = 21 THEN '2026-09-23T00:00:00Z' ELSE printf('2026-09-25T%02d:00:00Z',i) END,
+  CASE WHEN i = 21 THEN 'SEEN' ELSE 'CONFIRMED_MISSING' END,
+  CASE WHEN i = 21 THEN 0 ELSE 3 END FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 21)
+INSERT INTO change_events(id,grant_call_id,from_version_id,to_version_id,change_type,
+  severity,field_path,created_at)
+SELECT 'e2e-change-history-' || printf('%02d',i),'grant:e2e:history',
+  'gcv-e2e-history-21','gcv-e2e-history-22','OTHER','INFORMATIONAL',
+  '/e2e/history/change/' || printf('%02d',i),
+  printf('2026-09-26T%02d:00:00Z',i) FROM n;
