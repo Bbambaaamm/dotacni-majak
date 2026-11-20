@@ -605,6 +605,11 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
   await expect(deadlines).toContainText("Ukončení příjmu žádostí");
   await expect(deadlines).toContainText("2027-12-31 23:59:59 UTC");
+  const overview = page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) });
+  await expect(overview.locator("div", { has: page.locator("dt", { hasText: "Ukončení příjmu" }) }).first())
+    .toContainText("2027-12-31 23:59:59 UTC");
+  await expect(overview.locator("div", { has: page.locator("dt", { hasText: "Zahájení příjmu" }) }).first())
+    .toContainText("2026-09-20 08:00:00 UTC");
   await expect(deadlines.getByRole("link", { name: /Doklad termínu: E2E oficiální podmínky, str. 2/ }))
     .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
   await expect(deadlines).toContainText("nikoli potvrzení, že lze právě podat žádost");
@@ -641,6 +646,20 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(finance.getByRole("link", { name: /Doklad financování/ })).toBeVisible();
   await expect(requirements.getByRole("link", { name: /Doklad požadavku/ })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("date-only deadline keeps its original precision in real API and mobile overview", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aonly");
+  expect(response.status()).toBe(200);
+  expect((await response.json() as { submissionCloseAt: string }).submissionCloseAt).toBe("2027-05-01");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Adate%3Aonly");
+  const overview = page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) });
+  await expect(overview.locator("dd").filter({ hasText: "2027-05-01" })).toBeVisible();
+  await expect(overview).not.toContainText("2027-05-01 00:00");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
