@@ -65,7 +65,7 @@ test("grant detail reports source presence without changing OPEN status", async 
     { id: 21, states: ["MISSING_CANDIDATE"], labels: ["Možná chybí u zdroje (předběžné)"], caution: true },
     { id: 22, states: ["CONFIRMED_MISSING"], labels: ["Potvrzeně chybí u zdroje (neznamená zrušení výzvy)"], caution: true },
     { id: 23, states: ["MISSING_CANDIDATE", "SEEN"], labels: ["Možná chybí u zdroje (předběžné)", "Viděn u zdroje"], caution: false },
-    { id: 24, states: [], labels: [], caution: false },
+    { id: 24, states: [], labels: [], caution: true },
     { id: 20, states: ["SEEN"], labels: ["Viděn u zdroje"], caution: false },
   ];
   for (const scenario of cases) {
@@ -90,7 +90,9 @@ test("grant detail reports source presence without changing OPEN status", async 
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj B ↗" })).toBeVisible();
     }
     if (scenario.caution) {
-      await expect(page.getByRole("status")).toContainText("Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
+      await expect(page.getByRole("status")).toContainText(scenario.id === 24
+        ? "chybějící záznam sám o sobě neznamená zrušení"
+        : "Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
       const accessibility = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
         .analyze();
@@ -762,11 +764,15 @@ test("detail distinguishes a normalized deadline with evidence from a source-ver
 test("detail does not present version capture as a source check when no source record exists", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aonly");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { sources: unknown[]; capturedAt: string };
+  const detail = await response.json() as { sources: unknown[]; evidence: unknown[]; capturedAt: string };
   expect(detail.sources).toEqual([]);
+  expect(detail.evidence).toEqual([]);
   expect(detail.capturedAt).toBe("2026-09-26T20:00:00Z");
 
   await page.goto("/dotace/grant%3Ae2e%3Adate%3Aonly");
+  await expect(page.locator(".detail-hero").getByText("Výskyt výzvy u zdroje není doložen.")).toBeVisible();
+  await expect(page.locator(".evidence-card")).toContainText("Ke výzvě nemáme zdrojový záznam ani samostatné doklady.");
+  await expect(page.locator(".evidence-card")).not.toContainText("Máme zdrojový záznam");
   const facts = page.locator(".detail-section .facts").first();
   await expect(facts.locator("div").filter({ has: page.locator("dt", { hasText: "Verze výzvy zachycena" }) }).first())
     .toContainText("26. září 2026");

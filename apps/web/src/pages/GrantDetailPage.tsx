@@ -258,6 +258,13 @@ export function GrantDetailPage() {
             label={verificationLabel(detail.verificationStatus)}
           />
         </div>
+        {detail.sources.length === 0 ? (
+          <p className="source-presence-caution" role="status">
+            <strong>Výskyt výzvy u zdroje není doložen.</strong>{" "}
+            K této verzi nemáme zdrojový záznam ani datum jeho posledního pozorování.
+            Stav výzvy proto před podáním ověřte přímo u poskytovatele; chybějící záznam sám o sobě neznamená zrušení.
+          </p>
+        ) : null}
         {showSourceCaution ? (
           <p className="source-presence-caution" role="status">
             <strong>Ověřte dostupnost u poskytovatele.</strong>{" "}
@@ -570,7 +577,9 @@ export function GrantDetailPage() {
             </details>
           ) : (
             <p className="fine-print">
-              Máme zdrojový záznam, ale ne všechna pole ještě mají samostatnou stránkovou evidence.
+              {detail.sources.length
+                ? "Ke zdrojovému záznamu nejsou připojeny samostatné doklady pro všechna pole. Ověřte podmínky v oficiálním zdroji."
+                : "Ke výzvě nemáme zdrojový záznam ani samostatné doklady. Ověřte podmínky v oficiálním zdroji."}
             </p>
           )}
 
