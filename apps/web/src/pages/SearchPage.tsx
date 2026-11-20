@@ -353,6 +353,16 @@ export function SearchPage() {
           Hledáme v indexovaných výzvách veřejné podpory a používáme také širší pojmy
           z oborové ontologie. Relevance není totéž co způsobilost.
         </p>
+        <details className="detail-section">
+          <summary>Upravit záměr</summary>
+          <form action="/hledat" method="get">
+            <label htmlFor="results-intent">Popis záměru</label>
+            <textarea id="results-intent" name="intent" rows={3} required minLength={5}
+              maxLength={500} defaultValue={intent} />
+            <p className="fine-print">Nové hledání začne bez současných filtrů a řazení.</p>
+            <button className="button button--primary" type="submit">Hledat upravený záměr</button>
+          </form>
+        </details>
       </header>
 
       {loading ? (

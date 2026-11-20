@@ -106,6 +106,32 @@ test("filtered empty state can clear all controls and retry real D1 search", asy
   }
 });
 
+test("editing a filtered search intent starts a new real D1 search without stale filters", async ({ page, request }) => {
+  const nextIntent = "bezpecnost odkazu";
+  const next = await request.get(`/api/search?intent=${encodeURIComponent(nextIntent)}`);
+  expect(next.status()).toBe(200);
+  expect((await next.json() as { results: Array<{ grantCallVersionId: string }> }).results.map((row) => row.grantCallVersionId))
+    .toEqual(["gcv-e2e-unsafe-url"]);
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?${new URLSearchParams({ intent: "digitalizace obce", status: "OPEN", provider: "E2E test provider B" })}`);
+    await expect(page.locator(".filter-empty")).toBeVisible();
+    await page.getByText("Upravit záměr", { exact: true }).click();
+    const input = page.getByRole("textbox", { name: "Popis záměru" });
+    await expect(input).toHaveValue("digitalizace obce");
+    await input.fill(nextIntent);
+    await page.getByRole("button", { name: "Hledat upravený záměr" }).click();
+    await expect(page.locator(".grant-card").getByRole("heading", { name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("intent")).toBe(nextIntent);
+    expect(params.has("status")).toBe(false);
+    expect(params.has("provider")).toBe(false);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("project-cost filter uses verified grant scenarios in real D1 on desktop and mobile", async ({ page, request }) => {
   const intent = "digitalizace obce";
   const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=300000`);
