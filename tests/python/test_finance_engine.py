@@ -171,6 +171,85 @@ class FinanceEngineTest(unittest.TestCase):
         self.assertIsNone(selected)
         self.assertIn("SCENARIO_APPLICABILITY_UNKNOWN", reasons)
 
+    def test_pass_and_unknown_never_claim_unique_scenario(self):
+        known = FundingScenario(id="known", currency_code="CZK")
+        possible = FundingScenario(
+            id="possible", currency_code="CZK",
+            applicability=ScenarioApplicability.UNKNOWN,
+        )
+        for scenarios in ([known, possible], [possible, known]):
+            with self.subTest(order=[s.id for s in scenarios]):
+                status, selected, reasons = self.engine.select_scenario(scenarios)
+                self.assertEqual(status, FinanceStatus.NEEDS_INFORMATION)
+                self.assertIsNone(selected)
+                self.assertEqual(reasons, ("SCENARIO_APPLICABILITY_UNKNOWN",))
+
+    def test_condition_group_results_select_only_unambiguous_pass(self):
+        local = FundingScenario(
+            id="local", currency_code="CZK", condition_group_id="municipality",
+        )
+        nonprofit = FundingScenario(
+            id="nonprofit", currency_code="CZK", condition_group_id="nonprofit",
+        )
+        status, selected, reasons = self.engine.select_scenario(
+            [local, nonprofit],
+            group_results={
+                "municipality": ScenarioApplicability.PASS,
+                "nonprofit": ScenarioApplicability.FAIL,
+            },
+        )
+        self.assertEqual((status, selected, reasons), (FinanceStatus.COMPLETE, local, ()))
+        for results, expected in (
+            ({"municipality": ScenarioApplicability.PASS}, "SCENARIO_CONDITION_GROUP_RESULT_MISSING"),
+            ({"municipality": ScenarioApplicability.PASS, "nonprofit": ScenarioApplicability.UNKNOWN}, "SCENARIO_APPLICABILITY_UNKNOWN"),
+        ):
+            with self.subTest(results=results):
+                status, selected, reasons = self.engine.select_scenario(
+                    [local, nonprofit], group_results=results,
+                )
+                self.assertEqual((status, selected, reasons), (FinanceStatus.NEEDS_INFORMATION, None, (expected,)))
+
+    def test_all_failed_group_results_are_not_applicable(self):
+        linked = FundingScenario(id="linked", currency_code="CZK", condition_group_id="group")
+        self.assertEqual(
+            self.engine.select_scenario(
+                [linked], group_results={"group": ScenarioApplicability.FAIL},
+            ),
+            (FinanceStatus.SCENARIO_NOT_APPLICABLE, None, ("NO_APPLICABLE_SCENARIO",)),
+        )
+
+    def test_unresolved_group_cannot_be_evaluated_directly(self):
+        project = ProjectFinanceInput("CZK", czk(100), czk(100), 0, 0)
+        linked = FundingScenario(
+            id="linked", currency_code="CZK", condition_group_id="group",
+            support_rate_max_bps=5000,
+        )
+        missing = self.engine.evaluate(project, linked)
+        self.assertEqual(missing.status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertIsNone(missing.max_grant_minor)
+        unknown = self.engine.evaluate(
+            project, linked, group_result=ScenarioApplicability.UNKNOWN,
+        )
+        self.assertEqual(unknown.status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertIsNone(unknown.max_grant_minor)
+        failed = self.engine.evaluate(project, linked, group_result=ScenarioApplicability.FAIL)
+        self.assertEqual(failed.status, FinanceStatus.SCENARIO_NOT_APPLICABLE)
+        self.assertIsNone(failed.minimum_real_cash_requirement_minor)
+        passed = self.engine.evaluate(project, linked, group_result=ScenarioApplicability.PASS)
+        self.assertEqual(passed.status, FinanceStatus.COMPLETE)
+        self.assertEqual(passed.max_grant_minor, czk(50))
+
+    def test_duplicate_ids_and_invalid_group_results_fail_closed(self):
+        linked = FundingScenario(id="same", currency_code="CZK", condition_group_id="group")
+        self.assertEqual(
+            self.engine.select_scenario([linked, linked]),
+            (FinanceStatus.ERROR, None, ("DUPLICATE_SCENARIO_ID",)),
+        )
+        self.assertEqual(
+            self.engine.select_scenario([linked], group_results={"group": "PASS"}),
+            (FinanceStatus.ERROR, None, ("INVALID_CONDITION_GROUP_RESULT",)),
+        )
+
     def test_non_grant_instrument_never_uses_grant_calculator(self):
         project = ProjectFinanceInput(
             currency_code="CZK",
