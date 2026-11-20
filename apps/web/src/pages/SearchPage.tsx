@@ -5,7 +5,7 @@ import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
-import { readIntentFromSearch } from "../lib/intent";
+import { buildDetailSearchQuery, readSearchUrlState } from "../lib/intent";
 import { deadlineTime } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
@@ -36,7 +36,8 @@ function statusLabel(status: string): string {
 
 export function SearchPage() {
   const params = new URLSearchParams(window.location.search);
-  const intent = readIntentFromSearch(window.location.search);
+  const initialSearch = readSearchUrlState(window.location.search);
+  const intent = initialSearch.intent;
   const demoState = parseDemoResultState(params.get("demoState"));
   const [data, setData] = useState<GrantSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,19 +73,21 @@ export function SearchPage() {
     desktop.addEventListener("change", update);
     return () => desktop.removeEventListener("change", update);
   }, []);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>("ALL");
-  const [projectBudgetCzk, setProjectBudgetCzk] = useState("");
-  const [projectBudgetDraft, setProjectBudgetDraft] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialSearch.status);
+  const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>(initialSearch.instrument);
+  const [projectBudgetCzk, setProjectBudgetCzk] = useState(initialSearch.projectBudgetCzk);
+  const [projectBudgetDraft, setProjectBudgetDraft] = useState(initialSearch.projectBudgetCzk);
   const [budgetValidation, setBudgetValidation] = useState("");
-  const [providerFilter, setProviderFilter] = useState("");
-  const [providerDraft, setProviderDraft] = useState("");
-  const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">("ALL");
-  const [closesBy, setClosesBy] = useState("");
-  const [closesByDraft, setClosesByDraft] = useState("");
-  const [closesFrom, setClosesFrom] = useState("");
-  const [closesFromDraft, setClosesFromDraft] = useState("");
-  const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">("RELEVANCE");
+  const [providerFilter, setProviderFilter] = useState(initialSearch.provider);
+  const [providerDraft, setProviderDraft] = useState(initialSearch.provider);
+  const [deadlineFilter, setDeadlineFilter] = useState<"ALL" | "KNOWN" | "UNKNOWN">(initialSearch.deadline);
+  const [closesBy, setClosesBy] = useState(initialSearch.closesBy);
+  const [closesByDraft, setClosesByDraft] = useState(initialSearch.closesBy);
+  const [closesFrom, setClosesFrom] = useState(initialSearch.closesFrom);
+  const [closesFromDraft, setClosesFromDraft] = useState(initialSearch.closesFrom);
+  const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">(initialSearch.sort);
+  const detailSearchQuery = buildDetailSearchQuery({ intent, status: statusFilter, instrument: instrumentFilter,
+    projectBudgetCzk, provider: providerFilter, deadline: deadlineFilter, closesBy, closesFrom, sort: sortOrder });
 
   const loadedResults = data?.results ?? [];
   const providerOptions = data?.facets?.providers ?? [];
@@ -617,7 +620,7 @@ export function SearchPage() {
                 <div className="grant-card__actions">
                   <a
                     className="button button--primary button-link"
-                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}?intent=${encodeURIComponent(intent)}`}
+                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}?${detailSearchQuery}`}
                     aria-label={`Zobrazit detail: ${grant.title}`}
                   >
                     Zobrazit detail

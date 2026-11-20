@@ -66,5 +66,8 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - canonical schema měň jen přes ADR/review,
 - po merge navazuj z čerstvého main; nepokračuj stacked historií přes squash bez vyčištění.
 
+## Návrat z detailu do vyhledávání
+Detail přenáší v URL pouze ověřené parametry záměru, aktivních API filtrů a řazení. Zpětný odkaz obnoví filtry a první stránku výsledků novým požadavkem na API. Stránkovací kurzor ani dříve načtené stránky se neukládají a po návratu se neobnovují.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

@@ -12,7 +12,7 @@ import {
   type GrantDetailResponse,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
-import { buildIntentSearchUrl, readIntentFromSearch } from "../lib/intent";
+import { buildSearchUrl, readSearchUrlState } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
@@ -147,7 +147,7 @@ function lastSeenLabel(detail: GrantDetailResponse): string {
 }
 
 export function GrantDetailPage() {
-  const backToSearchHref = buildIntentSearchUrl(readIntentFromSearch(window.location.search));
+  const backToSearchHref = buildSearchUrl(readSearchUrlState(window.location.search));
   const grantCallId = useMemo(
     () => grantCallIdFromWebPath(window.location.pathname),
     [],
