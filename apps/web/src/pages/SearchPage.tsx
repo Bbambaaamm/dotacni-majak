@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
@@ -45,6 +45,8 @@ export function SearchPage() {
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
   const filterPanel = useRef<HTMLDetailsElement | null>(null);
+  const retryButton = useRef<HTMLButtonElement | null>(null);
+  const pendingFilterFocus = useRef<string | null>(null);
   const mobileFiltersOpen = useRef(false);
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
     // A filter change unmounts the panel before its asynchronous toggle event
@@ -81,17 +83,39 @@ export function SearchPage() {
   const loadedResults = data?.results ?? [];
   const providerOptions = data?.facets?.providers ?? [];
   const filteredResults = loadedResults;
-  function changeSort(next: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST") {
-    if (next === sortOrder) return;
+  function beginFilterSearch() {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      pendingFilterFocus.current = active.dataset.filterFocus
+        ?? (active.closest(".active-filters, .filter-empty") ? "summary" : null);
+    }
     moreController.current?.abort();
     setData(null);
     setLoading(true);
+  }
+  useLayoutEffect(() => {
+    const key = pendingFilterFocus.current;
+    if (!key || loading || (!data && !error)) return;
+    pendingFilterFocus.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement && active.isConnected) return;
+    if (error) {
+      retryButton.current?.focus();
+      return;
+    }
+    const panel = filterPanel.current;
+    const target = (panel?.open ? panel.querySelector<HTMLElement>(`[data-filter-focus="${key}"]`) : null)
+      ?? panel?.querySelector<HTMLElement>("summary")
+      ?? document.querySelector<HTMLElement>(".result-state-panel__actions a, .next-action a");
+    target?.focus();
+  }, [data, error, loading]);
+  function changeSort(next: "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST") {
+    if (next === sortOrder) return;
+    beginFilterSearch();
     setSortOrder(next);
   }
   function changeStatus(next: StatusFilter) {
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setProviderFilter("");
     setProviderDraft("");
     setSortOrder("RELEVANCE");
@@ -99,9 +123,7 @@ export function SearchPage() {
   }
   function changeInstrument(next: InstrumentFilter) {
     if (next === instrumentFilter && (next === "GRANT" || !projectBudgetCzk)) return;
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setInstrumentFilter(next);
     if (next !== "GRANT") {
       setProjectBudgetCzk("");
@@ -117,16 +139,12 @@ export function SearchPage() {
     }
     setBudgetValidation("");
     if (value === projectBudgetCzk) return;
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setProjectBudgetCzk(value);
     if (value) setInstrumentFilter("GRANT");
   }
   function changeDeadline(next: "ALL" | "KNOWN" | "UNKNOWN") {
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setProviderFilter("");
     setProviderDraft("");
     setSortOrder("RELEVANCE");
@@ -140,25 +158,19 @@ export function SearchPage() {
   }
   function changeClosesBy(next: string) {
     if (next === closesBy) return;
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setClosesBy(next);
     if (next && deadlineFilter === "UNKNOWN") setDeadlineFilter("ALL");
   }
   function changeClosesFrom(next: string) {
     if (next === closesFrom) return;
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setClosesFrom(next);
     if (next && deadlineFilter === "UNKNOWN") setDeadlineFilter("ALL");
   }
   function changeProvider(next: string) {
     if (next === providerFilter) return;
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setSortOrder("RELEVANCE");
     setProviderFilter(next);
   }
@@ -167,9 +179,7 @@ export function SearchPage() {
     changeProvider("");
   }
   function clearProjectBudget() {
-    moreController.current?.abort();
-    setData(null);
-    setLoading(true);
+    beginFilterSearch();
     setProjectBudgetCzk("");
     setProjectBudgetDraft("");
     setBudgetValidation("");
@@ -300,7 +310,10 @@ export function SearchPage() {
             <h2>Výsledky teď neumíme bezpečně zobrazit.</h2>
             <p>{error}</p>
           </div>
-          <button className="button button--primary" type="button" onClick={() => setRetryKey((key) => key + 1)}>
+          <button ref={retryButton} className="button button--primary" type="button" onClick={() => {
+            pendingFilterFocus.current = "summary";
+            setRetryKey((key) => key + 1);
+          }}>
             Zkusit vyhledávání znovu
           </button>
           <a className="button button--secondary button-link" href="/">
@@ -380,12 +393,12 @@ export function SearchPage() {
               filterPanel.current.open = false;
               filterPanel.current.querySelector("summary")?.focus();
             }}>
-            <summary>Upravit filtry a řazení</summary>
+            <summary data-filter-focus="summary">Upravit filtry a řazení</summary>
             <div className="result-filters" aria-label="Filtrovat výsledky">
             {data.facets === null ? <p className="fine-print" role="status">Počty pro filtry nejsou dostupné, protože hledání má příliš mnoho shod. Filtry můžete dál používat.</p> : null}
             <label>
               Typ financování
-              <select aria-label="Typ financování" value={instrumentFilter}
+              <select aria-label="Typ financování" data-filter-focus="instrument" value={instrumentFilter}
                 onChange={(event) => changeInstrument(event.target.value as InstrumentFilter)}>
                 <option value="ALL">Všechny typy</option>
                 {INSTRUMENT_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -393,11 +406,11 @@ export function SearchPage() {
             </label>
             <form onSubmit={(event) => { event.preventDefault(); applyProjectBudget(); }}>
               <label htmlFor="project-budget-filter">Náklady projektu (celé Kč)</label>
-              <input id="project-budget-filter" type="text" inputMode="numeric" autoComplete="off"
+              <input id="project-budget-filter" data-filter-focus="budget-input" type="text" inputMode="numeric" autoComplete="off"
                 maxLength={13} aria-describedby={budgetValidation ? "project-budget-help project-budget-error" : "project-budget-help"}
                 aria-invalid={Boolean(budgetValidation)} value={projectBudgetDraft}
                 onChange={(event) => { setProjectBudgetDraft(event.target.value); setBudgetValidation(""); }} />
-              <button type="submit">Použít rozpočet projektu</button>
+              <button type="submit" data-filter-focus="budget-submit">Použít rozpočet projektu</button>
               <p id="project-budget-help" className="fine-print">Jen doložený interval nákladů grantového projektu v CZK. Nejde o dotaci ani posouzení způsobilosti. Prázdné pole filtr zruší.</p>
               {budgetValidation ? <p id="project-budget-error" role="alert">{budgetValidation}</p> : null}
             </form>
@@ -405,6 +418,7 @@ export function SearchPage() {
               Stav výzvy
               <select
                 aria-label="Stav výzvy"
+                data-filter-focus="status"
                 value={statusFilter}
                 onChange={(event) => changeStatus(event.target.value as StatusFilter)}
               >
@@ -418,12 +432,12 @@ export function SearchPage() {
             </label>
             <form onSubmit={(event) => { event.preventDefault(); changeProvider(providerDraft.trim()); }}>
               <label htmlFor="provider-filter">Přesný název poskytovatele</label>
-              <input id="provider-filter" type="text" list="search-providers" maxLength={200}
+              <input id="provider-filter" data-filter-focus="provider-input" type="text" list="search-providers" maxLength={200}
                 value={providerDraft} onChange={(event) => setProviderDraft(event.target.value)} />
               <datalist id="search-providers">
                 {providerOptions.map((provider) => <option key={provider.name} value={provider.name} />)}
               </datalist>
-              <button type="submit">Použít poskytovatele</button>
+              <button type="submit" data-filter-focus="provider-submit">Použít poskytovatele</button>
               <p className="fine-print provider-facet-note">{data.facets
                 ? `Dostupní poskytovatelé pro ostatní filtry: ${providerOptions.map((item) => `${item.name} (${item.count})`).join(", ") || "žádní"}.`
                 : "Nápověda poskytovatelů není dostupná. Zadejte přesný název ručně."}
@@ -431,7 +445,7 @@ export function SearchPage() {
             </form>
             <label>
               Termín podání
-              <select aria-label="Termín podání" value={deadlineFilter}
+              <select aria-label="Termín podání" data-filter-focus="deadline" value={deadlineFilter}
                 onChange={(event) => changeDeadline(event.target.value as "ALL" | "KNOWN" | "UNKNOWN")}>
                 <option value="ALL">Všechny termíny</option>
                 <option value="KNOWN">Termín uveden{data.facets ? ` (${data.facets.deadline.KNOWN})` : ""}</option>
@@ -440,21 +454,21 @@ export function SearchPage() {
             </label>
             <form onSubmit={(event) => { event.preventDefault(); changeClosesBy(closesByDraft); }}>
               <label htmlFor="closes-by-filter">Uzávěrka nejpozději (včetně dne, UTC)</label>
-              <input id="closes-by-filter" type="date" value={closesByDraft}
+              <input id="closes-by-filter" data-filter-focus="closes-by-input" type="date" value={closesByDraft}
                 min={closesFrom || undefined}
                 onChange={(event) => setClosesByDraft(event.target.value)} />
-              <button type="submit">Použít datum uzávěrky</button>
+              <button type="submit" data-filter-focus="closes-by-submit">Použít datum uzávěrky</button>
             </form>
             <form onSubmit={(event) => { event.preventDefault(); changeClosesFrom(closesFromDraft); }}>
               <label htmlFor="closes-from-filter">Uzávěrka nejdříve (včetně dne, UTC)</label>
-              <input id="closes-from-filter" type="date" value={closesFromDraft}
+              <input id="closes-from-filter" data-filter-focus="closes-from-input" type="date" value={closesFromDraft}
                 max={closesBy || undefined}
                 onChange={(event) => setClosesFromDraft(event.target.value)} />
-              <button type="submit">Použít datum od</button>
+              <button type="submit" data-filter-focus="closes-from-submit">Použít datum od</button>
             </form>
             <label>
               Řazení všech odpovídajících výsledků
-              <select aria-label="Řazení všech odpovídajících výsledků" value={sortOrder}
+              <select aria-label="Řazení všech odpovídajících výsledků" data-filter-focus="sort" value={sortOrder}
                 onChange={(event) => changeSort(event.target.value as "RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST")}>
                 <option value="RELEVANCE">Původní pořadí relevance</option>
                 <option value="DEADLINE">Nejbližší uvedený termín</option>
@@ -473,9 +487,7 @@ export function SearchPage() {
                 </button>
               ))}
               <button type="button" className="filter-reset" onClick={() => {
-                moreController.current?.abort();
-                setData(null);
-                setLoading(true);
+                beginFilterSearch();
                 setStatusFilter("ALL");
                 setInstrumentFilter("ALL");
                 setProjectBudgetCzk("");

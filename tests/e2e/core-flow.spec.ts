@@ -1002,6 +1002,90 @@ test("mobile result filters, deadline order and chips use the real API without i
   expect(accessibility.violations).toEqual([]);
 });
 
+test("mobile filter keyboard focus survives real D1 searches, chip removal, reset and failure", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&status=OPEN`);
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: Array<{ grantCallVersionId: string }> }).results.map((row) => row.grantCallVersionId))
+    .toEqual(["gcv-e2e-open"]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+  await expect(page.locator(".grant-card")).toHaveCount(2);
+  const panel = page.locator(".filter-panel");
+  await panel.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(panel).toHaveAttribute("open");
+
+  let releaseSearch!: () => void;
+  const heldSearch = new Promise<void>((resolve) => { releaseSearch = resolve; });
+  await page.route("**/api/search?*", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("status") === "OPEN") await heldSearch;
+    await route.continue();
+  });
+  const status = page.getByLabel("Stav výzvy");
+  await status.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByText("Porovnáváme váš záměr s dostupnými výzvami.")).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  releaseSearch();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(panel).toHaveAttribute("open");
+  await expect(status).toBeFocused();
+  await expect(status).toHaveValue("OPEN");
+  await page.unroute("**/api/search?*");
+
+  const instrument = page.getByLabel("Typ financování", { exact: true });
+  let releaseInstrument!: () => void;
+  const heldInstrument = new Promise<void>((resolve) => { releaseInstrument = resolve; });
+  await page.route("**/api/search?*", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("instrument") === "GRANT") await heldInstrument;
+    await route.continue();
+  });
+  await instrument.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByText("Porovnáváme váš záměr s dostupnými výzvami.")).toBeVisible();
+  const navigationLink = page.getByRole("navigation", { name: "Hlavní navigace" }).getByRole("link").first();
+  await navigationLink.focus();
+  await expect(navigationLink).toBeFocused();
+  releaseInstrument();
+  await expect(instrument).toHaveValue("GRANT");
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(navigationLink).toBeFocused();
+  await page.unroute("**/api/search?*");
+  await instrument.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(instrument).toHaveValue("LOAN");
+  await expect(instrument).toBeFocused();
+  await expect(panel).toHaveAttribute("open");
+  const statusChip = page.getByRole("button", { name: "Zrušit filtr Stav: Otevřeno v zachycené verzi" });
+  await statusChip.focus();
+  await page.keyboard.press("Enter");
+  await expect(statusChip).toHaveCount(0);
+  await expect(panel.locator("summary")).toBeFocused();
+  await expect(panel).toHaveAttribute("open");
+  const reset = page.getByRole("button", { name: "Zrušit všechny filtry" });
+  await reset.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".grant-card")).toHaveCount(2);
+  await expect(panel.locator("summary")).toBeFocused();
+
+  await page.route("**/api/search?*", (route) => route.abort("failed"));
+  await instrument.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit.");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeFocused();
+  await page.unroute("**/api/search?*");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(panel.locator("summary")).toBeFocused();
+  await expect(panel).toHaveAttribute("open");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("tennis intent never surfaces the CLOSED historical NSA fixture as active", async ({ page }) => {
   await page.goto("/");
   await page
