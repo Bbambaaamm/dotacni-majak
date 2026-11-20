@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
+import { deadlineTime } from "../lib/deadlineTime";
 import { grantDetailAction } from "../lib/grantDetailAction";
 import {
   fetchGrantDetail,
@@ -68,13 +69,6 @@ function deadlineLabel(type: string): string {
     case "SUSTAINABILITY_END": return "Konec udržitelnosti";
     default: return "Další termín";
   }
-}
-
-// Preserve the source's offset and precision; do not silently turn a
-// date-only deadline into a midnight cutoff or reinterpret it locally.
-function deadlineTime(value: string | null): string {
-  if (!value) return "Není uvedeno";
-  return value.replace("T", " ").replace(/Z$/, " UTC");
 }
 
 function formatRate(value: number | null): string {

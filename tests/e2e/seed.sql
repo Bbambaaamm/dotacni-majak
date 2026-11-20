@@ -232,28 +232,32 @@ SELECT 'gcv-e2e-page-' || i,
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
   current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
 SELECT 'grant:e2e:date:' || kind,'e2e-programme-open','E2E-DATE-' || kind,
-  'e2e-date-' || kind,NULL,'OPEN','E2E date ' || kind,
+  'e2e-date-' || kind,NULL,'OPEN',CASE WHEN kind = 'offset' THEN 'E2E offset výzva' ELSE 'E2E date ' || kind END,
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z'
-FROM (SELECT 'only' AS kind UNION ALL SELECT 'invalid' UNION ALL SELECT 'malformed' UNION ALL SELECT 'null');
+FROM (SELECT 'only' AS kind UNION ALL SELECT 'invalid' UNION ALL SELECT 'malformed' UNION ALL SELECT 'null'
+  UNION ALL SELECT 'offset');
 
 INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
   submission_close_at,official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
 SELECT 'gcv-e2e-date-' || kind,'grant:e2e:date:' || kind,1,'2026-09-26T20:00:00Z',
-  'E2E date ' || kind,'date-boundary fixture','OPEN',close_at,
+  CASE WHEN kind = 'offset' THEN 'E2E offset výzva' ELSE 'E2E date ' || kind END,
+  CASE WHEN kind = 'offset' THEN 'offsetonlyfixture' ELSE 'date-boundary fixture' END,'OPEN',close_at,
   'https://example.invalid/e2e/date/' || kind,'CZK','e2e-v1',printf('%064d',100 + ordinal),
   'VERIFIED','2026-09-26T20:00:00Z'
 FROM (SELECT 'only' AS kind,'2027-05-01' AS close_at,1 AS ordinal
   UNION ALL SELECT 'invalid','2027-02-30',2
   UNION ALL SELECT 'malformed','not-a-date',3
-  UNION ALL SELECT 'null',NULL,4);
+  UNION ALL SELECT 'null',NULL,4
+  UNION ALL SELECT 'offset','2027-05-01T16:30:45+02:00',5);
 
 UPDATE grant_calls SET current_version_id = 'gcv-e2e-date-' || substr(id, length('grant:e2e:date:') + 1)
 WHERE id LIKE 'grant:e2e:date:%';
 
 INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
   eligible_costs,keywords,status,submission_close_at,updated_at)
-SELECT id,title,summary,'date-boundary','','date-boundary',status,submission_close_at,
+SELECT id,title,summary,CASE WHEN id = 'gcv-e2e-date-offset' THEN 'offsetonlyfixture' ELSE 'date-boundary' END,
+  '',CASE WHEN id = 'gcv-e2e-date-offset' THEN 'offsetonlyfixture' ELSE 'date-boundary' END,status,submission_close_at,
   '2026-09-26T20:00:00Z' FROM grant_call_versions WHERE id LIKE 'gcv-e2e-date-%';
 
 -- Preserve the true UTC day at a sub-millisecond midnight boundary.
