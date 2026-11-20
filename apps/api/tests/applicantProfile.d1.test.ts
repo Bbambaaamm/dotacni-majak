@@ -1,3 +1,4 @@
+// @ts-nocheck -- Miniflare D1 fixture follows the existing API integration-test convention.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
