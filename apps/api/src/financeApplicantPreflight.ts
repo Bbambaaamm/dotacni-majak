@@ -11,7 +11,8 @@ export type FinanceApplicantPreflight = {
 
 type ValueRow = {
   id: string; attribute_key: string; scope: string; data_type: string; active: number;
-  value_type: string; value_json: string; value_length: number; source_kind: string; verification_status: string;
+  value_type: string; value_json: string; value_length: number; nul_offset: number;
+  source_kind: string; verification_status: string;
   evidence_id: string | null; observed_at: string; verified_at: string | null;
   evidence_created_at: string | null; document_retrieved_at: string | null;
   document_first_seen_at: string | null; trusted: number;
@@ -31,7 +32,7 @@ function instant(value: string | null): number | null {
 function validValue(row: ValueRow): boolean {
   if (!scalarTypes.has(row.data_type) || row.value_type !== row.data_type
     || typeof row.value_json !== "string" || typeof row.value_length !== "number"
-    || row.value_length > 4096 || row.value_length < 1 || row.value_json.length === 0) return false;
+    || row.nul_offset !== 0 || row.value_length > 4096 || row.value_length < 1 || row.value_json.length === 0) return false;
   try {
     const value: unknown = JSON.parse(row.value_json);
     if (["STRING", "ENUM", "GEO_ID"].includes(row.data_type)) return typeof value === "string" && value.length <= 4096;
@@ -55,7 +56,9 @@ export async function preflightFinanceApplicantValues(
   try { rows = await db.batch([
     db.prepare("SELECT id, created_at FROM applicant_profiles WHERE id = ? AND user_id = ? LIMIT 1").bind(profileId, principal),
     db.prepare(`SELECT av.id, a.attribute_key, a.scope, a.data_type, a.active, av.value_type,
-        substr(av.value_json, 1, 4097) AS value_json, length(av.value_json) AS value_length,
+        substr(av.value_json, 1, 4097) AS value_json,
+        length(CAST(av.value_json AS BLOB)) AS value_length,
+        instr(CAST(av.value_json AS BLOB), x'00') AS nul_offset,
         av.source_kind, av.verification_status, av.evidence_id,
         av.observed_at, av.verified_at, fe.created_at AS evidence_created_at,
         dv.retrieved_at AS document_retrieved_at, sd.first_seen_at AS document_first_seen_at,

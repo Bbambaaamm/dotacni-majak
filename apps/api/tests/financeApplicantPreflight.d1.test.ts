@@ -1,6 +1,6 @@
-// @ts-expect-error -- Worker typecheck excludes Node test fixtures.
+// @ts-ignore -- Node test fixture: type availability differs between local install and CI.
 import { readFileSync } from "node:fs";
-// @ts-expect-error -- Worker typecheck excludes Node test fixtures.
+// @ts-ignore -- Node test fixture: type availability differs between local install and CI.
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -16,7 +16,7 @@ async function setup() {
     script: "export default { fetch() { return new Response('ok'); } }",
     d1Databases: { DB: "finance-applicant-preflight" } }));
   const db = await mf.getD1Database("DB");
-  // @ts-expect-error -- Node import.meta.dirname is present at test runtime.
+  // @ts-ignore -- Node test fixture: type availability differs between local install and CI.
   const migrations = resolve(import.meta.dirname, "../../../migrations");
   for (const file of ["0001_core_identity.sql", "0002_documents_provenance.sql",
     "0003_funding_projects_changes.sql", "0006_eligibility_rules.sql", "0007_applicant_profiles.sql",
@@ -94,6 +94,16 @@ describe("finance applicant preflight on canonical D1", () => {
       await db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`)
         .bind(good, table === "attribute_definitions" ? "attr-applicant-ico" : "value-a").run();
     }
+  });
+
+  it("rejects embedded NUL and byte-oversize JSON before parsing a truncated scalar", async () => {
+    const db = await setup();
+    await db.prepare("UPDATE applicant_attribute_values SET value_json='\"12345678\"' || char(0) || 'suffix' WHERE id='value-a'").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_ATTRIBUTE_VALUE",
+      attributeValueIds: [], evidenceIds: [] });
+    await db.prepare("UPDATE applicant_attribute_values SET value_json=? WHERE id='value-a'")
+      .bind(JSON.stringify("x".repeat(4096))).run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_ATTRIBUTE_VALUE" });
   });
 
   it("rejects missing, reversed or future timestamps and an invalid cutoff", async () => {
