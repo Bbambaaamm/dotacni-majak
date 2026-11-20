@@ -266,16 +266,46 @@ test("real D1 search loads more than 20 distinct results and retries a failed la
       await route.fulfill({ status: 503, contentType: "application/json",
         body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
     } else {
+      await new Promise((resolve) => setTimeout(resolve, 250));
       await route.continue();
     }
   });
   await page.getByRole("button", { name: "Načíst další výsledky" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
-  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  const retry = page.getByRole("button", { name: "Zkusit načíst další znovu" });
+  await expect(retry).toBeFocused();
+  await retry.press("Enter");
+  const busy = page.getByRole("button", { name: "Načítáme další výsledky…" });
+  await expect(busy).toBeFocused();
+  await expect(busy).toHaveAttribute("aria-disabled", "true");
   await expect(page.locator(".grant-card")).toHaveCount(25);
-  await expect(page.getByText("Načteno 25 výsledků", { exact: false })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Načteno 25 výsledků" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Načíst další výsledky" })).toHaveCount(0);
   expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
+});
+
+test("mobile pagination preserves a deliberate focus move during the final page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  let cursorRequests = 0;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    cursorRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.continue();
+  });
+  const more = page.getByRole("button", { name: "Načíst další výsledky" });
+  await more.focus();
+  await more.press("Enter");
+  const busy = page.getByRole("button", { name: "Načítáme další výsledky…" });
+  await expect(busy).toBeFocused();
+  await busy.press("Enter"); // aria-disabled keeps focus but must not dispatch another request.
+  const watch = page.getByRole("link", { name: "Pohlídat tento záměr" });
+  await watch.focus();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  await expect(watch).toBeFocused();
+  expect(cursorRequests).toBe(1);
 });
 
 test("global status finds a later-page planned result and rejects a changed cursor", async ({ page, request }) => {
