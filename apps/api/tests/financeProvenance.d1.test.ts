@@ -93,6 +93,37 @@ describe("finance provenance on canonical D1", () => {
     await db.prepare("INSERT INTO eligibility_rule_sets(id,grant_call_version_id,name,completeness_status,verification_status) VALUES ('rs2','v1','Other','COMPLETE','VERIFIED')").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "RULE_SET_NOT_UNIQUE" });
   });
+  it("rejects rule trees the deterministic evaluator cannot traverse", async () => {
+    const db = await setup();
+    await db.prepare("INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,expected_value_json,verification_status,evidence_id) VALUES ('c2','root','attr','EQ','\"MUNICIPALITY\"','VERIFIED','rule-evidence')").run();
+    await db.prepare("UPDATE rule_groups SET group_operator='NOT' WHERE id='root'").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_GRAPH", scenarioIds: [] });
+    await db.prepare("DELETE FROM rule_conditions WHERE id='c2'").run();
+    await db.prepare("UPDATE rule_groups SET group_operator='AND' WHERE id='root'").run();
+    await db.prepare("UPDATE rule_groups SET group_operator='NOT' WHERE id='group'").run();
+    expect((await read(db)).status).toBe("VERIFIED");
+    await db.prepare("INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,expected_value_json,verification_status,evidence_id) VALUES ('c2','group','attr','EQ','\"MUNICIPALITY\"','VERIFIED','rule-evidence')").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_GRAPH", scenarioIds: [], conditionEvidenceIds: {} });
+    await db.prepare("DELETE FROM rule_conditions WHERE id='c2'").run();
+    await db.prepare("UPDATE rule_groups SET group_operator='AND' WHERE id='group'").run();
+    await db.prepare("INSERT INTO rule_groups(id,rule_set_id,parent_group_id,group_operator) VALUES ('empty','rs','root','AND')").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_GRAPH" });
+  });
+
+  it("rejects nested groups beyond the eligibility evaluator depth bound", async () => {
+    const db = await setup();
+    let parent = "group";
+    for (let depth = 0; depth < 16; depth++) {
+      const id = `nested-${depth}`;
+      await db.prepare("INSERT INTO rule_groups(id,rule_set_id,parent_group_id,group_operator) VALUES (?,'rs',?,'AND')")
+        .bind(id, parent).run();
+      parent = id;
+    }
+    await db.prepare("UPDATE rule_conditions SET rule_group_id=? WHERE id='c1'").bind(parent).run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_GRAPH",
+      scenarioIds: [], conditionEvidenceIds: {} });
+  });
+
   it("does not certify malformed, inactive, project or unsupported rule operands even with official evidence", async () => {
     const db = await setup();
     const changes = [

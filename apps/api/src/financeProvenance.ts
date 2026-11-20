@@ -12,7 +12,7 @@ export type FinanceProvenance = {
 
 type Version = { id: string; verification_status: string };
 type SetRow = { id: string; completeness_status: string; verification_status: string };
-type Group = { id: string; parent_group_id: string | null };
+type Group = { id: string; parent_group_id: string | null; group_operator: string };
 type Condition = { id: string; rule_group_id: string; evidence_id: string | null; verification_status: string; trusted: number;
   attribute_key: string; scope: string; data_type: string; active: number; condition_operator: string;
   expected_value_json: string; blocking: number; unknown_policy: string };
@@ -61,7 +61,7 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
     db.prepare(versionSql).bind(grantCallId),
     db.prepare(`SELECT id, completeness_status, verification_status FROM eligibility_rule_sets
       WHERE grant_call_version_id = (${versionIdSql}) ORDER BY id LIMIT 2`).bind(grantCallId),
-    db.prepare(`SELECT id, parent_group_id FROM rule_groups
+    db.prepare(`SELECT id, parent_group_id, group_operator FROM rule_groups
       WHERE rule_set_id = (${ruleSetSql}) ORDER BY id LIMIT 65`).bind(grantCallId),
     db.prepare(`SELECT c.id, c.rule_group_id, c.evidence_id, c.verification_status,
       a.attribute_key, a.scope, a.data_type, a.active, c.condition_operator,
@@ -127,6 +127,17 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
     || groups.some((g) => g.parent_group_id === groupId && hasCondition(g.id));
   if (scenarios.some((s) => !hasCondition(s.condition_group_id!)))
     return result("NEEDS_INFORMATION", "INCOMPLETE_RULE_GRAPH", versionId, ruleSetId);
+  // Mirror the deterministic evaluator's structural constraints before certifying
+  // a group as selectable. In particular, NOT must have exactly one direct child.
+  const supportedGroup = (group: Group, depth: number): boolean => {
+    if (depth > 16 || !["AND", "OR", "NOT"].includes(group.group_operator)) return false;
+    const children = groups.filter((g) => g.parent_group_id === group.id);
+    const count = children.length + conditions.filter((c) => c.rule_group_id === group.id).length;
+    return count > 0 && (group.group_operator !== "NOT" || count === 1)
+      && children.every((child) => supportedGroup(child, depth + 1));
+  };
+  if (!supportedGroup(groups.find((g) => g.parent_group_id === null)!, 0))
+    return result("NEEDS_INFORMATION", "UNSUPPORTED_RULE_GRAPH", versionId, ruleSetId);
   if (conditions.some((c) => !byGroup.has(c.rule_group_id) || c.verification_status !== "VERIFIED" || c.trusted !== 1 || !c.evidence_id)
     || scenarios.some((s) => s.trusted !== 1))
     return result("NEEDS_INFORMATION", "UNVERIFIED_OFFICIAL_EVIDENCE", versionId, ruleSetId);
