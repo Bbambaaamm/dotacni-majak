@@ -664,6 +664,41 @@ test("date-only deadline keeps its original precision in real API and mobile ove
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("search cards retain source deadline precision from real D1 and API", async ({ page, request }) => {
+  const response = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(response.status()).toBe(200);
+  const { results } = await response.json() as { results: Array<{ grantCallVersionId: string; submissionCloseAt: string | null }> };
+  expect(results.find((row) => row.grantCallVersionId === "gcv-e2e-open")?.submissionCloseAt)
+    .toBe("2027-12-31T23:59:59Z");
+
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  const open = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
+  await expect(open.locator(".facts dd").nth(1)).toHaveText("2027-12-31 23:59:59 UTC");
+
+  const offsetResponse = await request.get("/api/search?intent=offsetonlyfixture");
+  expect(offsetResponse.status()).toBe(200);
+  const offsetResults = (await offsetResponse.json() as { results: Array<{ grantCallVersionId: string; submissionCloseAt: string | null }> }).results;
+  expect(offsetResults.find((row) => row.grantCallVersionId === "gcv-e2e-date-offset")?.submissionCloseAt)
+    .toBe("2027-05-01T16:30:45+02:00");
+  await page.goto("/hledat?intent=offsetonlyfixture");
+  const offset = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E offset výzva" }) });
+  await expect(offset.locator(".facts dd").nth(1)).toHaveText("2027-05-01 16:30:45+02:00");
+
+  const dates = await request.get("/api/search?intent=date-boundary");
+  expect(dates.status()).toBe(200);
+  const dateResults = (await dates.json() as { results: Array<{ grantCallVersionId: string; submissionCloseAt: string | null }> }).results;
+  expect(dateResults.find((row) => row.grantCallVersionId === "gcv-e2e-date-only")?.submissionCloseAt).toBe("2027-05-01");
+  expect(dateResults.find((row) => row.grantCallVersionId === "gcv-e2e-date-null")?.submissionCloseAt).toBeNull();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=date-boundary");
+  const dateOnly = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E date only" }) });
+  const unknown = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E date null" }) });
+  await expect(dateOnly.locator(".facts dd").nth(1)).toHaveText("2027-05-01");
+  await expect(unknown.locator(".facts dd").nth(1)).toHaveText("Není uvedeno");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+});
+
 test("non-grant instrument remains a loan in real D1/API and mobile detail", async ({ page, request }) => {
   const response = await request.get("http://127.0.0.1:8787/grants/grant%3Ae2e%3Aplanned");
   expect(response.status()).toBe(200);

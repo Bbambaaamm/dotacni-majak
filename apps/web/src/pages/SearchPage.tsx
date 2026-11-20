@@ -5,6 +5,7 @@ import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import { readIntentFromSearch } from "../lib/intent";
+import { deadlineTime } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import {
   searchErrorMessage,
@@ -29,17 +30,6 @@ function statusLabel(status: string): string {
     default:
       return status;
   }
-}
-
-function dateLabel(value: string | null): string {
-  if (!value) return "Není uvedeno";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("cs-CZ", {
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-  }).format(parsed);
 }
 
 export function SearchPage() {
@@ -564,7 +554,7 @@ export function SearchPage() {
                       </div>
                       <div>
                         <dt>Termín podání</dt>
-                        <dd>{dateLabel(grant.submissionCloseAt)}</dd>
+                        <dd>{deadlineTime(grant.submissionCloseAt)}</dd>
                       </div>
                       <div>
                         <dt>Poskytovatel</dt>
