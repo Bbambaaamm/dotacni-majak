@@ -18,6 +18,14 @@ import "./results.css";
 
 const STATUS_OPTIONS = ["OPEN", "PLANNED", "ANNOUNCED"] as const;
 const INSTRUMENT_OPTIONS = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"] as const;
+const INSTRUMENT_LABELS: Record<typeof INSTRUMENT_OPTIONS[number], string> = {
+  GRANT: "Dotace / příspěvek",
+  LOAN: "Úvěr",
+  GUARANTEE: "Záruka",
+  EQUITY: "Kapitálový nástroj",
+  MIXED: "Kombinovaný nástroj",
+  OTHER: "Jiný nástroj podpory",
+};
 type InstrumentFilter = "ALL" | typeof INSTRUMENT_OPTIONS[number];
 type StatusFilter = "ALL" | typeof STATUS_OPTIONS[number];
 
@@ -223,7 +231,7 @@ export function SearchPage() {
     setBudgetValidation("");
   }
   const activeFilters = [
-    instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${instrumentFilter}`, clear: () => changeInstrument("ALL") } : null,
+    instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${INSTRUMENT_LABELS[instrumentFilter]}`, clear: () => changeInstrument("ALL") } : null,
     projectBudgetCzk ? { key: "budget", label: `Náklady projektu: ${projectBudgetCzk} Kč`, clear: clearProjectBudget } : null,
     statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
     providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
@@ -449,7 +457,7 @@ export function SearchPage() {
               <select aria-label="Typ financování" data-filter-focus="instrument" value={instrumentFilter}
                 onChange={(event) => changeInstrument(event.target.value as InstrumentFilter)}>
                 <option value="ALL">Všechny typy</option>
-                {INSTRUMENT_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
+                {INSTRUMENT_OPTIONS.map((type) => <option key={type} value={type}>{INSTRUMENT_LABELS[type]}</option>)}
               </select>
             </label>
             <form onSubmit={(event) => { event.preventDefault(); applyProjectBudget(); }}>

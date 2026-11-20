@@ -443,12 +443,16 @@ test("mobile instrument selector filters real API and D1 before pagination", asy
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Typ financování", { exact: true })).toBeVisible();
   const selector = page.getByLabel("Typ financování", { exact: true });
-  await expect(selector.locator("option")).toHaveCount(7);
+  await expect(selector.locator("option")).toHaveText([
+    "Všechny typy", "Dotace / příspěvek", "Úvěr", "Záruka",
+    "Kapitálový nástroj", "Kombinovaný nástroj", "Jiný nástroj podpory",
+  ]);
   await selector.selectOption("LOAN");
+  await expect(page).toHaveURL(/instrument=LOAN/);
   await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
   await expect(page.getByText(/Hledáme v indexovaných výzvách veřejné podpory/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Zrušit filtr Typ financování: LOAN" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zrušit filtr Typ financování: Úvěr" })).toBeVisible();
   await selector.focus();
   await page.keyboard.press("Escape");
   await expect(page.locator(".filter-panel")).not.toHaveAttribute("open");
@@ -462,7 +466,7 @@ test("mobile instrument selector filters real API and D1 before pagination", asy
     expect(invalid.status()).toBe(400);
     expect(await invalid.json()).toEqual({ error: "INVALID_INSTRUMENT" });
   }
-  await page.getByRole("button", { name: "Zrušit filtr Typ financování: LOAN" }).click();
+  await page.getByRole("button", { name: "Zrušit filtr Typ financování: Úvěr" }).click();
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
 });
 
