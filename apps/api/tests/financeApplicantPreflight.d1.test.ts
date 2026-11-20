@@ -101,6 +101,7 @@ describe("finance applicant preflight on canonical D1", () => {
     for (const [table, column, bad, good] of [
       ["applicant_attribute_values", "verified_at", null, "2026-01-03T00:00:00Z"],
       ["applicant_attribute_values", "observed_at", "2026-01-04T00:00:00Z", "2026-01-02T00:00:00Z"],
+      ["applicant_attribute_values", "observed_at", "2026-01-03T00:00:00Z", "2026-01-02T00:00:00Z"],
       ["applicant_attribute_values", "observed_at", "bad", "2026-01-02T00:00:00Z"],
       ["field_evidence", "created_at", "2026-01-04T00:00:00Z", "2026-01-02T00:00:00Z"],
       ["document_versions", "retrieved_at", "2026-01-04T00:00:00Z", "2026-01-01T00:00:00Z"],

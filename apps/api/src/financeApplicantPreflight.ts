@@ -97,7 +97,7 @@ export async function preflightFinanceApplicantValues(
     if (profileCreated === null || observed === null || verified === null || created === null
       || retrieved === null || firstSeen === null || profileCreated > created || profileCreated > verified
       || firstSeen > retrieved || retrieved > created || retrieved > verified
-      || observed > verified || created > verified || verified > cutoff)
+      || observed > created || observed > verified || created > verified || verified > cutoff)
       return result("NEEDS_INFORMATION", "INCONSISTENT_ATTRIBUTE_TIMESTAMPS");
   }
   return { status: "STRUCTURE_ONLY", reason: "OWNED_OFFICIAL_ATTRIBUTE_REFERENCES_ONLY",
