@@ -1215,6 +1215,88 @@ test("search API failure is fail-closed and retries the same intent against real
   await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toHaveCount(0);
 });
 
+test("search retry keeps keyboard focus through delayed failures and real D1 recovery", async ({ page }) => {
+  const state: { mode: "error" | "pendingError" | "pendingSuccess"; retries: number } = { mode: "error", retries: 0 };
+  let releaseError!: () => void;
+  let releaseSuccess!: () => void;
+  const pendingError = new Promise<void>((resolve) => { releaseError = resolve; });
+  const pendingSuccess = new Promise<void>((resolve) => { releaseSuccess = resolve; });
+  await page.route("**/api/search?*", async (route) => {
+    const mode = state.mode;
+    if (mode !== "error") state.retries += 1;
+    if (mode === "pendingError") await pendingError;
+    if (mode === "pendingSuccess") await pendingSuccess;
+    if (mode === "pendingSuccess") await route.continue();
+    else await route.fulfill({ status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
+  });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeVisible();
+  state.mode = "pendingError";
+  await retry.focus();
+  await retry.press("Enter");
+  const busy = page.getByRole("button", { name: "Vyhledáváme znovu…" });
+  await expect(busy).toBeFocused();
+  await expect(busy).toHaveAttribute("aria-disabled", "true");
+  await busy.press("Enter");
+  expect(state.retries).toBe(1);
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  releaseError();
+  await expect(retry).toBeFocused();
+  state.mode = "pendingSuccess";
+  await retry.press("Enter");
+  await expect(busy).toBeFocused();
+  releaseSuccess();
+  await expect(page.getByRole("heading", { name: "Nalezené možnosti" })).toBeFocused();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect(state.retries).toBe(2);
+});
+
+test("search retry hands focus to the watch action when real D1 has no results", async ({ page }) => {
+  let recover = false;
+  await page.route("**/api/search?*", async (route) => {
+    if (recover) await route.continue();
+    else await route.fulfill({ status: 503, body: '{"error":"SEARCH_UNAVAILABLE"}' });
+  });
+  await page.goto("/hledat?intent=rekonstrukce%20tenisov%C3%BDch%20kurt%C5%AF");
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeVisible();
+  recover = true;
+  await retry.focus();
+  await retry.press("Enter");
+  await expect(page.getByRole("heading", { name: "Maják může hledat dál." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Pohlídat tento záměr" })).toBeFocused();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+});
+
+test("mobile search retry respects deliberate focus move during real D1 recovery", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let retrying = false;
+  let requests = 0;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/search?*", async (route) => {
+    if (!retrying) await route.fulfill({ status: 503, body: '{"error":"SEARCH_UNAVAILABLE"}' });
+    else { requests += 1; await pending; await route.continue(); }
+  });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeVisible();
+  retrying = true;
+  await retry.focus();
+  await retry.press("Enter");
+  await expect(page.getByRole("button", { name: "Vyhledáváme znovu…" })).toBeFocused();
+  const navigation = page.getByRole("navigation", { name: "Hlavní navigace" }).getByRole("link").first();
+  await navigation.focus();
+  release();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(navigation).toBeFocused();
+  expect(requests).toBe(1);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("no result → saved watch → published source → notification → detail; failure keeps last good", async ({ page }) => {
   await page.goto("/hledat?intent=rekonstrukce%20tenisov%C3%BDch%20kurt%C5%AF");
   await expect(page.getByRole("heading", { name: "Maják může hledat dál." })).toBeVisible();

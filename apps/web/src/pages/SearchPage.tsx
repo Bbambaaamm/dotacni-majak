@@ -50,6 +50,8 @@ export function SearchPage() {
   const paginationStatus = useRef<HTMLDivElement | null>(null);
   const pendingPaginationFocus = useRef(false);
   const pendingFilterFocus = useRef<string | null>(null);
+  const pendingRetryFocus = useRef(false);
+  const retryLoadingButton = useRef<HTMLButtonElement | null>(null);
   const mobileFiltersOpen = useRef(false);
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
     // A filter change unmounts the panel before its asynchronous toggle event
@@ -97,6 +99,24 @@ export function SearchPage() {
     setData(null);
     setLoading(true);
   }
+  useLayoutEffect(() => {
+    if (!pendingRetryFocus.current) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement && active.isConnected) {
+      // A deliberate focus move must win over any asynchronous response.
+      if (active !== retryLoadingButton.current) pendingRetryFocus.current = false;
+      return;
+    }
+    if (loading) {
+      retryLoadingButton.current?.focus();
+      return;
+    }
+    pendingRetryFocus.current = false;
+    if (!error && pendingFilterFocus.current) return;
+    (error ? retryButton.current : document.querySelector<HTMLElement>(
+      "#results-title, .result-state-panel__actions a, .next-action a",
+    ))?.focus();
+  }, [data, error, loading]);
   useLayoutEffect(() => {
     const key = pendingFilterFocus.current;
     if (!key || loading || (!data && !error)) return;
@@ -313,6 +333,12 @@ export function SearchPage() {
             <h2>Porovnáváme váš záměr s dostupnými výzvami.</h2>
             <p>Výsledek nebude doplněn žádnými modelovými nebo vymyšlenými daty.</p>
           </div>
+          {retryKey > 0 ? (
+            <button ref={retryLoadingButton} className="button button--primary" type="button"
+              aria-disabled="true" aria-busy="true">
+              Vyhledáváme znovu…
+            </button>
+          ) : null}
         </section>
       ) : null}
 
@@ -323,8 +349,11 @@ export function SearchPage() {
             <h2>Výsledky teď neumíme bezpečně zobrazit.</h2>
             <p>{error}</p>
           </div>
-          <button ref={retryButton} className="button button--primary" type="button" onClick={() => {
-            pendingFilterFocus.current = "summary";
+          <button ref={retryButton} className="button button--primary" type="button" onClick={(event) => {
+            pendingRetryFocus.current = document.activeElement === event.currentTarget;
+            pendingFilterFocus.current = activeFilters.length ? "summary" : null;
+            setLoading(true);
+            setError(null);
             setRetryKey((key) => key + 1);
           }}>
             Zkusit vyhledávání znovu
@@ -367,7 +396,7 @@ export function SearchPage() {
         <section aria-labelledby="results-title">
           <div className="section-heading">
             <div>
-              <h2 id="results-title">Nalezené možnosti</h2>
+              <h2 id="results-title" tabIndex={-1}>Nalezené možnosti</h2>
               <p>
                 {filteredResults.length === data.results.length
                   ? `${data.results.length} výsledků.`
