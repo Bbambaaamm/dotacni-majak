@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
+import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import { readIntentFromSearch } from "../lib/intent";
 import { deadlineTime } from "../lib/deadlineTime";
@@ -22,7 +23,7 @@ type StatusFilter = "ALL" | typeof STATUS_OPTIONS[number];
 function statusLabel(status: string): string {
   switch (status) {
     case "OPEN":
-      return "Lze podat žádost";
+      return OPEN_STATUS_LABEL;
     case "PLANNED":
       return "Plánovaná výzva";
     case "ANNOUNCED":
@@ -521,6 +522,7 @@ export function SearchPage() {
                 {grant.summary ? (
                   <p className="results-lead">{grant.summary}</p>
                 ) : null}
+                {grant.status === "OPEN" ? <p className="fine-print">{OPEN_STATUS_NOTE}</p> : null}
 
                 <div className="grant-grid">
                   <section>

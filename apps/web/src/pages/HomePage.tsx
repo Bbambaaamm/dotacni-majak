@@ -1,6 +1,7 @@
 import "./homepage.css";
 
 import { StatusBadge } from "../components/StatusBadge";
+import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { buildIntentSearchUrl, intentExamples } from "../lib/intent";
 
 const promiseItems = [
@@ -188,7 +189,7 @@ export function HomePage() {
               <StatusBadge kind="info" label="Modelová karta" />
               <h3>Regionální sportovní infrastruktura</h3>
             </div>
-            <span className="grant-preview__status">Lze podat žádost</span>
+            <span className="grant-preview__status">{OPEN_STATUS_LABEL}</span>
           </header>
           <div className="grant-preview__grid">
             <div>
@@ -210,7 +211,7 @@ export function HomePage() {
           </div>
           <footer>
             <span>Oficiální zdroj · konkrétní stránka dokumentu</span>
-            <span>Aktuálnost se ověřuje u reálných dat</span>
+            <span>{OPEN_STATUS_NOTE}</span>
           </footer>
         </article>
       </section>
