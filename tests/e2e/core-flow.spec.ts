@@ -2,6 +2,39 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("project-cost filter uses verified grant scenarios in real D1 on desktop and mobile", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=300000`);
+  expect(api.status()).toBe(200);
+  expect((await api.json()).results.map((row: { grantCallVersionId: string }) => row.grantCallVersionId))
+    .toEqual(["gcv-e2e-open"]);
+  const outside = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=500000`);
+  expect(outside.status()).toBe(200);
+  expect((await outside.json()).results).toHaveLength(0);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+    if (width === 390) await page.locator(".filter-panel summary").click();
+    const budget = page.getByLabel("Náklady projektu (celé Kč)");
+    await budget.fill("12.5");
+    await page.getByRole("button", { name: "Použít rozpočet projektu" }).click();
+    await expect(page.getByRole("alert")).toContainText("celé nezáporné koruny");
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+    await budget.fill("300000");
+    await page.getByRole("button", { name: "Použít rozpočet projektu" }).click();
+    await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 300000 Kč" })).toBeVisible();
+    await expect(page.getByLabel("Typ financování", { exact: true })).toHaveValue("GRANT");
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.getByLabel("Typ financování", { exact: true }).selectOption("LOAN");
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 300000 Kč" })).toHaveCount(0);
+  }
+});
+
 test("detail shows every returned evidence row and discloses the API cap", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A21");
   expect(response.status()).toBe(200);
