@@ -308,3 +308,21 @@ SELECT 'gcv-e2e-status-' || lower(current_status),id,1,'2026-09-26T20:00:00Z',cu
 
 UPDATE grant_calls SET current_version_id='gcv-e2e-status-' || lower(current_status)
 WHERE id LIKE 'grant:e2e:status:%';
+
+-- More than the detail API's 100-row evidence cap, tied to the same synthetic call.
+INSERT INTO source_documents(id,grant_call_id,source_id,document_type,title,source_url,first_seen_at,last_seen_at)
+VALUES ('e2e-doc-page-21','grant:e2e:page:21','e2e-source-open','CALL_DOCUMENT',
+  'E2E doklady stránkování','https://example.invalid/e2e/page/21-evidence',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z');
+INSERT INTO document_versions(id,source_document_id,sha256,retrieved_at,mime_type,file_size,object_key,
+  parser_version,extraction_status,page_count,language_code)
+VALUES ('e2e-dv-page-21','e2e-doc-page-21',printf('%064d',321),
+  '2026-09-26T20:00:00Z','application/pdf',128,'raw/E2E/e2e-page-21.pdf',
+  'e2e-v1','EXTRACTED',101,'cs');
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 101)
+INSERT INTO field_evidence(id,entity_type,entity_id,field_path,document_version_id,
+  page_from,page_to,evidence_text,extraction_method,extractor_version,
+  confidence_ppm,verification_status,created_at)
+SELECT 'e2e-fe-page-21-' || printf('%03d',i),'GRANT_CALL_VERSION','gcv-e2e-page-21',
+  '/synthetic/' || i,'e2e-dv-page-21',i,i,'Synthetic E2E evidence ' || i,
+  'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z' FROM n;

@@ -2,6 +2,30 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("detail shows every returned evidence row and discloses the API cap", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A21");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { evidence: Array<{ id: string; sourceUrl: string }> };
+  expect(detail.evidence).toHaveLength(100);
+  expect(detail.evidence[0]).toMatchObject({ id: "e2e-fe-page-21-001",
+    sourceUrl: "https://example.invalid/e2e/page/21-evidence" });
+  expect(detail.evidence[99]?.id).toBe("e2e-fe-page-21-100");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A21");
+  await expect(page.getByRole("heading", { name: "E2E stránkování 21" })).toBeVisible();
+  const panel = page.getByRole("complementary", { name: "Oficiální zdroje" });
+  await panel.getByText("Konkrétní evidence (100 zobrazených)").click();
+  await expect(panel.getByRole("status")).toContainText("Mohou existovat další");
+  const evidence = panel.locator("details li");
+  await expect(evidence).toHaveCount(100);
+  await expect(evidence.nth(99)).toContainText("str. 100");
+  await expect(evidence.nth(99).getByRole("link")).toHaveAttribute("href", "https://example.invalid/e2e/page/21-evidence");
+  await expect(evidence.getByText("str. 101")).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("grant detail reports source presence without changing OPEN status", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const cases = [
