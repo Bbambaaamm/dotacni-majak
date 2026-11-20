@@ -312,11 +312,11 @@ export function GrantDetailPage() {
               </div>
               <div>
                 <dt>Zahájení příjmu</dt>
-                <dd>{formatDate(detail.submissionOpenAt)}</dd>
+                <dd>{deadlineTime(detail.submissionOpenAt)}</dd>
               </div>
               <div>
                 <dt>Ukončení příjmu</dt>
-                <dd>{formatDate(detail.submissionCloseAt)}</dd>
+                <dd>{deadlineTime(detail.submissionCloseAt)}</dd>
               </div>
               <div>
                 <dt>Verze výzvy zachycena</dt>
