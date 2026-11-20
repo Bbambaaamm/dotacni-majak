@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
+import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { deadlineTime } from "../lib/deadlineTime";
 import { grantDetailAction } from "../lib/grantDetailAction";
 import {
@@ -16,7 +17,7 @@ import "./results.css";
 function statusLabel(status: string): string {
   switch (status) {
     case "OPEN":
-      return "Lze podat žádost";
+      return OPEN_STATUS_LABEL;
     case "PLANNED":
       return "Plánovaná výzva";
     case "ANNOUNCED":
@@ -252,6 +253,7 @@ export function GrantDetailPage() {
             label={verificationLabel(detail.verificationStatus)}
           />
         </div>
+        {detail.status === "OPEN" ? <p className="fine-print">{OPEN_STATUS_NOTE}</p> : null}
         {detail.sources.length === 0 ? (
           <p className="source-presence-caution" role="status">
             <strong>Výskyt výzvy u zdroje není doložen.</strong>{" "}

@@ -41,7 +41,7 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
     await expect(empty).toContainText("neznámými nebo neověřenými hranicemi");
     await expect(empty).toContainText("Nejde o posouzení vaší způsobilosti");
     await expect(page.locator(".grant-card")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zrušit filtr Stav: Otevřeno v zachycené verzi" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 500000 Kč" })).toBeVisible();
     const clearBudget = empty.getByRole("button", { name: "Zrušit pouze filtr nákladů projektu" });
     await expect(clearBudget).toBeVisible();
@@ -59,6 +59,44 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
     await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 300000 Kč" })).toHaveCount(0);
   }
+});
+
+test("captured OPEN stays distinct from current submit-ability in real D1 search and detail", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const search = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);
+  expect(search.status()).toBe(200);
+  expect((await search.json() as { results: Array<{ grantCallVersionId: string; status: string }> }).results)
+    .toContainEqual(expect.objectContaining({ grantCallVersionId: "gcv-e2e-open", status: "OPEN" }));
+  const detail = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(detail.status()).toBe(200);
+  expect((await detail.json() as { status: string }).status).toBe("OPEN");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const preview = page.locator(".grant-preview");
+  await expect(preview.locator(".grant-preview__status")).toHaveText("Otevřeno v zachycené verzi");
+  await expect(preview).toContainText("Před podáním ověřte aktuální stav v oficiálním zdroji.");
+
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+  const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
+  await expect(card).toContainText("Otevřeno v zachycené verzi");
+  await expect(card).toContainText("Před podáním ověřte aktuální stav v oficiálním zdroji.");
+  await expect(card).not.toContainText("Lze podat žádost");
+  await page.locator(".filter-panel summary").click();
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toContainText("Otevřeno v zachycené verzi");
+  await page.getByLabel("Stav výzvy").selectOption("OPEN");
+  await expect(card).toBeVisible();
+  await expect(page.getByLabel("Stav výzvy")).toHaveValue("OPEN");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await card.getByRole("link", { name: "Zobrazit detail" }).click();
+  await expect(page.locator(".detail-hero")).toContainText("Otevřeno v zachycené verzi");
+  await expect(page.locator(".detail-hero")).toContainText("Před podáním ověřte aktuální stav v oficiálním zdroji.");
+  await expect(page.locator(".detail-hero")).not.toContainText("Lze podat žádost");
+  await expect(page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) })).toContainText("Otevřeno v zachycené verzi");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("detail shows every returned evidence row and discloses the API cap", async ({ page, request }) => {
@@ -130,7 +168,7 @@ test("grant detail reports source presence without changing OPEN status", async 
 
     await page.goto(`/dotace/grant%3Ae2e%3Apage%3A${scenario.id}`);
     await expect(page.getByRole("heading", { name: `E2E stránkování ${scenario.id}` })).toBeVisible();
-    await expect(page.locator(".detail-hero").getByText("Lze podat žádost")).toBeVisible();
+    await expect(page.locator(".detail-hero").getByText("Otevřeno v zachycené verzi")).toBeVisible();
     const sourcePanel = page.getByRole("complementary", { name: "Oficiální zdroje" });
     for (const label of scenario.labels) await expect(sourcePanel.getByText(label, { exact: true })).toBeVisible();
     await expect(page.locator(".source-presence-caution")).toHaveCount(scenario.caution ? 1 : 0);
@@ -204,14 +242,14 @@ test("unavailable facets show no counts, allow manual filters, and preserve firs
     }) });
   });
   await page.goto("/hledat?intent=facet-browser-test");
-  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost (2)");
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Otevřeno v zachycené verzi (2)");
   await page.getByRole("button", { name: "Načíst další výsledky" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(2);
-  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost (2)");
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Otevřeno v zachycené verzi (2)");
   await page.getByLabel("Přesný název poskytovatele").fill("Manual provider");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
   await expect(page.getByText("Počty pro filtry nejsou dostupné", { exact: false })).toBeVisible();
-  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Lze podat žádost");
+  await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Otevřeno v zachycené verzi");
   await expect(page.getByLabel("Termín podání").locator('option[value="UNKNOWN"]')).toHaveText("Termín neuveden (UNKNOWN)");
   await expect(page.locator("#search-providers option")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: Manual provider" })).toBeVisible();
@@ -278,7 +316,7 @@ test("global deadline availability finds a later-page call and remains bound to 
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await page.getByLabel("Stav výzvy").selectOption("OPEN");
   await expect(page.locator(".filter-empty")).toContainText("v indexovaných výsledcích shodu pro tento záměr");
-  await page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" }).click();
+  await page.getByRole("button", { name: "Zrušit filtr Stav: Otevřeno v zachycené verzi" }).click();
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.locator(".grant-card")).toHaveCount(20);
@@ -595,7 +633,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(
     page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" }),
   ).toBeVisible();
-  await expect(page.getByText("Lze podat žádost").first()).toBeVisible();
+  await expect(page.getByText("Otevřeno v zachycené verzi").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Oficiální zdroje" })).toBeVisible();
   await expect(page.getByRole("link", { name: /E2E oficiální zdroj A/ })).toHaveAttribute(
     "href",
