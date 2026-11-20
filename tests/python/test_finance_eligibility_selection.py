@@ -14,7 +14,7 @@ from dotacni_majak_eligibility import (
     RuleGroup, RuleSet, VerificationStatus,
 )
 from dotacni_majak_finance import (
-    FinanceEngine, FinanceStatus, FundingScenario, ScenarioApplicability,
+    ApplicantInput, FinanceEngine, FinanceStatus, FundingScenario, ScenarioApplicability,
     VersionedFundingScenario, select_from_eligibility,
 )
 
@@ -58,14 +58,18 @@ class VerifiedFinanceSelectionTest(unittest.TestCase):
         ]
         self.evidence = {"is-municipality": "evidence:1", "is-club": "evidence:2"}
 
-    def select(self, *, values=None, evidence=None, rule_set=None, scenarios=None,
+    def select(self, *, values=None, inputs=None, evidence=None, rule_set=None, scenarios=None,
                version="version-1", rules_version="version-1"):
+        values = {"applicant.type": "MUNICIPALITY"} if values is None else values
+        if inputs is None:
+            inputs = {key: ApplicantInput(value, "ARES", "VERIFIED", f"input:{key}")
+                      for key, value in values.items()}
         return select_from_eligibility(
             grant_call_version_id=version,
             rule_set_grant_call_version_id=rules_version,
             rule_set=self.rule_set if rule_set is None else rule_set,
             scenarios=self.scenarios if scenarios is None else scenarios,
-            values={"applicant.type": "MUNICIPALITY"} if values is None else values,
+            inputs=inputs,
             field_evidence_ids_by_condition=self.evidence if evidence is None else evidence,
             evaluator=EligibilityEvaluator(),
             finance_engine=FinanceEngine(),
@@ -77,8 +81,50 @@ class VerifiedFinanceSelectionTest(unittest.TestCase):
         self.assertEqual(result.scenario.id, "municipality-rate")
         self.assertEqual(result.evidence_ids_by_group["municipality"], ("evidence:1",))
         self.assertEqual(result.evidence_ids_by_group["club"], ("evidence:2",))
+        self.assertEqual(result.input_evidence_ids_by_group["municipality"], ("input:applicant.type",))
         self.assertEqual(result.rule_set_id, "rule-set-1")
         self.assertEqual(result.grant_call_version_id, "version-1")
+
+    def test_input_provenance_must_be_verified_and_official_for_pass_and_fail(self):
+        for source, verification, evidence_id in (
+            ("USER", "USER_DECLARED", "input:1"),
+            ("ARES", "NEEDS_REVIEW", "input:1"),
+            ("ARES", "VERIFIED", None),
+            ("CZSO", "VERIFIED", "  "),
+            ("DERIVED", "VERIFIED", "input:1"),
+        ):
+            for value in ("MUNICIPALITY", "SPORTS_CLUB"):
+                with self.subTest(source=source, verification=verification, value=value):
+                    result = self.select(inputs={"applicant.type": ApplicantInput(
+                        value, source, verification, evidence_id,
+                    )})
+                    self.assertEqual(result.status, FinanceStatus.NEEDS_INFORMATION)
+                    self.assertIsNone(result.scenario)
+                    self.assertEqual(result.input_evidence_ids_by_group, {})
+        self.assertEqual(self.select(inputs={}).status, FinanceStatus.NEEDS_INFORMATION)
+        self.assertEqual(self.select(inputs={"applicant.type": "MUNICIPALITY"}).reason_codes,
+                         ("INVALID_APPLICANT_INPUT",))
+
+    def test_independent_condition_inputs_require_independent_evidence(self):
+        attribute = AttributeDefinition("region", "project.region", AttributeDataType.ENUM)
+        rule_set = RuleSet("rule-set-1", RuleGroup("root", GroupOperator.AND, (
+            RuleGroup("municipality", GroupOperator.AND, (
+                self.root.children[0].children[0],
+                RuleCondition("region", attribute, ConditionOperator.EQ, "CZ010"),
+            )),
+            self.root.children[1],
+        )), CompletenessStatus.COMPLETE, VerificationStatus.VERIFIED)
+        first = ApplicantInput("MUNICIPALITY", "ARES", "VERIFIED", "input:type")
+        second = ApplicantInput("CZ010", "CZSO", "VERIFIED", "input:region")
+        evidence = {**self.evidence, "region": "evidence:region"}
+        partial = self.select(rule_set=rule_set, evidence=evidence,
+                              inputs={"applicant.type": first})
+        self.assertEqual(partial.status, FinanceStatus.NEEDS_INFORMATION)
+        complete = self.select(rule_set=rule_set, evidence=evidence,
+                               inputs={"applicant.type": first, "project.region": second})
+        self.assertEqual(complete.status, FinanceStatus.COMPLETE)
+        self.assertEqual(complete.input_evidence_ids_by_group["municipality"],
+                         ("input:type", "input:region"))
 
     def test_version_mismatch_fails_closed(self):
         for kwargs in (
