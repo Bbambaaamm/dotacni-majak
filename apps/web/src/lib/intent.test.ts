@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildIntentSearchUrl, readIntentFromSearch } from "./intent";
+import { buildDetailSearchQuery, buildIntentSearchUrl, buildSearchUrl, readIntentFromSearch, readSearchUrlState } from "./intent";
 
 describe("intent search URLs", () => {
   it("normalizes whitespace and URL-encodes the intent", () => {
@@ -16,5 +16,42 @@ describe("intent search URLs", () => {
 
   it("does not create an empty query parameter", () => {
     expect(buildIntentSearchUrl("   ")).toBe("/hledat");
+  });
+});
+
+describe("search return state", () => {
+  it("round trips every API filter and sort through the detail query", () => {
+    const state = readSearchUrlState("?intent=digitalizace%20obce&status=OPEN&instrument=GRANT&projectBudgetCzk=300000&provider=E2E+test+provider+A&deadline=KNOWN&closesFrom=2026-01-01&closesBy=2026-12-31&sort=DEADLINE_LATEST");
+    const detailQuery = buildDetailSearchQuery(state);
+    expect(readSearchUrlState(`?${detailQuery}`)).toEqual(state);
+    expect(buildSearchUrl(state)).toContain("projectBudgetCzk=300000");
+    expect(buildSearchUrl(state)).toContain("sort=DEADLINE_LATEST");
+  });
+
+  it("drops duplicate and malformed fields and never accepts a redirect or cursor", () => {
+    const state = readSearchUrlState("?intent=test&status=OPEN&status=PLANNED&provider=%20bad&closesBy=2026-02-30&sort=INVALID&return=https%3A%2F%2Fevil.invalid&cursor=abc");
+    expect(buildSearchUrl(state)).toBe("/hledat?intent=test");
+    expect(buildSearchUrl(readSearchUrlState("?intent=one&intent=two"))).toBe("/hledat");
+    expect(buildSearchUrl(readSearchUrlState(`?intent=test&provider=${"x".repeat(201)}`))).toBe("/hledat?intent=test");
+    expect(buildSearchUrl(readSearchUrlState(`?intent=${"x".repeat(501)}`))).toBe("/hledat");
+    expect(readSearchUrlState(`?intent=${encodeURIComponent(`digitalizace${" ".repeat(1400)}obce`)}`).intent)
+      .toBe("digitalizace obce");
+    const unicode = new URLSearchParams({ intent: "é".repeat(500), provider: "é".repeat(200) });
+    expect(readSearchUrlState(`?${unicode}`).intent).toBe("é".repeat(500));
+    expect(readSearchUrlState(`?${unicode}`).provider).toBe("é".repeat(200));
+    expect(buildSearchUrl(readSearchUrlState(`?intent=${"x".repeat(65537)}`))).toBe("/hledat");
+  });
+
+  it("retains provider names that happen to match enum defaults", () => {
+    for (const provider of ["ALL", "RELEVANCE"]) {
+      const state = readSearchUrlState(`?intent=test&provider=${provider}`);
+      expect(buildSearchUrl(state)).toBe(`/hledat?intent=test&provider=${provider}`);
+      expect(readSearchUrlState(`?${buildDetailSearchQuery(state)}`).provider).toBe(provider);
+    }
+  });
+
+  it("keeps an invalid combination out of the first request", () => {
+    const state = readSearchUrlState("?intent=test&deadline=UNKNOWN&closesFrom=2026-01-01&projectBudgetCzk=300000&instrument=LOAN");
+    expect(state).toMatchObject({ deadline: "UNKNOWN", closesFrom: "", instrument: "GRANT" });
   });
 });
