@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
@@ -154,6 +154,17 @@ export function GrantDetailPage() {
   );
   const [retry, setRetry] = useState(0);
   const [notFound, setNotFound] = useState(false);
+  const pendingRetryFocus = useRef(false);
+  const detailHeading = useRef<HTMLHeadingElement | null>(null);
+  const errorHeading = useRef<HTMLHeadingElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!pendingRetryFocus.current || loading) return;
+    pendingRetryFocus.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement && active.isConnected) return;
+    (error ? errorHeading : detailHeading).current?.focus();
+  }, [detail, error, loading]);
 
   useEffect(() => {
     if (!grantCallId) return;
@@ -195,11 +206,16 @@ export function GrantDetailPage() {
     return (
       <article className="detail-page" aria-live="polite">
         <a href="/hledat" className="back-link">← Zpět na výsledky</a>
-        <section className="next-action">
+        <section className="next-action" aria-busy="true">
           <div>
             <p className="eyebrow">Načítáme detail</p>
             <h1>Ověřujeme aktuální verzi výzvy a její zdroje.</h1>
           </div>
+          {retry > 0 ? (
+            <button className="button button--primary" type="button" aria-disabled="true" aria-busy="true">
+              Načítáme detail znovu…
+            </button>
+          ) : null}
         </section>
       </article>
     );
@@ -212,11 +228,14 @@ export function GrantDetailPage() {
         <section className="next-action" role="alert">
           <div>
             <p className="eyebrow">Detail není dostupný</p>
-            <h1>{error ?? "Tuto výzvu teď neumíme zobrazit."}</h1>
+            <h1 ref={errorHeading} tabIndex={-1}>{error ?? "Tuto výzvu teď neumíme zobrazit."}</h1>
             <p>Neznámý nebo nedostupný údaj nevydáváme za ověřenou skutečnost.</p>
           </div>
           {!notFound && grantCallId ? (
-            <button className="button button--primary" type="button" onClick={() => setRetry((count) => count + 1)}>
+            <button className="button button--primary" type="button" onClick={(event) => {
+              pendingRetryFocus.current = document.activeElement === event.currentTarget;
+              setRetry((count) => count + 1);
+            }}>
               Zkusit načíst detail znovu
             </button>
           ) : null}
@@ -275,7 +294,7 @@ export function GrantDetailPage() {
           </p>
         ) : null}
         <p className="eyebrow">{detail.provider.name}</p>
-        <h1>{detail.title}</h1>
+        <h1 ref={detailHeading} tabIndex={-1}>{detail.title}</h1>
         {detail.summary ? <p className="results-lead">{detail.summary}</p> : null}
       </header>
 
