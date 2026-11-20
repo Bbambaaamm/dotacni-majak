@@ -76,9 +76,12 @@ export function readSearchUrlState(search: string): SearchUrlState {
 export function buildSearchUrl(state: SearchUrlState): string {
   if (!state.intent) return "/hledat";
   const params = new URLSearchParams({ intent: state.intent });
-  for (const key of ["status", "instrument", "projectBudgetCzk", "provider", "deadline", "closesBy", "closesFrom", "sort"] as const) {
-    const value = state[key];
-    if (value && value !== "ALL" && value !== "RELEVANCE") params.set(key, value);
+  for (const key of ["status", "instrument", "deadline"] as const) {
+    if (state[key] !== "ALL") params.set(key, state[key]);
+  }
+  if (state.sort !== "RELEVANCE") params.set("sort", state.sort);
+  for (const key of ["projectBudgetCzk", "provider", "closesBy", "closesFrom"] as const) {
+    if (state[key]) params.set(key, state[key]);
   }
   return `/hledat?${params.toString()}`;
 }

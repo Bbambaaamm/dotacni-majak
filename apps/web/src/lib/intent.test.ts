@@ -42,6 +42,14 @@ describe("search return state", () => {
     expect(buildSearchUrl(readSearchUrlState(`?intent=${"x".repeat(65537)}`))).toBe("/hledat");
   });
 
+  it("retains provider names that happen to match enum defaults", () => {
+    for (const provider of ["ALL", "RELEVANCE"]) {
+      const state = readSearchUrlState(`?intent=test&provider=${provider}`);
+      expect(buildSearchUrl(state)).toBe(`/hledat?intent=test&provider=${provider}`);
+      expect(readSearchUrlState(`?${buildDetailSearchQuery(state)}`).provider).toBe(provider);
+    }
+  });
+
   it("keeps an invalid combination out of the first request", () => {
     const state = readSearchUrlState("?intent=test&deadline=UNKNOWN&closesFrom=2026-01-01&projectBudgetCzk=300000&instrument=LOAN");
     expect(state).toMatchObject({ deadline: "UNKNOWN", closesFrom: "", instrument: "GRANT" });
