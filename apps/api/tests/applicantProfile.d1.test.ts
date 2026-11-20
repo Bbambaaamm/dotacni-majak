@@ -1,4 +1,6 @@
+// @ts-ignore -- Node test fixture: type availability differs between local install and CI.
 import { readFileSync } from "node:fs";
+// @ts-ignore -- Node test fixture: type availability differs between local install and CI.
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -25,6 +27,7 @@ async function setup(): Promise<Env> {
     d1Databases: { DB: "profile-review-test" },
   }));
   const db = await mf.getD1Database("DB");
+  // @ts-ignore -- Node test fixture: type availability differs between local install and CI.
   const migrations = resolve(import.meta.dirname, "../../../migrations");
   // Apply the relevant real migrations against workerd D1, one SQL
   // statement at a time (including the ownership migration under test).
@@ -40,7 +43,7 @@ async function setup(): Promise<Env> {
       .replace(/^\s*--[^\n]*$/gm, "")
       .replace(/^PRAGMA foreign_keys = ON;\s*/gm, "")
       .replace(/\r?\n/g, " ");
-    for (const statement of sql.split(";").map((part) => part.trim()).filter(Boolean)) {
+    for (const statement of sql.split(";").map((part: string) => part.trim()).filter(Boolean)) {
       await db.prepare(statement).run();
     }
   }

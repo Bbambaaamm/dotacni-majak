@@ -10,6 +10,27 @@ The same read-only D1 gate also checks the actual group operator and direct chil
 
 ## Verified input boundary (follow-up)
 
+`apps/api/src/financeApplicantPreflight.ts` now provides an API-internal, read-only
+`preflightFinanceApplicantValues` check for the sparse `applicant_attribute_values` table.
+The caller supplies an already authenticated principal, an exact profile ID, and an
+`asOf` UTC instant. One D1 batch checks profile ownership and at most 128 value rows
+from the same snapshot. Each row must have an active applicant scalar definition,
+matching and well-formed byte-bounded JSON type (including rejection of embedded NUL), VERIFIED official-source status, and
+VERIFIED evidence on that exact value ID and attribute key from an EXTRACTED official
+document. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` /
+`CZSO_POPULATION` registry codes (see `data/sources`); OTHER_OFFICIAL requires
+an official registry authority but has no more specific identity binding.
+Missing or inconsistent profile creation, source first-seen, observation, evidence,
+document retrieval or verification timestamps fail closed. `asOf` is an upper consistency bound; there is
+no hard-coded maximum age or proven freshness policy. On success the result is
+`STRUCTURE_ONLY` with profile, value, and evidence IDs only. Failed checks release
+no value or evidence IDs. It never returns applicant values, a semantic `VERIFIED`
+verdict, selection, or amount, and it is not wired to a public endpoint or the
+finance selector. Document evidence metadata does not prove that the document text
+actually matches a stored value. A trusted resolver, source-content/value binding,
+explicit freshness policy, and composition with the version-bound rule/scenario
+gate remain prerequisites for personalized finance results.
+
 `select_from_eligibility` takes `inputs` keyed by attribute key, each an `ApplicantInput(value, source_kind, verification_status, evidence_id)`, rather than accepting bare values. It evaluates only explicitly VERIFIED ARES/CZSO/OTHER_OFFICIAL inputs with nonblank evidence references. User declarations, derived values, missing evidence and partial verification are omitted and yield UNKNOWN, not a false PASS or FAIL. Its result carries separate rule and input evidence IDs per group; it never returns applicant values. Tests cover both raw passing and failing declarations, missing and independent condition evidence. This is still a domain contract, **not** a D1 trust decision: the future loader must prove evidence entity/field, official source/document status, version membership, applicant ownership, value binding and freshness in one consistent read before invoking it. No personalized amount or API is enabled by this change.
 
 The canonical `FundingScenario.conditionGroupId` refers to an eligibility condition group. The finance engine does not evaluate rules or infer applicant/project attributes: the caller supplies already evaluated `ScenarioApplicability` values for each linked group, keyed by group ID. Those results must come from the deterministic eligibility evaluator and retain the underlying rule/field evidence in the upstream response. A missing group result is UNKNOWN, never PASS or FAIL. Scenarios without a linked group retain their explicit applicability (legacy callers default to PASS); callers must not use that default to claim an unverified applicant-specific condition.
