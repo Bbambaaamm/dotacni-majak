@@ -502,6 +502,18 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(finance.getByRole("link", { name: /Doklad financování: E2E oficiální podmínky, str. 3/ }))
     .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
   await expect(finance).toContainText("Ověřeno");
+  const funded = finance.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E syntetický scénář" }) });
+  await expect(funded).toContainText("Minimální náklady projektu podle scénáře");
+  await expect(funded).toContainText("200 000");
+  await expect(funded).toContainText("Maximální náklady projektu podle scénáře");
+  await expect(funded).toContainText("400 000");
+  await expect(funded).toContainText("Proplacení po úhradě nákladů");
+  await expect(funded).toContainText("Ne, podle scénáře");
+  await expect(funded).toContainText("Individuální potřebu vlastních peněz a předfinancování");
+  const undocumented = finance.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E scénář bez samostatného dokladu" }) });
+  await expect(undocumented).toContainText("Není doložen");
+  await expect(undocumented).toContainText("Není doloženo");
+  await expect(undocumented).toContainText("Není uvedeno");
   await expect(finance.getByText("Samostatný doklad financování není připojen")).toBeVisible();
   const requirements = page.getByRole("region", { name: "Požadavky a přílohy" });
   await expect(requirements.getByRole("link", { name: /Doklad požadavku: E2E oficiální podmínky, str. 1/ }))

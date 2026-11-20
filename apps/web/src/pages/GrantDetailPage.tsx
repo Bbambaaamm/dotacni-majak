@@ -109,6 +109,21 @@ function instrumentLabel(type: GrantFundingScenarioDetail["instrumentType"]): st
   }
 }
 
+function paymentModeLabel(mode: string | null): string {
+  switch (mode) {
+    case "ADVANCE": return "Zálohová platba";
+    case "REIMBURSEMENT": return "Proplacení po úhradě nákladů";
+    case "MIXED": return "Kombinovaný režim";
+    default: return "Není doložen";
+  }
+}
+
+function advanceLabel(value: boolean | null): string {
+  if (value === true) return "Ano, podle scénáře";
+  if (value === false) return "Ne, podle scénáře";
+  return "Není doloženo";
+}
+
 function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   const parts: string[] = [];
   if (scenario.supportRateMaxBps !== null) {
@@ -374,10 +389,23 @@ export function GrantDetailPage() {
                               <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
                             </div>
                             <div>
+                              <dt>Minimální náklady projektu podle scénáře</dt>
+                              <dd>{formatMinor(scenario.projectCostMinMinor, scenario.currencyCode)}</dd>
+                            </div>
+                            <div>
+                              <dt>Maximální náklady projektu podle scénáře</dt>
+                              <dd>{formatMinor(scenario.projectCostMaxMinor, scenario.currencyCode)}</dd>
+                            </div>
+                            <div>
                               <dt>Režim platby</dt>
-                              <dd>{scenario.paymentMode ?? "Není uvedeno"}</dd>
+                              <dd>{paymentModeLabel(scenario.paymentMode)}</dd>
+                            </div>
+                            <div>
+                              <dt>Záloha povolena</dt>
+                              <dd>{advanceLabel(scenario.advancePaymentAllowed)}</dd>
                             </div>
                           </dl>
+                          <p className="fine-print">Individuální potřebu vlastních peněz a předfinancování z těchto mezí ani z míry podpory nelze určit. Závisí na způsobilých a nezpůsobilých nákladech, DPH, podmínkách platby a vašem projektu. Ověřte rozpočet a cash-flow v projektu a u poskytovatele.</p>
                         </>
                       )}
                       {evidence ? (

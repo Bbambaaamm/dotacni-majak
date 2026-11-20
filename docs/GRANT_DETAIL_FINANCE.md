@@ -1,0 +1,7 @@
+# Finance na detailu výzvy (#401, dílčí slice)
+
+Detail z existujícího `GET /grants/:id` ukazuje pro čistě grantový scénář mezní náklady projektu, režim platby a informaci, zda je povolena záloha. Hodnoty jsou podmínky scénáře zachycené verze, nikoli rozpočet konkrétního žadatele. `null` nebo neznámý režim se vypisuje jako nedoložený; nejsou odvozovány z míry podpory. U negrantového nebo rozporného typu se tyto grantové položky nesmějí použít k odhadu úvěru, záruky či spoluúčasti. Odkaz na samostatný doklad financování se objeví jen pro existující `evidenceId`.
+
+Skutečnou individuální potřebu vlastních peněz (`minimum_real_cash_requirement`) nelze z katalogového scénáře bez osobních způsobilých/nezpůsobilých nákladů, DPH a časování plateb bezpečně spočítat. Detail výslovně uvádí tuto hranici a odkazuje na projekt a oficiální podmínky; žádná částka spoluúčasti se zde nevymýšlí. Tento slice nepřidává Finance API ani personalizovaný výpočet a neuzavírá celé #401.
+
+Regrese v `tests/e2e/core-flow.spec.ts` běží na skutečném lokálním D1/API/Chromium: doložený grantový scénář, neznámé hodnoty bez důkazu, rozpor nástroje a mobilní a11y/reflow. Testovací data v `tests/e2e/seed.sql` jsou syntetická a nejsou skutečnou dotační výzvou.
