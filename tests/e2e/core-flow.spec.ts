@@ -551,7 +551,8 @@ test("non-grant instrument remains a loan in real D1/API and mobile detail", asy
   await expect(finance.getByText("Typ podpory: Úvěr")).toBeVisible();
   await expect(finance.getByText("Typ podpory: Dotace / příspěvek")).toBeVisible();
   await expect(finance).toContainText("Typ podpory podle verze výzvy: Úvěr");
-  await expect(page.getByRole("link", { name: "Prověřit tuto podporu" })).toBeVisible();
+  await expect(page.locator(".sticky-action").getByRole("link", { name: "Ověřit stav u poskytovatele ↗" })).toBeVisible();
+  await expect(page.locator(".next-action")).toContainText("kdy začne příjem žádostí");
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
   await expect(finance).toContainText("Grantové částky a procenta nepoužíváme jako výpočet úvěru");
   await expect(finance.getByText("Maximální dotace")).toHaveCount(0);
@@ -894,4 +895,29 @@ test("no result → saved watch → published source → notification → detail
   });
   expect(authorized.ok()).toBeTruthy();
   expect((await authorized.json()).notifications).toHaveLength(1);
+});
+
+test("canonical paused/closed/cancelled and pre-open detail never offer an active application", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const status of ["PAUSED", "CLOSED", "CANCELLED", "ANNOUNCED", "ARCHIVED", "PLANNED"]) {
+    const id = status === "PLANNED" ? "grant:e2e:planned" : `grant:e2e:status:${status.toLowerCase()}`;
+    const response = await request.get(`/api/grants/${encodeURIComponent(id)}`);
+    expect(response.status()).toBe(200);
+    const detail = await response.json() as { status: string; officialDetailUrl: string };
+    expect(detail.status).toBe(status);
+    await page.goto(`/dotace/${encodeURIComponent(id)}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(".next-action")).toContainText("poskytovatele");
+    await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+    await expect(page.locator(".next-action").getByRole("link", { name: "Uložit k projektu pro sledování" })).toBeVisible();
+    await expect(page.locator(".sticky-action").getByRole("link", { name: "Ověřit stav u poskytovatele ↗" }))
+      .toHaveAttribute("href", detail.officialDetailUrl);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  }
+  // Missing source-record presence is not a canonical cancellation: existing OPEN call stays actionable.
+  const missing = await request.get("/api/grants/grant%3Ae2e%3Apage%3A22");
+  expect((await missing.json()).status).toBe("OPEN");
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A22");
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
 });

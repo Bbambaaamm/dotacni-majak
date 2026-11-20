@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { StatusBadge } from "../components/StatusBadge";
+import { grantDetailAction } from "../lib/grantDetailAction";
 import {
   fetchGrantDetail,
   type GrantDetailResponse,
@@ -239,6 +240,11 @@ export function GrantDetailPage() {
     ?? detail.sources[0]?.canonicalUrl
     ?? detail.provider.officialUrl;
   const showSourceCaution = allSourcesMissing(detail.sources);
+  const action = grantDetailAction(
+    detail.status,
+    detail.availability.requirements !== "UNKNOWN",
+    detail.requirements.length,
+  );
 
   return (
     <article className="detail-page">
@@ -273,19 +279,11 @@ export function GrantDetailPage() {
       <section className="next-action" aria-labelledby="detail-next">
         <div>
           <p className="eyebrow">Co udělat teď</p>
-          <h2 id="detail-next">
-            {detail.availability.requirements === "UNKNOWN"
-              ? "Uložte výzvu k projektu a ověřte kompletní podmínky v oficiálním zdroji."
-              : "Porovnejte známé požadavky s vaším projektem."}
-          </h2>
-          <p>
-            {detail.availability.requirements === "UNKNOWN"
-              ? "Maják zatím nemá všechny podmínky této výzvy normalizované. Proto způsobilost neoznačujeme jako splněnou ani nesplněnou."
-              : `Máme ${detail.requirements.length} strukturovaných požadavků. Konkrétní způsobilost se vyhodnotí proti profilu žadatele a projektu.`}
-          </p>
+          <h2 id="detail-next">{action.heading}</h2>
+          <p>{action.explanation}</p>
         </div>
         <a className="button button--primary button-link" href={projectHref}>
-          Přidat k projektu
+          {action.projectLabel}
         </a>
       </section>
 
@@ -562,12 +560,18 @@ export function GrantDetailPage() {
       />
 
       <div className="sticky-action">
-        <a className="button button--primary button-link" href={projectHref}>
-          {nonGrant ? "Prověřit tuto podporu" : "Chci tuto dotaci"}
-        </a>
-        {primarySource ? (
-          <a
-            className="button button--secondary button-link"
+        {action.applicationCandidate ? (
+          <a className="button button--primary button-link" href={projectHref}>
+            {nonGrant ? "Prověřit tuto podporu" : "Chci tuto dotaci"}
+          </a>
+        ) : (
+          <a className="button button--primary button-link" href={primarySource ?? projectHref}
+            rel={primarySource ? "noreferrer" : undefined} target={primarySource ? "_blank" : undefined}>
+            {primarySource ? "Ověřit stav u poskytovatele ↗" : action.projectLabel}
+          </a>
+        )}
+        {primarySource && action.applicationCandidate ? (
+          <a className="button button--secondary button-link"
             href={primarySource}
             rel="noreferrer"
             target="_blank"
