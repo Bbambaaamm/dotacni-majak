@@ -328,6 +328,70 @@ class EligibilityTruthTableTest(unittest.TestCase):
         self.assertEqual(result.status, EligibilityStatus.INELIGIBLE)
 
 
+    def test_group_outcomes_include_nested_results_and_condition_lineage(self):
+        root = RuleGroup("root", GroupOperator.AND, (
+            RuleGroup("municipality", GroupOperator.AND, (
+                condition("type", APPLICANT_TYPE, ConditionOperator.EQ, "MUNICIPALITY"),
+            )),
+            RuleGroup("not_large", GroupOperator.NOT, (
+                RuleGroup("large", GroupOperator.OR, (
+                    condition("population", POPULATION, ConditionOperator.GT, 5000),
+                )),
+            )),
+        ))
+        result = self.evaluator.evaluate(complete_verified(root), {
+            APPLICANT_TYPE.key: "MUNICIPALITY", POPULATION.key: 3200,
+        })
+        self.assertEqual(
+            [(group.group_id, group.result, group.condition_ids)
+             for group in result.group_results],
+            [
+                ("municipality", ConditionResult.PASS, ("type",)),
+                ("large", ConditionResult.FAIL, ("population",)),
+                ("not_large", ConditionResult.PASS, ("population",)),
+                ("root", ConditionResult.PASS, ("type", "population")),
+            ],
+        )
+        self.assertEqual(result.group_results[-1].result, result.root_result)
+
+    def test_group_outcomes_preserve_unknown_and_nonblocking_semantics(self):
+        root = RuleGroup("root", GroupOperator.AND, (
+            RuleGroup("missing", GroupOperator.AND, (
+                condition("ownership", OWNERSHIP, ConditionOperator.EQ, "OWNED"),
+            )),
+            RuleGroup("advisory", GroupOperator.AND, (
+                condition("optional", POPULATION, ConditionOperator.LTE, 5000,
+                          blocking=False),
+            )),
+        ))
+        result = self.evaluator.evaluate(complete_verified(root), {
+            POPULATION.key: 9000,
+        })
+        self.assertEqual(
+            [(group.group_id, group.result) for group in result.group_results],
+            [("missing", ConditionResult.UNKNOWN),
+             ("advisory", ConditionResult.NOT_APPLICABLE),
+             ("root", ConditionResult.UNKNOWN)],
+        )
+        self.assertEqual(result.condition_results[-1].result, ConditionResult.FAIL)
+
+    def test_duplicate_group_identity_fails_closed_without_partial_group_results(self):
+        root = RuleGroup("root", GroupOperator.OR, (
+            RuleGroup("duplicate", GroupOperator.AND, (
+                condition("first", APPLICANT_TYPE, ConditionOperator.EQ, "MUNICIPALITY"),
+            )),
+            RuleGroup("duplicate", GroupOperator.AND, (
+                condition("second", APPLICANT_TYPE, ConditionOperator.EQ, "SPORTS_CLUB"),
+            )),
+        ))
+        result = self.evaluator.evaluate(complete_verified(root), {
+            APPLICANT_TYPE.key: "MUNICIPALITY",
+        })
+        self.assertEqual(result.root_result, ConditionResult.ERROR)
+        self.assertEqual(result.status, EligibilityStatus.NEEDS_REVIEW)
+        self.assertEqual(result.group_results, ())
+
+
 class GeographyTest(unittest.TestCase):
     def test_missing_geography_resolver_is_unknown(self):
         root = RuleGroup(

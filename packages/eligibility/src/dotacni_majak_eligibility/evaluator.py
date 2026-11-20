@@ -150,6 +150,12 @@ class ConditionEvaluation:
 
 
 @dataclass(frozen=True, slots=True)
+class GroupEvaluation:
+    group_id: str
+    result: ConditionResult
+    condition_ids: tuple[str, ...]
+
+@dataclass(frozen=True, slots=True)
 class EligibilityEvaluation:
     rule_set_id: str
     status: EligibilityStatus
@@ -158,6 +164,7 @@ class EligibilityEvaluation:
     input_snapshot_hash: str
     evaluated_at: datetime
     engine_version: str = "eligibility-v1"
+    group_results: tuple[GroupEvaluation, ...] = ()
 
     @property
     def counts(self) -> dict[str, int]:
@@ -190,13 +197,15 @@ class EligibilityEvaluator:
     ) -> EligibilityEvaluation:
         at = evaluated_at or datetime.now(timezone.utc)
         condition_results: list[ConditionEvaluation] = []
+        group_results: list[GroupEvaluation] = []
 
         try:
-            self._validate_group(rule_set.root)
+            self._validate_group(rule_set.root, set())
             root_result, causes = self._evaluate_group(
                 rule_set.root,
                 values,
                 condition_results,
+                group_results,
             )
         except RuleDefinitionError as exc:
             condition_results.append(
@@ -213,6 +222,7 @@ class EligibilityEvaluator:
             )
             root_result = ConditionResult.ERROR
             causes = set()
+            group_results.clear()
 
         status = self._public_status(
             rule_set,
@@ -228,9 +238,13 @@ class EligibilityEvaluator:
             input_snapshot_hash=_snapshot_hash(values),
             evaluated_at=at,
             engine_version=self.engine_version,
+            group_results=tuple(group_results),
         )
 
-    def _validate_group(self, group: RuleGroup) -> None:
+    def _validate_group(self, group: RuleGroup, seen: set[str]) -> None:
+        if not group.id or group.id in seen:
+            raise RuleDefinitionError(f"empty or duplicate group id {group.id!r}")
+        seen.add(group.id)
         if not group.children:
             raise RuleDefinitionError(f"group {group.id!r} has no children")
         if group.operator is GroupOperator.NOT and len(group.children) != 1:
@@ -239,19 +253,21 @@ class EligibilityEvaluator:
             )
         for child in group.children:
             if isinstance(child, RuleGroup):
-                self._validate_group(child)
+                self._validate_group(child, seen)
 
     def _evaluate_group(
         self,
         group: RuleGroup,
         values: dict[str, Any],
         condition_results: list[ConditionEvaluation],
+        group_results: list[GroupEvaluation],
     ) -> tuple[ConditionResult, set[str]]:
+        start = len(condition_results)
         outcomes: list[tuple[ConditionResult, set[str]]] = []
         for child in group.children:
             if isinstance(child, RuleGroup):
                 outcomes.append(
-                    self._evaluate_group(child, values, condition_results)
+                    self._evaluate_group(child, values, condition_results, group_results)
                 )
                 continue
 
@@ -274,6 +290,11 @@ class EligibilityEvaluator:
             cause_result = result
         else:
             raise RuleDefinitionError(f"unsupported group operator {group.operator}")
+        group_results.append(GroupEvaluation(
+            group_id=group.id,
+            result=result,
+            condition_ids=tuple(item.condition_id for item in condition_results[start:]),
+        ))
         return result, set().union(*(
             causes for child_result, causes in outcomes
             if child_result is cause_result
