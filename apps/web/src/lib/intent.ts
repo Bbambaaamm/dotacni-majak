@@ -31,13 +31,13 @@ const defaults: SearchUrlState = {
 };
 
 export function readSearchUrlState(search: string): SearchUrlState {
-  if (search.length > 4096) return { ...defaults };
+  if (search.length > 65536) return { ...defaults };
   const params = new URLSearchParams(search);
   const single = (key: string, maxLength: number): string | null => {
     const values = params.getAll(key);
     return values.length === 1 && values[0].length <= maxLength ? values[0] : null;
   };
-  const intent = normalizeIntent(single("intent", 4096) ?? "");
+  const intent = normalizeIntent(single("intent", 65536) ?? "");
   if (!intent || intent.length > 500) return { ...defaults };
   const oneOf = <T extends string>(key: string, options: readonly T[], fallback: T): T => {
     const value = single(key, 32);
