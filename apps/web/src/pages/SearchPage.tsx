@@ -8,6 +8,7 @@ import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import { readIntentFromSearch } from "../lib/intent";
 import { deadlineTime } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
+import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import {
   searchErrorMessage,
   searchGrants,
@@ -621,10 +622,10 @@ export function SearchPage() {
                   >
                     Zobrazit detail
                   </a>
-                  {grant.officialDetailUrl ? (
+                  {safeOfficialUrl(grant.officialDetailUrl) ? (
                     <a
                       className="button button--secondary button-link"
-                      href={grant.officialDetailUrl}
+                      href={safeOfficialUrl(grant.officialDetailUrl)!}
                       aria-label={`Oficiální zdroj: ${grant.title} (otevře se v nové kartě)`}
                       target="_blank"
                       rel="noreferrer"

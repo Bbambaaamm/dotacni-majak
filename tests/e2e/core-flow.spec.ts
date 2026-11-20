@@ -2,6 +2,32 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("unsafe indexed source URL is not a link in real D1 search or detail", async ({ page, request }) => {
+  const intent = "bezpecnost odkazu";
+  const search = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);
+  expect(search.status()).toBe(200);
+  const results = (await search.json() as { results: Array<{ grantCallId: string; officialDetailUrl: string | null }> }).results;
+  expect(results).toHaveLength(1);
+  expect(results[0].officialDetailUrl).toBe("javascript:alert(1)");
+  const detail = await request.get(`/api/grants/${encodeURIComponent(results[0].grantCallId)}`);
+  expect(detail.status()).toBe(200);
+  expect((await detail.json() as { officialDetailUrl: string | null }).officialDetailUrl).toBe("javascript:alert(1)");
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+    const card = page.locator(".grant-card");
+    await expect(card.getByRole("heading", { name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
+    await expect(card.getByRole("link", { name: /Oficiální zdroj/ })).toHaveCount(0);
+    await card.getByRole("link", { name: /Zobrazit detail/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Web poskytovatele/ }).first()).toHaveAttribute("href", "https://example.invalid/provider-a");
+    expect(await page.locator('a[href^="javascript:"]').count()).toBe(0);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("project-cost filter uses verified grant scenarios in real D1 on desktop and mobile", async ({ page, request }) => {
   const intent = "digitalizace obce";
   const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=300000`);
