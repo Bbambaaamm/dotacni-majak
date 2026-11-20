@@ -72,5 +72,8 @@ Detail přenáší v URL pouze ověřené parametry záměru, aktivních API fil
 ## Doklady v detailu výzvy
 Detail API vrací nejvýše 100 dokladů. Pokud termín, scénář financování nebo požadavek odkazuje na `evidenceId`, který v omezeném seznamu chybí, UI uvede, že doklad není v tomto seznamu dostupný, a vyzve k ověření v oficiálním zdroji. Pouze `evidenceId: null` znamená, že samostatný doklad není připojen. Chybějícímu dokladu UI nepřiřazuje název, odkaz ani stav ověření.
 
+## Omezené seznamy v detailu výzvy
+Detail API vrací nejvýše 20 zdrojových záznamů, 20 změn a 20 verzí. Při dosažení limitu UI upozorní, že seznam nemusí být úplný. Zobrazených 20 chybějících zdrojových záznamů nevylučuje další záznam se stavem `SEEN`; chybění samo o sobě neznamená zrušení výzvy. E2E fixture `grant:e2e:history` obsahuje 21 zdrojových záznamů (poslední v řazení je `SEEN`) a 21 změn mezi verzemi 21 a 22 pro ověření těchto hranic v reálném D1/API/Chromium běhu.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

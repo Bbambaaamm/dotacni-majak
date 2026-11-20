@@ -300,6 +300,7 @@ export function GrantDetailPage() {
             {detail.sources.some((source) => source.presenceState === "CONFIRMED_MISSING")
               ? " Potvrzené chybění znamená jen to, že záznam nebyl u zdroje nalezen."
               : null}
+            {detail.sources.length === 20 ? " Další zdrojové záznamy mohou být mimo zobrazený seznam." : null}
             {" "}Chybění u zdroje samo o sobě neznamená zrušení výzvy.
           </p>
         ) : null}
@@ -525,7 +526,12 @@ export function GrantDetailPage() {
 
           {detail.changes.length ? (
             <section className="detail-section">
-              <h2>Poslední změny</h2>
+              <h2>Poslední změny ({detail.changes.length}{detail.changes.length === 20 ? " zobrazených" : ""})</h2>
+              {detail.changes.length === 20 ? (
+                <p className="fine-print" role="status">
+                  Detail API vrací nejvýše 20 změn. Mohou existovat další změny; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
+                </p>
+              ) : null}
               <ul className="reason-list">
                 {detail.changes.map((change) => (
                   <li key={change.id}>
@@ -569,19 +575,26 @@ export function GrantDetailPage() {
           <p>{detail.programme.name}</p>
 
           {detail.sources.length ? (
-            <ul>
-              {detail.sources.map((source) => (
-                <li key={`${source.sourceCode}:${source.canonicalUrl}`}>
-                  <OfficialSourceLink url={source.canonicalUrl}>
-                    {source.sourceName} ↗
-                  </OfficialSourceLink>
-                  <br />
-                  <strong>{sourcePresenceLabel(source.presenceState)}</strong>
-                  <br />
-                  <small>Pozorováno {formatDate(source.lastSeenAt)}</small>
-                </li>
-              ))}
-            </ul>
+            <>
+              {detail.sources.length === 20 ? (
+                <p className="fine-print" role="status">
+                  Detail API vrací nejvýše 20 zdrojových záznamů. Mohou existovat další, včetně záznamů se stavem „viděn“; tento seznam není zaručeně úplný. Výskyt a stav výzvy ověřte v oficiálním zdroji.
+                </p>
+              ) : null}
+              <ul>
+                {detail.sources.map((source) => (
+                  <li key={`${source.sourceCode}:${source.canonicalUrl}`}>
+                    <OfficialSourceLink url={source.canonicalUrl}>
+                      {source.sourceName} ↗
+                    </OfficialSourceLink>
+                    <br />
+                    <strong>{sourcePresenceLabel(source.presenceState)}</strong>
+                    <br />
+                    <small>Pozorováno {formatDate(source.lastSeenAt)}</small>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
             <>
               <p>Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.</p>
