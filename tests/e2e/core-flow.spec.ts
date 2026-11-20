@@ -1030,7 +1030,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(undocumented).toContainText("Není doložen");
   await expect(undocumented).toContainText("Není doloženo");
   await expect(undocumented).toContainText("Není uvedeno");
-  await expect(finance.getByText("Samostatný doklad financování není připojen")).toBeVisible();
+  await expect(undocumented.getByText("Samostatný doklad financování není připojen")).toBeVisible();
   const requirements = page.getByRole("region", { name: "Požadavky a přílohy" });
   await expect(requirements.getByRole("link", { name: /Doklad požadavku: E2E oficiální podmínky, str. 1/ }))
     .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
@@ -1046,6 +1046,37 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(finance.getByRole("link", { name: /Doklad financování/ })).toBeVisible();
   await expect(requirements.getByRole("link", { name: /Doklad požadavku/ })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("min-only support rate stays a lower bound in real API and mobile detail", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(response.status()).toBe(200);
+  const { fundingScenarios } = await response.json() as { fundingScenarios: Array<{
+    id: string; supportRateMinBps: number | null; supportRateMaxBps: number | null;
+  }> };
+  expect(fundingScenarios.find((scenario) => scenario.id === "e2e-funding-min-only"))
+    .toMatchObject({ supportRateMinBps: 2500, supportRateMaxBps: null });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  const scenario = page.getByRole("region", { name: "Finance" }).locator(".grant-card")
+    .filter({ has: page.getByRole("heading", { name: "E2E pouze minimální míra" }) });
+  await expect(scenario.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Míra podpory" }) }).locator("dd"))
+    .toHaveText("min. 25 %; horní mez není uvedena");
+  await expect(scenario).toContainText("min. 25 %; horní mez není uvedena");
+  await expect(scenario).not.toContainText("Částka nebo míra podpory není v normalizovaných datech uvedena");
+  await expect(scenario).not.toContainText("max. 25 %");
+  await expect(scenario).toContainText("Individuální potřebu vlastních peněz");
+  const maxOnly = page.getByRole("region", { name: "Finance" }).locator(".grant-card")
+    .filter({ has: page.getByRole("heading", { name: "E2E syntetický scénář" }) });
+  await expect(maxOnly.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Míra podpory" }) }).locator("dd"))
+    .toHaveText("max. 60 %; dolní mez není uvedena");
+  const unknown = page.getByRole("region", { name: "Finance" }).locator(".grant-card")
+    .filter({ has: page.getByRole("heading", { name: "E2E scénář bez samostatného dokladu" }) });
+  await expect(unknown.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Míra podpory" }) }).locator("dd"))
+    .toHaveText("Není uvedeno");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
