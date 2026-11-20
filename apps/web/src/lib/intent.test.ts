@@ -34,6 +34,8 @@ describe("search return state", () => {
     expect(buildSearchUrl(readSearchUrlState("?intent=one&intent=two"))).toBe("/hledat");
     expect(buildSearchUrl(readSearchUrlState(`?intent=test&provider=${"x".repeat(201)}`))).toBe("/hledat?intent=test");
     expect(buildSearchUrl(readSearchUrlState(`?intent=${"x".repeat(501)}`))).toBe("/hledat");
+    expect(readSearchUrlState(`?intent=${encodeURIComponent(`digitalizace${" ".repeat(501)}obce`)}`).intent)
+      .toBe("digitalizace obce");
   });
 
   it("keeps an invalid combination out of the first request", () => {

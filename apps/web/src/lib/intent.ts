@@ -37,7 +37,7 @@ export function readSearchUrlState(search: string): SearchUrlState {
     const values = params.getAll(key);
     return values.length === 1 && values[0].length <= maxLength ? values[0] : null;
   };
-  const intent = normalizeIntent(single("intent", 500) ?? "");
+  const intent = normalizeIntent(single("intent", 4096) ?? "");
   if (!intent || intent.length > 500) return { ...defaults };
   const oneOf = <T extends string>(key: string, options: readonly T[], fallback: T): T => {
     const value = single(key, 32);
