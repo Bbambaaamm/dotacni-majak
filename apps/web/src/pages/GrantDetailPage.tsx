@@ -431,6 +431,24 @@ export function GrantDetailPage() {
             )}
           </section>
 
+          <section className="detail-section" aria-labelledby="detail-eligibility-title">
+            <h2 id="detail-eligibility-title">Způsobilost pro váš projekt</h2>
+            <StatusBadge kind="unknown" label="Osobní způsobilost zde není posouzena" />
+            <p>
+              Tematická shoda ani zveřejněné požadavky nedokládají, že váš projekt splňuje podmínky.
+              K posouzení je potřeba projekt, údaje žadatele a pravidla aktuální verze výzvy.
+              Chybějící údaj znamená neznámý výsledek (UNKNOWN), nikoli nesplnění podmínky.
+            </p>
+            {action.applicationCandidate ? (
+              <p>
+                <a href={projectHref}>Přejít k projektu a ověřit známé podmínky</a>.
+                Pokud pravidla nebo údaje chybí, posouzení to výslovně uvede; ani kladný výsledek není příslibem dotace.
+              </p>
+            ) : (
+              <p>Než budete připravovat žádost, ověřte aktuální stav a podmínky u poskytovatele.</p>
+            )}
+          </section>
+
           <section className="detail-section" aria-labelledby="requirements-title">
             <h2 id="requirements-title">Požadavky a přílohy</h2>
             {detail.requirements.length ? (
