@@ -551,9 +551,14 @@ export function GrantDetailPage() {
 
           {detail.evidence.length ? (
             <details>
-              <summary>Konkrétní evidence ({detail.evidence.length})</summary>
+              <summary>Konkrétní evidence ({detail.evidence.length}{detail.evidence.length === 100 ? " zobrazených" : ""})</summary>
+              {detail.evidence.length === 100 ? (
+                <p className="fine-print" role="status">
+                  Detail API vrací nejvýše 100 dokladů. Mohou existovat další; tento seznam není zaručeně úplný. Ověřte podmínky v oficiálním zdroji.
+                </p>
+              ) : null}
               <ul>
-                {detail.evidence.slice(0, 20).map((evidence) => (
+                {detail.evidence.map((evidence) => (
                   <li key={evidence.id}>
                     <a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
                       {evidence.documentTitle ?? evidence.fieldPath} ↗
