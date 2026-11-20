@@ -31,6 +31,9 @@ INSERT INTO grant_calls(
   ('grant:e2e:planned','e2e-programme-planned','E2E-PLANNED','e2e-planned-digitalizace',NULL,'PLANNED',
    'E2E plánovaná výzva — digitalizace obce','2026-09-20T08:00:00Z','2026-09-20T08:00:00Z',
    '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z'),
+  ('grant:e2e:unsafe-url','e2e-programme-open','E2E-UNSAFE-URL','e2e-unsafe-url',NULL,'PLANNED',
+   'E2E výzva — bezpečnost odkazu','2026-09-20T08:00:00Z','2026-09-20T08:00:00Z',
+   '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z'),
   ('grant:e2e:nsa-closed','e2e-programme-nsa','16/2026','e2e-nsa-regiony-2026',NULL,'CLOSED',
    'Regiony 2026 — investice pod 10 mil. Kč (historický E2E fixture)',
    '2026-01-01T08:00:00Z','2026-01-01T08:00:00Z',
@@ -55,6 +58,12 @@ INSERT INTO grant_call_versions(
    'https://example.invalid/e2e/planned','CZK','e2e-v1',
    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','VERIFIED',
    '2026-09-26T20:00:00Z'),
+  ('gcv-e2e-unsafe-url','grant:e2e:unsafe-url',1,'2026-09-26T20:00:00Z',
+   'E2E výzva — bezpečnost odkazu','Syntetický poškozený odkaz pouze pro E2E test.',
+   'PLANNED','2026-09-20T08:00:00Z',NULL,NULL,
+   'javascript:alert(1)','CZK','e2e-v1',
+   'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee','NEEDS_REVIEW',
+   '2026-09-26T20:00:00Z'),
   ('gcv-e2e-nsa-closed','grant:e2e:nsa-closed',1,'2026-09-23T08:00:00Z',
    'Regiony 2026 — investice pod 10 mil. Kč (historický E2E fixture)',
    'Výstavba a technické zhodnocení sportovních zařízení místního významu.',
@@ -68,6 +77,8 @@ UPDATE grant_calls SET current_version_id='gcv-e2e-open'
 WHERE id='grant:e2e:open';
 UPDATE grant_calls SET current_version_id='gcv-e2e-planned'
 WHERE id='grant:e2e:planned';
+UPDATE grant_calls SET current_version_id='gcv-e2e-unsafe-url'
+WHERE id='grant:e2e:unsafe-url';
 UPDATE grant_calls SET current_version_id='gcv-e2e-nsa-closed'
 WHERE id='grant:e2e:nsa-closed';
 
@@ -166,6 +177,9 @@ INSERT INTO grant_search_documents(
    'Druhý deterministický výsledek pro browser filter coverage.',
    'digitalizace obce plánovaná podpora','','digitalizace obce e2e','PLANNED',
    '2027-10-31T23:59:59Z','2026-09-26T20:00:00Z'),
+  ('gcv-e2e-unsafe-url','E2E výzva — bezpečnost odkazu',
+   'Syntetický poškozený odkaz pouze pro E2E test.',
+   'bezpecnost odkazu','','bezpecnost odkazu','PLANNED',NULL,'2026-09-26T20:00:00Z'),
   ('gcv-e2e-nsa-closed','Regiony 2026 — investice pod 10 mil. Kč (historický E2E fixture)',
    'Výstavba a technické zhodnocení sportovních zařízení místního významu.',
    'rekonstrukce tenisových kurtů sportovní zařízení sportovní infrastruktura',

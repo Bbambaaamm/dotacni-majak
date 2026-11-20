@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
+import { OfficialSourceLink } from "../components/OfficialSourceLink";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { deadlineTime } from "../lib/deadlineTime";
@@ -12,6 +13,7 @@ import {
 } from "../lib/grantDetailApi";
 import { buildIntentSearchUrl, readIntentFromSearch } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
+import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
@@ -252,12 +254,11 @@ export function GrantDetailPage() {
   const projectHref = `/projekty?intent=${encodeURIComponent(detail.title)}&grantCallId=${encodeURIComponent(detail.grantCallId)}`;
   const nonGrant = detail.fundingInstrumentType !== "GRANT"
     || detail.fundingScenarios.some((scenario) => scenario.instrumentType !== "GRANT");
-  const primarySource = detail.officialDetailUrl
-    ?? detail.sources[0]?.canonicalUrl
-    ?? detail.provider.officialUrl;
-  const providerHomepageOnly = Boolean(primarySource)
-    && !detail.officialDetailUrl
-    && detail.sources.length === 0;
+  const versionSource = safeOfficialUrl(detail.officialDetailUrl);
+  const recordSource = detail.sources.map((source) => safeOfficialUrl(source.canonicalUrl)).find(Boolean);
+  const providerSource = safeOfficialUrl(detail.provider.officialUrl);
+  const primarySource = versionSource ?? recordSource ?? providerSource;
+  const providerHomepageOnly = Boolean(primarySource && providerSource && !versionSource && !recordSource);
   const sourceActionLabel = providerHomepageOnly
     ? "Web poskytovatele (odkaz na tuto výzvu není doložen) ↗"
     : "Ověřit stav u poskytovatele ↗";
@@ -373,10 +374,10 @@ export function GrantDetailPage() {
                       </dl>
                       {deadline.description ? <p>{deadline.description}</p> : null}
                       {evidence ? (
-                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                        <p><OfficialSourceLink url={evidence.sourceUrl}>
                           Doklad termínu: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
-                        </a></p>
+                        </OfficialSourceLink></p>
                       ) : (
                         <p className="fine-print">Samostatný doklad termínu není připojen; ověřte jej v oficiálním zdroji.</p>
                       )}
@@ -440,10 +441,10 @@ export function GrantDetailPage() {
                         </>
                       )}
                       {evidence ? (
-                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                        <p><OfficialSourceLink url={evidence.sourceUrl}>
                           Doklad financování: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
-                        </a> · {verificationLabel(evidence.verificationStatus)}</p>
+                        </OfficialSourceLink> · {verificationLabel(evidence.verificationStatus)}</p>
                       ) : (
                         <p className="fine-print">Samostatný doklad financování není připojen; ověřte typ nástroje a podmínky v oficiálním zdroji.</p>
                       )}
@@ -493,10 +494,10 @@ export function GrantDetailPage() {
                       />
                       {requirement.description ? <p>{requirement.description}</p> : null}
                       {evidence ? (
-                        <p><a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                        <p><OfficialSourceLink url={evidence.sourceUrl}>
                           Doklad požadavku: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
-                        </a> · {verificationLabel(evidence.verificationStatus)}</p>
+                        </OfficialSourceLink> · {verificationLabel(evidence.verificationStatus)}</p>
                       ) : (
                         <p className="fine-print">Samostatný doklad požadavku není připojen; ověřte jej v oficiálním zdroji.</p>
                       )}
@@ -563,9 +564,9 @@ export function GrantDetailPage() {
             <ul>
               {detail.sources.map((source) => (
                 <li key={`${source.sourceCode}:${source.canonicalUrl}`}>
-                  <a href={source.canonicalUrl} rel="noreferrer" target="_blank">
+                  <OfficialSourceLink url={source.canonicalUrl}>
                     {source.sourceName} ↗
-                  </a>
+                  </OfficialSourceLink>
                   <br />
                   <strong>{sourcePresenceLabel(source.presenceState)}</strong>
                   <br />
@@ -600,9 +601,9 @@ export function GrantDetailPage() {
               <ul>
                 {detail.evidence.map((evidence) => (
                   <li key={evidence.id}>
-                    <a href={evidence.sourceUrl} rel="noreferrer" target="_blank">
+                    <OfficialSourceLink url={evidence.sourceUrl}>
                       {evidence.documentTitle ?? evidence.fieldPath} ↗
-                    </a>
+                    </OfficialSourceLink>
                     {evidence.pageFrom ? ` · str. ${evidence.pageFrom}` : ""}
                   </li>
                 ))}
