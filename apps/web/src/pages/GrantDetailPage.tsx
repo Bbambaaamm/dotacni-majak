@@ -76,11 +76,17 @@ function deadlineLabel(type: string): string {
   }
 }
 
-function formatRate(value: number | null): string {
-  if (value === null) return "Není uvedeno";
+function formatRate(value: number): string {
   return new Intl.NumberFormat("cs-CZ", {
     maximumFractionDigits: 2,
   }).format(value / 100) + " %";
+}
+
+function supportRateLabel(min: number | null, max: number | null): string {
+  if (min !== null && max !== null) return `${formatRate(min)} – ${formatRate(max)}`;
+  if (min !== null) return `min. ${formatRate(min)}; horní mez není uvedena`;
+  if (max !== null) return `max. ${formatRate(max)}; dolní mez není uvedena`;
+  return "Není uvedeno";
 }
 
 function formatMinor(value: number | null, currency: string): string {
@@ -128,6 +134,8 @@ function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   const parts: string[] = [];
   if (scenario.supportRateMaxBps !== null) {
     parts.push(`max. ${formatRate(scenario.supportRateMaxBps)}`);
+  } else if (scenario.supportRateMinBps !== null) {
+    parts.push(`min. ${formatRate(scenario.supportRateMinBps)}; horní mez není uvedena`);
   }
   if (scenario.grantAmountMaxMinor !== null) {
     parts.push(
@@ -414,12 +422,7 @@ export function GrantDetailPage() {
                           <dl className="facts">
                             <div>
                               <dt>Míra podpory</dt>
-                              <dd>
-                                {scenario.supportRateMinBps !== null
-                                  ? `${formatRate(scenario.supportRateMinBps)} – `
-                                  : ""}
-                                {formatRate(scenario.supportRateMaxBps)}
-                              </dd>
+                              <dd>{supportRateLabel(scenario.supportRateMinBps, scenario.supportRateMaxBps)}</dd>
                             </div>
                             <div>
                               <dt>Maximální dotace</dt>

@@ -140,6 +140,9 @@ INSERT INTO field_evidence(
 INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_max_minor,project_cost_min_minor,project_cost_max_minor,payment_mode,advance_payment_allowed,evidence_id)
 VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,10000000,20000000,40000000,'REIMBURSEMENT',0,'e2e-fe-funding'),
        ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+-- Only a lower bound is known; no upper rate or personal award can be inferred.
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_min_bps)
+VALUES ('e2e-funding-min-only','gcv-e2e-open','E2E pouze minimální míra','CZK',2500);
 
 -- Non-grant sentinel: grant-shaped legacy fields must not become a claimed loan amount or grant.
 UPDATE grant_call_versions SET funding_instrument_type='LOAN' WHERE id='gcv-e2e-planned';

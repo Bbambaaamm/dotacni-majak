@@ -5,3 +5,5 @@ Detail z existujícího `GET /grants/:id` ukazuje pro čistě grantový scéná�
 Skutečnou individuální potřebu vlastních peněz (`minimum_real_cash_requirement`) nelze z katalogového scénáře bez osobních způsobilých/nezpůsobilých nákladů, DPH a časování plateb bezpečně spočítat. Detail výslovně uvádí tuto hranici a odkazuje na projekt a oficiální podmínky; žádná částka spoluúčasti se zde nevymýšlí. Tento slice nepřidává Finance API ani personalizovaný výpočet a neuzavírá celé #401.
 
 Regrese v `tests/e2e/core-flow.spec.ts` běží na skutečném lokálním D1/API/Chromium: doložený grantový scénář, neznámé hodnoty bez důkazu, rozpor nástroje a mobilní a11y/reflow. Testovací data v `tests/e2e/seed.sql` jsou syntetická a nejsou skutečnou dotační výzvou.
+
+Pokud je u grantového scénáře doložená jen minimální míra podpory, detail ji označí jako dolní mez a výslovně přizná chybějící horní mez (i v krátkém souhrnu). Pouze maximální míra je zase označená jako horní mez s neznámou dolní mezí; obě chybějící hodnoty zůstanou „Není uvedeno“. Žádný z těchto údajů není individuální výpočet. Syntetický min-only záznam ověřuje skutečné D1/API → mobilní browser zobrazení, a11y a reflow.
