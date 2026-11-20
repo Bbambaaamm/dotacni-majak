@@ -7,8 +7,12 @@ při dalším pokusu znovu získá data z API. Výsledek 404 má odlišnou zprá
 Neplatná adresa nemá retry. Při odchodu z obrazovky je request zrušen a
 opožděný úspěch nesmí obnovit starý detail.
 
-Regresní důkaz: `npm run web:e2e -- --grep 'detail API outage|missing detail'`
-spouští skutečné API/D1; browserová route mění pouze odpověď prvního
-nedostupného pokusu (503) a zkoušku 404. Úspěšné opakování jde do skutečného
-API/D1 a kontroluje oficiální odkaz. Tento slice nedokazuje osobní
-způsobilost ani aktuálnost oficiálního zdroje.
+Regresní důkaz: `npm run web:e2e -- --grep 'detail retry|missing detail'`
+spouští skutečné API/D1; browserová route mění pouze odpovědi nedostupného
+pokusu (503) a zkoušku 404. Úspěšné opakování jde do skutečného API/D1 a
+kontroluje oficiální odkaz. Po klávesnicovém opakování zůstává tlačítko při
+načítání focusovatelné (s `aria-disabled` a `aria-busy`), další aktivace
+nespustí paralelní request. Po další chybě zůstává focus na retry, po úspěchu
+přejde na titulek načtené výzvy; pokud uživatel během čekání přejde na jiný
+prvek, focus se mu nepřesune. Mobilní E2E kontroluje také reflow a axe.
+Tento slice nedokazuje osobní způsobilost ani aktuálnost oficiálního zdroje.

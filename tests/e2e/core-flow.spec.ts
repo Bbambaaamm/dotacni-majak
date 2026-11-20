@@ -892,11 +892,19 @@ test("eligibility outage hides a previously computed result and recovers only fr
   await expect(eligibility.getByText("Chybí údaj pro posouzení (UNKNOWN)")).toBeVisible();
 });
 
-test("detail API outage stays fail-closed and retry recovers from real D1", async ({ page }) => {
+test("detail retry keeps keyboard focus through a delayed outage and hands off to real D1 detail", async ({ page }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
-  let unavailable = true;
+  const requestState: { mode: "error" | "pendingError" | "pendingSuccess"; retryRequests: number } = { mode: "error", retryRequests: 0 };
+  let releaseError!: () => void;
+  let releaseSuccess!: () => void;
+  const pendingError = new Promise<void>((resolve) => { releaseError = resolve; });
+  const pendingSuccess = new Promise<void>((resolve) => { releaseSuccess = resolve; });
   await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
-    if (unavailable) {
+    const current = requestState.mode;
+    if (current !== "error") requestState.retryRequests += 1;
+    if (current === "pendingError") await pendingError;
+    if (current === "pendingSuccess") await pendingSuccess;
+    if (current !== "pendingSuccess") {
       await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "DETAIL_UNAVAILABLE" }) });
     } else {
       await route.continue();
@@ -906,11 +914,52 @@ test("detail API outage stays fail-closed and retry recovers from real D1", asyn
   await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Oficiální zdroje" })).toHaveCount(0);
-  unavailable = false;
-  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  const retryButton = page.getByRole("button", { name: "Zkusit načíst detail znovu" });
+  requestState.mode = "pendingError";
+  await retryButton.focus();
+  await retryButton.press("Enter");
+  const pendingButton = page.getByRole("button", { name: "Načítáme detail znovu…" });
+  await expect(pendingButton).toBeFocused();
+  await expect(pendingButton).toHaveAttribute("aria-disabled", "true");
+  await pendingButton.press("Enter");
+  expect(requestState.retryRequests).toBe(1);
+  releaseError();
+  await expect(retryButton).toBeFocused();
+  requestState.mode = "pendingSuccess";
+  await retryButton.press("Enter");
+  await expect(pendingButton).toBeFocused();
+  releaseSuccess();
+  const heading = page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" });
+  await expect(heading).toBeFocused();
   await expect(page.getByRole("link", { name: /E2E oficiální zdroj A/ })).toHaveAttribute("href", "https://example.invalid/e2e/open");
-  await expect(page.getByRole("button", { name: "Zkusit načíst detail znovu" })).toHaveCount(0);
+  await expect(retryButton).toHaveCount(0);
+  expect(requestState.retryRequests).toBe(2);
+});
+
+test("mobile detail retry respects a deliberate focus move while waiting for real D1", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const requestState = { retry: false, retryRequests: 0 };
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (!requestState.retry) await route.fulfill({ status: 503, body: '{"error":"DETAIL_UNAVAILABLE"}' });
+    else { requestState.retryRequests += 1; await pending; await route.continue(); }
+  });
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  const retryButton = page.getByRole("button", { name: "Zkusit načíst detail znovu" });
+  await expect(retryButton).toBeVisible();
+  requestState.retry = true;
+  await retryButton.focus();
+  await retryButton.press("Enter");
+  await expect(page.getByRole("button", { name: "Načítáme detail znovu…" })).toBeFocused();
+  const back = page.getByRole("link", { name: "← Zpět na výsledky" });
+  await back.focus();
+  release();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(back).toBeFocused();
+  expect(requestState.retryRequests).toBe(1);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("missing detail is not presented as a transient outage", async ({ page }) => {
