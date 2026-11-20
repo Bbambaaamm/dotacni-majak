@@ -616,7 +616,7 @@ export function SearchPage() {
                 <div className="grant-card__actions">
                   <a
                     className="button button--primary button-link"
-                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}`}
+                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}?intent=${encodeURIComponent(intent)}`}
                   >
                     Zobrazit detail
                   </a>

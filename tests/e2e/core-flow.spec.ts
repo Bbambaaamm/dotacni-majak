@@ -97,6 +97,44 @@ test("captured OPEN stays distinct from current submit-ability in real D1 search
   await expect(page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) })).toContainText("Otevřeno v zachycené verzi");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const backToResults = page.getByRole("link", { name: "← Zpět na výsledky" });
+  await expect(backToResults).toHaveAttribute("href", "/hledat?intent=digitalizace+obce");
+  await backToResults.click();
+  await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce$/);
+  await expect(card).toBeVisible();
+});
+
+test("detail return keeps search intent, but direct deep links fall back safely", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  expect((await request.get(`/api/search?intent=${encodeURIComponent(intent)}`)).status()).toBe(200);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+  const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("link", { name: "Zobrazit detail" }))
+    .toHaveAttribute("href", "/dotace/grant%3Ae2e%3Aopen?intent=digitalizace%20obce");
+  await card.getByRole("link", { name: "Zobrazit detail" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await page.getByRole("link", { name: "← Zpět na výsledky" }).click();
+  await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce$/);
+  await expect(card).toBeVisible();
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "← Zpět na výsledky" })).toHaveAttribute("href", "/hledat");
+  await page.goto("/dotace/grant%3Ae2e%3Aopen?intent=%20%20");
+  await expect(page.getByRole("link", { name: "← Zpět na výsledky" })).toHaveAttribute("href", "/hledat");
+});
+
+test("detail error return preserves the explicit search intent without a redirect parameter", async ({ page }) => {
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", (route) => route.fulfill({
+    status: 404, contentType: "application/json", body: JSON.stringify({ error: "NOT_FOUND" }),
+  }));
+  await page.goto("/dotace/grant%3Ae2e%3Aopen?intent=digitalizace%20obce&return=https%3A%2F%2Fexample.invalid");
+  await expect(page.getByRole("heading", { name: "Tuto dotační výzvu jsme v aktuálním indexu nenašli." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "← Zpět na výsledky" })).toHaveAttribute("href", "/hledat?intent=digitalizace+obce");
+  await expect(page.getByRole("link", { name: "Zpět na vyhledávání" })).toHaveAttribute("href", "/hledat?intent=digitalizace+obce");
+  await page.getByRole("link", { name: "Zpět na vyhledávání" }).click();
+  await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce$/);
 });
 
 test("detail shows every returned evidence row and discloses the API cap", async ({ page, request }) => {
@@ -708,7 +746,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await page.getByRole("link", { name: "Zobrazit detail" }).click();
 
-  await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen$/);
+  await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen\?intent=digitalizace%20obce$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" }),
   ).toBeVisible();

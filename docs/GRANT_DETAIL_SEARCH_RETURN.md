@@ -1,0 +1,5 @@
+# Návrat z detailu do výsledků (#401)
+
+Odkaz „Zobrazit detail“ na výsledkové kartě předává jen normalizovaný záměr jako `intent` v URL detailu. Odkazy „Zpět na výsledky“ v načítání, chybě i úspěšném detailu a sekundární návrat při chybě jej použijí pro návrat na `/hledat?intent=…`. Přímý odkaz bez záměru nebo s prázdným záměrem vede na `/hledat`; libovolný parametr `return` se nepoužije jako přesměrování. Neuchováváme stav aktivních filtrů ani načtený cursor: návrat je nové hledání, ne obnovení konkrétní stránky. Záměr v URL může být citlivý údaj; neukládat jej do telemetrie ani logů nad existující chování.
+
+Regrese `npm run web:e2e -- --grep 'captured OPEN|detail return|detail error return'` používá skutečné API/D1 pro úspěšné hledání a detail v mobilním i desktopovém prohlížeči. Simulace 404 pokrývá pouze chybový stav; kontroluje, že parametr `return` nepřesměruje mimo aplikaci. Mobilní průchod provádí axe a kontrolu reflow. Neprokazuje aktuální možnost podat žádost ani úplnost indexu.
