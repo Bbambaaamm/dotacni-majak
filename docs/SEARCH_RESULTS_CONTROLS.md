@@ -4,7 +4,7 @@
 
 Volitelný parametr `instrument` přijímá právě jednu kanonickou hodnotu z `grant_call_versions.funding_instrument_type`: `GRANT`, `LOAN`, `GUARANTEE`, `EQUITY`, `MIXED`, `OTHER`. Bez parametru jsou zahrnuty všechny typy. Hodnota se porovnává přesně v přímé i ontologické FTS fázi před stránkováním, včetně obou řazení podle termínu. Prázdný, neznámý, jinak zapsaný nebo opakovaný parametr vrací 400 `INVALID_INSTRUMENT` před přístupem k databázi. Cursor je svázán s výběrem; starší cursor bez pole `instrument` lze použít jen bez tohoto filtru.
 
-Na mobilu i desktopu má panel viditelně označený nativní výběr se všemi šesti typy a volbou pro všechny typy. Změna nebo zrušení chipu načte první stránku a odstraní staré výsledky; další stránka zachová výběr. Typ znamená pouze kanonické označení verze výzvy. Nevyjadřuje osobní způsobilost, výši financování, procento podpory ani výsledek scénáře.
+Na mobilu i desktopu má panel viditelně označený nativní výběr se všemi šesti typy a volbou pro všechny typy. Volby a aktivní chip používají české názvy („Dotace / příspěvek“, „Úvěr“, „Záruka“, „Kapitálový nástroj“, „Kombinovaný nástroj“, „Jiný nástroj podpory“), zatímco API/URL stále posílají kanonické enum hodnoty. Změna nebo zrušení chipu načte první stránku a odstraní staré výsledky; další stránka zachová výběr. Typ znamená pouze kanonické označení verze výzvy. Nevyjadřuje osobní způsobilost, výši financování, procento podpory ani výsledek scénáře.
 
 Existující globální počty stavu, termínu a poskytovatelů respektují zvolený typ. Hranice 500 ID pro úplné facety dál platí před filtry; žádný počet typů ani celkový počet shod se nepřidává.
 
