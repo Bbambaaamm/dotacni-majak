@@ -9,6 +9,7 @@ from .engine import (
     ScenarioApplicability,
 )
 from .eligibility_selection import (
+    ApplicantInput,
     VerifiedScenarioSelection,
     VersionedFundingScenario,
     select_from_eligibility,
@@ -26,6 +27,7 @@ from .precision import (
 )
 
 __all__ = [
+    "ApplicantInput",
     "FinanceEngine",
     "FinanceEvaluation",
     "FinanceStatus",

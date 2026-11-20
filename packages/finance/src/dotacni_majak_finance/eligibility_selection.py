@@ -8,7 +8,7 @@ from the same canonical grant-call version before invoking it.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, cast
 
 from .engine import FinanceEngine, FinanceStatus, FundingScenario, ScenarioApplicability
 
@@ -23,6 +23,14 @@ class VersionedFundingScenario:
 
 
 @dataclass(frozen=True, slots=True)
+class ApplicantInput:
+    value: Any
+    source_kind: str
+    verification_status: str
+    evidence_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class VerifiedScenarioSelection:
     status: FinanceStatus
     scenario: FundingScenario | None
@@ -31,6 +39,7 @@ class VerifiedScenarioSelection:
     grant_call_version_id: str
     # References to canonical field_evidence, not a copy of applicant values.
     evidence_ids_by_group: Mapping[str, tuple[str, ...]]
+    input_evidence_ids_by_group: Mapping[str, tuple[str, ...]]
 
 
 def select_from_eligibility(
@@ -39,7 +48,7 @@ def select_from_eligibility(
     rule_set_grant_call_version_id: str,
     rule_set: RuleSet,
     scenarios: tuple[VersionedFundingScenario, ...] | list[VersionedFundingScenario],
-    values: dict[str, Any],
+    inputs: Mapping[str, ApplicantInput],
     field_evidence_ids_by_condition: Mapping[str, str],
     evaluator: EligibilityEvaluator,
     finance_engine: FinanceEngine,
@@ -65,6 +74,7 @@ def select_from_eligibility(
             rule_set_id=rule_set.id,
             grant_call_version_id=grant_call_version_id,
             evidence_ids_by_group={},
+            input_evidence_ids_by_group={},
         )
 
     if (
@@ -77,8 +87,21 @@ def select_from_eligibility(
         return blocked("RULE_SET_ID_MISSING")
     if any(not isinstance(item.scenario.applicability, ScenarioApplicability) for item in scenarios):
         return blocked("INVALID_SCENARIO_APPLICABILITY")
+    if any(not isinstance(item, ApplicantInput) for item in inputs.values()):
+        return blocked("INVALID_APPLICANT_INPUT")
 
-    evaluation = evaluator.evaluate(rule_set, values)
+    # The trusted loader must authenticate each evidence reference against the
+    # exact applicant attribute value. A declaration or unverified extraction
+    # is not a verified finance input, even when the raw predicate would PASS.
+    trusted_inputs = {
+        key: item for key, item in inputs.items()
+        if item.verification_status == "VERIFIED"
+        and item.source_kind in ("ARES", "CZSO", "OTHER_OFFICIAL")
+        and isinstance(item.evidence_id, str) and bool(item.evidence_id.strip())
+    }
+    evaluation = evaluator.evaluate(rule_set, {
+        key: item.value for key, item in trusted_inputs.items()
+    })
     if evaluation.rule_set_id != rule_set.id:
         return blocked("RULE_SET_ID_MISMATCH")
     if evaluation.root_result is ConditionResult.ERROR or any(
@@ -95,6 +118,7 @@ def select_from_eligibility(
 
     group_results: dict[str, ScenarioApplicability] = {}
     evidence_by_group: dict[str, tuple[str, ...]] = {}
+    input_evidence_by_group: dict[str, tuple[str, ...]] = {}
     trusted_rule_set = (
         rule_set.completeness_status is CompletenessStatus.COMPLETE
         and rule_set.verification_status is VerificationStatus.VERIFIED
@@ -115,6 +139,10 @@ def select_from_eligibility(
             group_results[group_id] = ScenarioApplicability(group.result.value)
             evidence_by_group[group_id] = tuple(
                 field_evidence_ids_by_condition[identifier]
+                for identifier in group.condition_ids
+            )
+            input_evidence_by_group[group_id] = tuple(
+                cast(str, trusted_inputs[conditions[identifier].attribute_key].evidence_id)
                 for identifier in group.condition_ids
             )
         else:
@@ -149,4 +177,5 @@ def select_from_eligibility(
         rule_set_id=rule_set.id,
         grant_call_version_id=grant_call_version_id,
         evidence_ids_by_group=evidence_by_group,
+        input_evidence_ids_by_group=input_evidence_by_group,
     )
