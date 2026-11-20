@@ -230,6 +230,21 @@ export function SearchPage() {
     setProjectBudgetDraft("");
     setBudgetValidation("");
   }
+  function clearAllFilters() {
+    beginFilterSearch();
+    setStatusFilter("ALL");
+    setInstrumentFilter("ALL");
+    setProjectBudgetCzk("");
+    setProjectBudgetDraft("");
+    setBudgetValidation("");
+    setProviderFilter("");
+    setProviderDraft("");
+    setDeadlineFilter("ALL");
+    setClosesBy("");
+    setClosesByDraft("");
+    setClosesFrom("");
+    setClosesFromDraft("");
+  }
   const activeFilters = [
     instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${INSTRUMENT_LABELS[instrumentFilter]}`, clear: () => changeInstrument("ALL") } : null,
     projectBudgetCzk ? { key: "budget", label: `Náklady projektu: ${projectBudgetCzk} Kč`, clear: clearProjectBudget } : null,
@@ -542,21 +557,7 @@ export function SearchPage() {
                   {filter.label} ×
                 </button>
               ))}
-              <button type="button" className="filter-reset" onClick={() => {
-                beginFilterSearch();
-                setStatusFilter("ALL");
-                setInstrumentFilter("ALL");
-                setProjectBudgetCzk("");
-                setProjectBudgetDraft("");
-                setBudgetValidation("");
-                setProviderFilter("");
-                setProviderDraft("");
-                setDeadlineFilter("ALL");
-                setClosesBy("");
-                setClosesByDraft("");
-                setClosesFrom("");
-                setClosesFromDraft("");
-              }}>Zrušit všechny filtry</button>
+              <button type="button" className="filter-reset" onClick={clearAllFilters}>Zrušit všechny filtry</button>
             </div>
           ) : null}
 
@@ -568,6 +569,9 @@ export function SearchPage() {
                   Zrušit pouze filtr nákladů projektu
                 </button>
               ) : null}
+              <button type="button" className="button button--secondary" onClick={clearAllFilters}>
+                Zrušit všechny filtry a hledat znovu
+              </button>
             </div>
           ) : null}
 
