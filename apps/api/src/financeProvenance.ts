@@ -1,8 +1,8 @@
 import type { D1DatabaseLike } from "./env";
 
-/** Provenance-only gate for #304. It does not evaluate applicant values or calculate money. */
+/** Read-only structural/evidence-reference check; never an eligibility or semantic source-content verdict. */
 export type FinanceProvenance = {
-  status: "VERIFIED" | "NEEDS_INFORMATION" | "ERROR";
+  status: "STRUCTURE_ONLY" | "NEEDS_INFORMATION" | "ERROR";
   reason: string;
   versionId: string | null;
   ruleSetId: string | null;
@@ -143,7 +143,7 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
     return result("NEEDS_INFORMATION", "UNVERIFIED_OFFICIAL_EVIDENCE", versionId, ruleSetId);
   if (conditions.some((c) => !supportedCondition(c)))
     return result("NEEDS_INFORMATION", "UNSUPPORTED_RULE_OPERAND", versionId, ruleSetId);
-  return { status: "VERIFIED", reason: "VERSION_BOUND_OFFICIAL_EVIDENCE", versionId, ruleSetId,
+  return { status: "STRUCTURE_ONLY", reason: "VERSION_BOUND_EVIDENCE_REFERENCES_ONLY", versionId, ruleSetId,
     scenarioIds: scenarios.map((s) => s.id),
     conditionEvidenceIds: Object.fromEntries(conditions.map((c) => [c.id, c.evidence_id!])),
   };

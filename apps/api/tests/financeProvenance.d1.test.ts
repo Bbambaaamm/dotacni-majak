@@ -47,7 +47,7 @@ const read = (db: any) => verifyFinanceRuleProvenance(db, "call");
 describe("finance provenance on canonical D1", () => {
   it("proves current-version membership and exact official rule/scenario evidence without applicant values", async () => {
     const db = await setup();
-    expect(await read(db)).toEqual({ status: "VERIFIED", reason: "VERSION_BOUND_OFFICIAL_EVIDENCE",
+    expect(await read(db)).toEqual({ status: "STRUCTURE_ONLY", reason: "VERSION_BOUND_EVIDENCE_REFERENCES_ONLY",
       versionId: "v1", ruleSetId: "rs", scenarioIds: ["s1"], conditionEvidenceIds: { c1: "rule-evidence" } });
     expect(await verifyFinanceRuleProvenance(db, "other")).toMatchObject({ status: "NEEDS_INFORMATION", reason: "NO_CURRENT_VERSION" });
     await db.prepare("INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,status,verification_status,created_at) VALUES ('v2','call',2,'2026','Call','OPEN','VERIFIED','2026')").run();
@@ -70,7 +70,7 @@ describe("finance provenance on canonical D1", () => {
       await db.prepare(`UPDATE ${table} SET ${column}=?${target}`).bind(bad).run();
       expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNVERIFIED_OFFICIAL_EVIDENCE" });
       await db.prepare(`UPDATE ${table} SET ${column}=?${target}`).bind(good).run();
-      expect((await read(db)).status).toBe("VERIFIED");
+      expect((await read(db)).status).toBe("STRUCTURE_ONLY");
     }
     await db.prepare("UPDATE field_evidence SET field_path='/funding_scenarios/other' WHERE id='scenario-evidence'").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNVERIFIED_OFFICIAL_EVIDENCE" });
@@ -101,7 +101,9 @@ describe("finance provenance on canonical D1", () => {
     await db.prepare("DELETE FROM rule_conditions WHERE id='c2'").run();
     await db.prepare("UPDATE rule_groups SET group_operator='AND' WHERE id='root'").run();
     await db.prepare("UPDATE rule_groups SET group_operator='NOT' WHERE id='group'").run();
-    expect((await read(db)).status).toBe("VERIFIED");
+    // Operator semantics have no independent source-content binding: even a valid
+    // NOT tree cannot acquire a semantic VERIFIED verdict from condition evidence.
+    expect(await read(db)).toMatchObject({ status: "STRUCTURE_ONLY", reason: "VERSION_BOUND_EVIDENCE_REFERENCES_ONLY" });
     await db.prepare("INSERT INTO rule_conditions(id,rule_group_id,attribute_definition_id,condition_operator,expected_value_json,verification_status,evidence_id) VALUES ('c2','group','attr','EQ','\"MUNICIPALITY\"','VERIFIED','rule-evidence')").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_GRAPH", scenarioIds: [], conditionEvidenceIds: {} });
     await db.prepare("DELETE FROM rule_conditions WHERE id='c2'").run();
@@ -139,15 +141,15 @@ describe("finance provenance on canonical D1", () => {
       expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND",
         scenarioIds: [], conditionEvidenceIds: {} });
       await db.prepare(`UPDATE ${table} SET ${column}=?`).bind(original).run();
-      expect((await read(db)).status).toBe("VERIFIED");
+      expect((await read(db)).status).toBe("STRUCTURE_ONLY");
     }
     await db.prepare("UPDATE attribute_definitions SET scope='PROJECT', attribute_key='project.type'").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND" });
     await db.prepare("UPDATE attribute_definitions SET scope='APPLICANT', attribute_key='applicant.type'").run();
-    expect((await read(db)).status).toBe("VERIFIED");
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
     await db.prepare("UPDATE rule_conditions SET condition_operator='IN', expected_value_json='[]'").run();
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND" });
     await db.prepare("UPDATE rule_conditions SET expected_value_json='[\"MUNICIPALITY\"]'").run();
-    expect((await read(db)).status).toBe("VERIFIED");
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
   });
 });
