@@ -109,8 +109,10 @@ describe("grant detail query", () => {
         if (mode === "all" && query.includes("FROM grant_deadlines")) return [];
         if (mode === "all" && query.includes("FROM funding_scenarios")) {
           expect(query).toContain("instrument_type");
+          expect(query).toContain("condition_group_id");
           return [{
-            id: "scenario-loan", name: "Zvýhodněný úvěr", instrument_type: "LOAN",
+            id: "scenario-loan", name: "Zvýhodněný úvěr", condition_group_id: "group:nsa:loan",
+            instrument_type: "LOAN",
             currency_code: "CZK", support_rate_min_bps: null, support_rate_max_bps: 7000,
             grant_amount_min_minor: null, grant_amount_max_minor: 10000000,
             project_cost_min_minor: null, project_cost_max_minor: null,
@@ -140,6 +142,7 @@ describe("grant detail query", () => {
     expect(detail?.fundingInstrumentType).toBe("LOAN");
     expect(detail?.fundingScenarios[0]).toMatchObject({
       id: "scenario-loan", instrumentType: "LOAN", grantAmountMaxMinor: 10000000,
+      conditionGroupId: "group:nsa:loan",
     });
     expect(detail?.deadlines).toEqual([
       expect.objectContaining({

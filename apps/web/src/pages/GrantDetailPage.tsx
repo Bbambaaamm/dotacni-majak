@@ -6,6 +6,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { deadlineTime } from "../lib/deadlineTime";
 import { grantDetailAction } from "../lib/grantDetailAction";
+import { fundingScenarioNotice } from "../lib/fundingScenarioNotice";
 import {
   fetchGrantDetail,
   type GrantDetailResponse,
@@ -400,6 +401,7 @@ export function GrantDetailPage() {
                   return (
                     <article className="grant-card" key={scenario.id}>
                       <h3>{scenario.name}</h3>
+                      <p className="fine-print">{fundingScenarioNotice(scenario)}</p>
                       <p><strong>Typ podpory: {instrumentLabel(scenario.instrumentType)}</strong></p>
                       {scenario.instrumentType !== "GRANT" || detail.fundingInstrumentType !== "GRANT" ? (
                         <p className="fine-print">Tento scénář nemá potvrzený čistě grantový typ. Grantové částky a procenta nepoužíváme jako výpočet úvěru, záruky ani vlastních zdrojů; podmínky a cash-flow ověřte u poskytovatele.</p>
