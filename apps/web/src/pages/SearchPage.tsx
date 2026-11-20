@@ -5,6 +5,7 @@ import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import { readIntentFromSearch } from "../lib/intent";
+import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import {
   searchErrorMessage,
   searchGrants,
@@ -174,9 +175,17 @@ export function SearchPage() {
     setProviderDraft("");
     changeProvider("");
   }
+  function clearProjectBudget() {
+    moreController.current?.abort();
+    setData(null);
+    setLoading(true);
+    setProjectBudgetCzk("");
+    setProjectBudgetDraft("");
+    setBudgetValidation("");
+  }
   const activeFilters = [
     instrumentFilter !== "ALL" ? { key: "instrument", label: `Typ financování: ${instrumentFilter}`, clear: () => changeInstrument("ALL") } : null,
-    projectBudgetCzk ? { key: "budget", label: `Náklady projektu: ${projectBudgetCzk} Kč`, clear: () => { setProjectBudgetDraft(""); setProjectBudgetCzk(""); setData(null); setLoading(true); moreController.current?.abort(); } } : null,
+    projectBudgetCzk ? { key: "budget", label: `Náklady projektu: ${projectBudgetCzk} Kč`, clear: clearProjectBudget } : null,
     statusFilter !== "ALL" ? { key: "status", label: `Stav: ${statusLabel(statusFilter)}`, clear: () => changeStatus("ALL") } : null,
     providerFilter ? { key: "provider", label: `Poskytovatel: ${providerFilter}`, clear: clearProvider } : null,
     deadlineFilter !== "ALL" ? { key: "deadline", label: deadlineFilter === "KNOWN" ? "Termín: uveden" : "Termín: neuveden", clear: () => changeDeadline("ALL") } : null,
@@ -493,9 +502,14 @@ export function SearchPage() {
           ) : null}
 
           {filteredResults.length === 0 ? (
-            <p className="filter-empty" role="status">
-              Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.
-            </p>
+            <div className="filter-empty" role="status">
+              <p>{filteredEmptyMessage(projectBudgetCzk)}</p>
+              {projectBudgetCzk ? (
+                <button type="button" className="button button--secondary" onClick={clearProjectBudget}>
+                  Zrušit pouze filtr nákladů projektu
+                </button>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="results-list">

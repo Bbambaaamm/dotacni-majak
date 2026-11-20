@@ -11,6 +11,10 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
   const outside = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=500000`);
   expect(outside.status()).toBe(200);
   expect((await outside.json()).results).toHaveLength(0);
+  const retainedFilter = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&instrument=GRANT&status=OPEN`);
+  expect(retainedFilter.status()).toBe(200);
+  expect((await retainedFilter.json()).results.map((row: { grantCallVersionId: string }) => row.grantCallVersionId))
+    .toEqual(["gcv-e2e-open"]);
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
@@ -27,8 +31,30 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
     await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 300000 Kč" })).toBeVisible();
     await expect(page.getByLabel("Typ financování", { exact: true })).toHaveValue("GRANT");
+    await page.getByLabel("Stav výzvy").selectOption("OPEN");
+    await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    await budget.fill("500000");
+    await page.getByRole("button", { name: "Použít rozpočet projektu" }).click();
+    const empty = page.locator(".filter-empty");
+    await expect(empty).toContainText("mezi indexovanými výsledky");
+    await expect(empty).toContainText("doloženým intervalem nákladů projektu v CZK");
+    await expect(empty).toContainText("neznámými nebo neověřenými hranicemi");
+    await expect(empty).toContainText("Nejde o posouzení vaší způsobilosti");
+    await expect(page.locator(".grant-card")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 500000 Kč" })).toBeVisible();
+    const clearBudget = empty.getByRole("button", { name: "Zrušit pouze filtr nákladů projektu" });
+    await expect(clearBudget).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await clearBudget.click();
+    await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toHaveCount(0);
+    await expect(page.getByLabel("Stav výzvy")).toHaveValue("OPEN");
+    await expect(page.getByLabel("Typ financování", { exact: true })).toHaveValue("GRANT");
+    await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 500000 Kč" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.getByLabel("Stav výzvy").selectOption("ALL");
     await page.getByLabel("Typ financování", { exact: true }).selectOption("LOAN");
     await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 300000 Kč" })).toHaveCount(0);
@@ -225,7 +251,7 @@ test("global deadline availability finds a later-page call and remains bound to 
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await page.getByLabel("Stav výzvy").selectOption("OPEN");
-  await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
+  await expect(page.locator(".filter-empty")).toContainText("v indexovaných výsledcích shodu pro tento záměr");
   await page.getByRole("button", { name: "Zrušit filtr Stav: Lze podat žádost" }).click();
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
@@ -837,7 +863,7 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
   await expect(page.locator(".results-list .grant-card h3").first()).toContainText("E2E plánovaná výzva");
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
-  await expect(page.getByText("Zvoleným filtrům neodpovídá žádná aktivní výzva pro váš záměr. Zkuste jiného poskytovatele nebo zrušte filtry.")).toBeVisible();
+  await expect(page.locator(".filter-empty")).toContainText("v indexovaných výsledcích shodu pro tento záměr");
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();
   await page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" }).click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
