@@ -61,6 +61,39 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
   }
 });
 
+test("search result actions and feedback remain distinguishable across cards on desktop and mobile", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const response = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);
+  expect(response.status()).toBe(200);
+  expect((await response.json() as { results: Array<{ title: string }> }).results.length).toBeGreaterThanOrEqual(2);
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+    const cards = page.locator(".grant-card");
+    await expect(cards).toHaveCount(2);
+    const titles = await cards.locator("h3").allTextContents();
+    const ids = await cards.locator(".relevance-feedback h4").evaluateAll((headings) => headings.map((heading) => heading.id));
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.every(Boolean)).toBe(true);
+    for (let index = 0; index < titles.length; index += 1) {
+      const card = cards.nth(index);
+      await expect(card.locator(".relevance-feedback")).toHaveAttribute("aria-labelledby", ids[index]);
+      await expect(card.getByRole("region", { name: "Je tato možnost relevantní pro váš projekt?", exact: true })).toBeVisible();
+      await expect(card.getByRole("link", { name: `Zobrazit detail: ${titles[index]}`, exact: true })).toBeVisible();
+      await expect(card.getByRole("button", { name: `Ano — relevance výzvy ${titles[index]}`, exact: true })).toBeVisible();
+      await expect(card.getByRole("link", { name: `Oficiální zdroj: ${titles[index]} (otevře se v nové kartě)`, exact: true })).toBeVisible();
+    }
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    const firstDetail = cards.first().getByRole("link", { name: `Zobrazit detail: ${titles[0]}`, exact: true });
+    await firstDetail.focus();
+    await expect(firstDetail).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { level: 1, name: titles[0] })).toBeVisible();
+  }
+});
+
 test("captured OPEN stays distinct from current submit-ability in real D1 search and detail", async ({ page, request }) => {
   const intent = "digitalizace obce";
   const search = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);

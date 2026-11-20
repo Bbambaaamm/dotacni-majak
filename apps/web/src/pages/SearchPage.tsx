@@ -617,6 +617,7 @@ export function SearchPage() {
                   <a
                     className="button button--primary button-link"
                     href={`/dotace/${encodeURIComponent(grant.grantCallId)}?intent=${encodeURIComponent(intent)}`}
+                    aria-label={`Zobrazit detail: ${grant.title}`}
                   >
                     Zobrazit detail
                   </a>
@@ -624,6 +625,7 @@ export function SearchPage() {
                     <a
                       className="button button--secondary button-link"
                       href={grant.officialDetailUrl}
+                      aria-label={`Oficiální zdroj: ${grant.title} (otevře se v nové kartě)`}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -634,6 +636,7 @@ export function SearchPage() {
 
                 <RelevanceFeedback
                   grantCallVersionId={grant.grantCallVersionId}
+                  grantTitle={grant.title}
                   matcherVersion="fts-ontology-v1"
                 />
               </article>
