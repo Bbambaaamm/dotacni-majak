@@ -36,6 +36,43 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
   }
 });
 
+test("applied results filters survive refresh and link sharing against real D1", async ({ page, request, browser }) => {
+  const intent = "digitalizace obce";
+  const filtered = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&status=OPEN&sort=DEADLINE`);
+  expect(filtered.status()).toBe(200);
+  expect((await filtered.json() as { results: Array<{ grantCallVersionId: string }> }).results.map((row) => row.grantCallVersionId))
+    .toEqual(["gcv-e2e-open"]);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+    await expect(page.locator(".grant-card")).toHaveCount(2);
+    if (width === 390) await page.locator(".filter-panel summary").click();
+    await page.getByLabel("Stav výzvy").selectOption("OPEN");
+    await expect(page.locator(".grant-card")).toHaveCount(1);
+    await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+    await expect(page.locator(".grant-card").getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    const savedUrl = new URL(page.url());
+    expect(savedUrl.searchParams.get("status")).toBe("OPEN");
+    expect(savedUrl.searchParams.get("sort")).toBe("DEADLINE");
+    expect(savedUrl.searchParams.has("cursor")).toBe(false);
+    await page.reload();
+    await expect(page.getByLabel("Stav výzvy")).toHaveValue("OPEN");
+    await expect(page.getByLabel("Řazení všech odpovídajících výsledků")).toHaveValue("DEADLINE");
+    await expect(page.locator(".grant-card")).toHaveCount(1);
+    const sharedContext = await browser.newContext({ viewport: { width, height: 844 } });
+    try {
+      const shared = await sharedContext.newPage();
+      await shared.goto(savedUrl.toString());
+      await expect(shared.locator(".grant-card")).toHaveCount(1);
+      await expect(shared.getByLabel("Stav výzvy")).toHaveValue("OPEN");
+      expect((await new AxeBuilder({ page: shared }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+      expect(await shared.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    } finally {
+      await sharedContext.close();
+    }
+  }
+});
+
 test("project-cost filter uses verified grant scenarios in real D1 on desktop and mobile", async ({ page, request }) => {
   const intent = "digitalizace obce";
   const api = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&projectBudgetCzk=300000`);

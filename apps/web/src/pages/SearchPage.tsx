@@ -5,7 +5,7 @@ import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
-import { buildDetailSearchQuery, readSearchUrlState } from "../lib/intent";
+import { buildDetailSearchQuery, buildSearchUrl, readSearchUrlState } from "../lib/intent";
 import { deadlineTime } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
@@ -88,6 +88,15 @@ export function SearchPage() {
   const [sortOrder, setSortOrder] = useState<"RELEVANCE" | "DEADLINE" | "DEADLINE_LATEST">(initialSearch.sort);
   const detailSearchQuery = buildDetailSearchQuery({ intent, status: statusFilter, instrument: instrumentFilter,
     projectBudgetCzk, provider: providerFilter, deadline: deadlineFilter, closesBy, closesFrom, sort: sortOrder });
+  useEffect(() => {
+    if (!intent || demoState) return;
+    // Keep applied filters (not draft inputs or a pagination cursor) in the local URL.
+    const url = buildSearchUrl({ intent, status: statusFilter, instrument: instrumentFilter,
+      projectBudgetCzk, provider: providerFilter, deadline: deadlineFilter, closesBy, closesFrom, sort: sortOrder });
+    if (window.location.pathname + window.location.search !== url) {
+      window.history.replaceState(window.history.state, "", url + window.location.hash);
+    }
+  }, [intent, demoState, statusFilter, instrumentFilter, projectBudgetCzk, providerFilter, deadlineFilter, closesBy, closesFrom, sortOrder]);
 
   const loadedResults = data?.results ?? [];
   const providerOptions = data?.facets?.providers ?? [];
