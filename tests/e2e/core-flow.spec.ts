@@ -897,6 +897,31 @@ test("no result → saved watch → published source → notification → detail
   expect((await authorized.json()).notifications).toHaveLength(1);
 });
 
+test("public OPEN detail separates relevance from personal eligibility and leads to project evaluation", async ({ page, request }) => {
+  const id = "grant:e2e:open";
+  const response = await request.get(`/api/grants/${encodeURIComponent(id)}`);
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { status: string; title: string; versionId: string };
+  expect(detail.status).toBe("OPEN");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/dotace/${encodeURIComponent(id)}`);
+  const eligibility = page.getByRole("region", { name: "Způsobilost pro váš projekt" });
+  await expect(eligibility.getByText("Osobní způsobilost zde není posouzena")).toBeVisible();
+  await expect(eligibility).toContainText("UNKNOWN");
+  const link = eligibility.getByRole("link", { name: "Přejít k projektu a ověřit známé podmínky" });
+  await expect(link).toHaveAttribute("href", `/projekty?intent=${encodeURIComponent(detail.title)}&grantCallId=${encodeURIComponent(id)}`);
+  expect(await link.getAttribute("href")).not.toMatch(/capability|token|secret/i);
+  await link.focus();
+  await expect(link).toBeFocused();
+  await link.click();
+  await page.getByRole("button", { name: "Vytvořit projekt" }).click();
+  const projectEligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
+  await expect(projectEligibility).toBeVisible();
+  await expect(projectEligibility.getByRole("status")).toContainText("Chybí údaj pro posouzení (UNKNOWN)");
+  await expect(projectEligibility).toContainText(detail.versionId);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("canonical paused/closed/cancelled and pre-open detail never offer an active application", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const status of ["PAUSED", "CLOSED", "CANCELLED", "ANNOUNCED", "ARCHIVED", "PLANNED"]) {
@@ -907,6 +932,10 @@ test("canonical paused/closed/cancelled and pre-open detail never offer an activ
     expect(detail.status).toBe(status);
     await page.goto(`/dotace/${encodeURIComponent(id)}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const eligibility = page.getByRole("region", { name: "Způsobilost pro váš projekt" });
+    await expect(eligibility.getByText("Osobní způsobilost zde není posouzena")).toBeVisible();
+    await expect(eligibility.getByRole("link", { name: "Přejít k projektu a ověřit známé podmínky" })).toHaveCount(0);
+    await expect(eligibility).toContainText("ověřte aktuální stav a podmínky u poskytovatele");
     await expect(page.locator(".next-action")).toContainText("poskytovatele");
     await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
     if (status === "ARCHIVED") {
