@@ -62,6 +62,16 @@ describe("search API client", () => {
       undefined, undefined, undefined, undefined, undefined, new Set(["other"]))).results).toEqual([result]);
   });
 
+  it("rejects an empty READY page that claims another page is available", async () => {
+    const body = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "READY", nextCursor: "more", facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    await expect(searchGrants("alpha", undefined, "cursor")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, nextCursor: null }), { status: 200 })));
+    expect((await searchGrants("alpha")).results).toEqual([]);
+  });
+
   it("rejects an empty index on continuation rather than treating old cards as current", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "EMPTY", nextCursor: null, facets: null };
@@ -73,7 +83,9 @@ describe("search API client", () => {
   });
 
   it("rejects a non-advancing continuation cursor but allows retry with an advancing page", async () => {
-    const body = { intent: "alpha", results: [], expandedTerms: [],
+    const body = { intent: "alpha", results: [{ grantCallVersionId: "v1", grantCallId: "g1", title: "Test",
+      summary: "Text", status: "OPEN", submissionCloseAt: null, providerName: "Obec",
+      officialDetailUrl: null, matchKind: "DIRECT" }], expandedTerms: [],
       indexState: "READY", nextCursor: "cursor", facets: null };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
     expect((await searchGrants("alpha")).nextCursor).toBe("cursor");

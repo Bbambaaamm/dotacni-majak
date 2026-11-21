@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Prázdná READY stránka s pokračováním (#400, dílčí slice)
+
+Úspěšná odpověď `indexState: READY` s prázdnými `results` a nenulovým `nextCursor` je rozporná: na první stránce by UX oznámilo žádné výsledky, přestože API tvrdí, že další existují, a v pokračování by mohlo stránkování bez výsledků pokračovat. Klient ji odmítne jako chybu odpovědi. Na první stránce nabídne opakování bez falešného prázdného výsledku; v pokračování ponechá načtené karty a cursor pro retry. `READY` bez výsledků a s `nextCursor: null` je platná nulová shoda. Unit a browser testy mění pouze jedno pole skutečné D1/API odpovědi a úspěšný retry znovu používá skutečné API. Nejde o databázový snapshot.
+
 ## Prázdný index během další stránky (#400, dílčí slice)
 
 `indexState: EMPTY` je platný na první stránce jako zpráva o prázdném lokálním indexu. Pokud jej však API vrátí při pokračování dříve načtené sady, klient odpověď odmítne: jinak by staré karty zůstaly pod stavem `READY` a zmizelo tlačítko pro další stránku, jako by šlo o dokončený aktuální výsledek. Dosud načtené karty zůstávají pouze jako předchozí sada s viditelnou chybou, původní cursor a retry; případná opakovaná odpověď od skutečného API se znovu ověří. Nejde o snapshot ani o záruku, že retry po skutečném vyprázdnění indexu uspěje. Unit a full-stack test s reálnou D1/API odpovědí (jednorázově změněným stavem stránky v prohlížeči) ověřují fail-closed a zotavení.
