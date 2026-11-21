@@ -573,6 +573,9 @@ test("captured OPEN stays distinct from current submit-ability in real D1 search
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
   await card.getByRole("link", { name: "Zobrazit detail" }).click();
+  const why = page.getByRole("region", { name: "Proč ji vidíte" });
+  await expect(why).toContainText("kontext hledání záměru „digitalizace obce“");
+  await expect(why).toContainText("Tematická relevance není posouzení způsobilosti");
   await expect(page.locator(".detail-hero")).toContainText("Otevřeno v zachycené verzi");
   await expect(page.locator(".detail-hero")).toContainText("Před podáním ověřte aktuální stav v oficiálním zdroji.");
   await expect(page.locator(".detail-hero")).not.toContainText("Lze podat žádost");
@@ -598,14 +601,34 @@ test("detail return keeps search intent, but direct deep links fall back safely"
     .toHaveAttribute("href", "/dotace/grant%3Ae2e%3Aopen?intent=digitalizace%20obce&returnResult=gcv-e2e-open");
   await card.getByRole("link", { name: "Zobrazit detail" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  const why = page.getByRole("region", { name: "Proč ji vidíte" });
+  await expect(why).toContainText("kontext hledání záměru „digitalizace obce“");
+  await expect(why).toContainText("Samotný odkaz ani tento detail nepotvrzují konkrétní tematickou shodu");
+  await expect(why).toContainText("Tematická relevance není posouzení způsobilosti");
+  await expect(why.getByRole("link", { name: "výsledcích hledání" })).toHaveAttribute("href", "/hledat?intent=digitalizace+obce&returnResult=gcv-e2e-open");
   await page.getByRole("link", { name: "← Zpět na výsledky" }).click();
   await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce$/);
   await expect(card).toBeVisible();
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
   await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
   await expect(page.getByRole("link", { name: "← Zpět na výsledky" })).toHaveAttribute("href", "/hledat");
+  await expect(page.getByRole("region", { name: "Proč ji vidíte" })).toContainText("Tento detail neobsahuje individuální vysvětlení");
   await page.goto("/dotace/grant%3Ae2e%3Aopen?intent=%20%20");
   await expect(page.getByRole("link", { name: "← Zpět na výsledky" })).toHaveAttribute("href", "/hledat");
+  await expect(page.getByRole("region", { name: "Proč ji vidíte" })).toContainText("Tento detail neobsahuje individuální vysvětlení");
+  await page.goto("/dotace/grant%3Ae2e%3Aopen?intent=libovolny&returnResult=cizi-verze");
+  await expect(page.getByRole("region", { name: "Proč ji vidíte" })).toContainText("Tento detail neobsahuje individuální vysvětlení");
+  const unrelated = "neexistujici-zamer-xyz";
+  const noMatch = await request.get(`/api/search?intent=${unrelated}`);
+  expect(noMatch.status()).toBe(200);
+  expect((await noMatch.json()).results).toEqual([]);
+  await page.goto(`/dotace/grant%3Ae2e%3Aopen?intent=${unrelated}&returnResult=gcv-e2e-open`);
+  const untrustedContext = page.getByRole("region", { name: "Proč ji vidíte" });
+  await expect(untrustedContext).toContainText("Pokud se výzva stále objevuje");
+  await expect(untrustedContext).toContainText("jinak upravte hledání");
+  await untrustedContext.getByRole("link", { name: "výsledcích hledání" }).click();
+  await expect(page.getByRole("heading", { name: "Maják může hledat dál." })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
 });
 
 test("detail return restores all active API filters and sort in the first real D1 search", async ({ page, request }) => {

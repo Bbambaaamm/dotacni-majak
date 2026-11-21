@@ -46,7 +46,7 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 ## Nezpochybnitelné invariants
 - official source = source of truth,
 - UNKNOWN != FAIL,
-- relevance != eligibility,
+- relevance != eligibility; detail výzvy bez samostatného match-reason API nesmí vydávat URL parametr `intent` / `returnResult` za doloženou shodu. Vysvětlení konkrétní tematické shody je na výsledkové kartě, pokud se výzva v novém hledání stále zobrazuje; přímý detail ukazuje jen cestu zpět k hledání.
 - AI není jediný rozhodovací mechanismus,
 - finance/rules jsou deterministické,
 - immutable versioning,
