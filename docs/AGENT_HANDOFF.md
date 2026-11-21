@@ -88,6 +88,9 @@ Rychlý přehled i jednotlivé termíny zachovávají přesnost a časovou zónu
 ## Poslední pozorování zdrojového záznamu
 Rychlý přehled vybírá nejnovější rozpoznatelné pozorování podle okamžiku, ale chybně formátovaná data nepovyšuje na doloženou aktuálnost. Pokud některý z omezeného seznamu zdrojových záznamů obsahuje neověřitelné datum (včetně kalendářně nemožného dne), zobrazí upozornění u souhrnu i příslušného záznamu; souhrnný datum pak nemusí být skutečně nejnovější. Nepřítomnost validního pozorování není důkaz zrušení výzvy. Syntetický zdroj `grant:e2e:page:20` ověřuje skutečné Detail API/D1 a mobilní prohlížeč.
 
+## Metadata zachycení a stažení v detailu
+Datum zachycení aktuální/historické verze a datum stažení dokladu se zobrazuje se zachováním původní hodnoty. Kalendářně nemožná nebo nerozpoznatelná hodnota dostává samostatné textové upozornění: sama nedokládá aktuálnost verze ani dokladu. Chybný formát není UNKNOWN podmínky ani důkaz zrušení výzvy. Syntetický doklad `grant:e2e:unsafe-url` ověřuje hranici přes skutečnou D1, Detail API a mobilní Chromium; zůstává pouze testovacím údajem.
+
 ## Akce z detailu výzvy
 OPEN je zachycený stav, nikoli potvrzení živého příjmu nebo osobní způsobilosti. Horní i mobilní sticky akce používají stejné „Přidat k projektu“ pro GRANT i negrantový nástroj; až projekt může vyhodnotit známé podmínky. Nepoužívat zde „Chci tuto dotaci“ ani z negrantového nástroje dovozovat dotaci. Neotevřené stavy vedou na ověření u poskytovatele nebo zpět k hledání. Syntetická OPEN úvěrová verze v D1 fixture ověřuje skutečné API a mobilní prohlížeč, bez tvrzení o reálné výzvě.
 

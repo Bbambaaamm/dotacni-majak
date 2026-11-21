@@ -105,6 +105,9 @@ INSERT INTO source_documents(
 ) VALUES
   ('e2e-doc-open','grant:e2e:open','e2e-source-open','CALL_DOCUMENT',
    'E2E oficiální podmínky','https://example.invalid/e2e/open-source',
+   '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z'),
+  ('e2e-doc-uncertain','grant:e2e:unsafe-url','e2e-source-open','CALL_DOCUMENT',
+   'E2E doklad s neověřitelným datem stažení','https://example.invalid/e2e/uncertain-source',
    '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z');
 
 INSERT INTO document_versions(
@@ -114,7 +117,11 @@ INSERT INTO document_versions(
   ('e2e-dv-open','e2e-doc-open',
    'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
    '2026-09-26T20:00:00Z','application/pdf',128,'raw/E2E/e2e-open.pdf',
-   'e2e-v1','EXTRACTED',2,'cs');
+   'e2e-v1','EXTRACTED',2,'cs'),
+  ('e2e-dv-uncertain','e2e-doc-uncertain',
+   'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+   '2026-02-30T12:00:00Z','application/pdf',128,'raw/E2E/e2e-uncertain.pdf',
+   'e2e-v1','EXTRACTED',1,'cs');
 
 INSERT INTO field_evidence(
   id,entity_type,entity_id,field_path,document_version_id,
@@ -135,7 +142,10 @@ INSERT INTO field_evidence(
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-funding','GRANT_CALL_VERSION','gcv-e2e-open','/funding_scenarios/e2e-funding-open','e2e-dv-open',
    3,3,'Pouze syntetický E2E test: max. dotace 100 000 Kč, náklady projektu 200 000–400 000 Kč, platba po úhradě, bez zálohy.',
-   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z');
+   'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
+  ('e2e-fe-uncertain','GRANT_CALL_VERSION','gcv-e2e-unsafe-url','/summary','e2e-dv-uncertain',
+   1,1,'Syntetický doklad s chybným datem stažení.',
+   'E2E_SEED','e2e-v1',1000000,'NEEDS_REVIEW','2026-09-26T20:00:00Z');
 
 INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_max_minor,project_cost_min_minor,project_cost_max_minor,payment_mode,advance_payment_allowed,evidence_id)
 VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,10000000,20000000,40000000,'REIMBURSEMENT',0,'e2e-fe-funding'),
