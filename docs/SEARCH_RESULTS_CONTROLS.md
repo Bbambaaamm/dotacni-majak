@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Prázdný index během další stránky (#400, dílčí slice)
+
+`indexState: EMPTY` je platný na první stránce jako zpráva o prázdném lokálním indexu. Pokud jej však API vrátí při pokračování dříve načtené sady, klient odpověď odmítne: jinak by staré karty zůstaly pod stavem `READY` a zmizelo tlačítko pro další stránku, jako by šlo o dokončený aktuální výsledek. Dosud načtené karty zůstávají pouze jako předchozí sada s viditelnou chybou, původní cursor a retry; případná opakovaná odpověď od skutečného API se znovu ověří. Nejde o snapshot ani o záruku, že retry po skutečném vyprázdnění indexu uspěje. Unit a full-stack test s reálnou D1/API odpovědí (jednorázově změněným stavem stránky v prohlížeči) ověřují fail-closed a zotavení.
+
 ## Ochrana před opakovanou identitou verze (#400, dílčí slice)
 
 Klient odmítne úspěšnou odpověď, která obsahuje stejné `grantCallVersionId` vícekrát na jedné stránce. U další stránky odmítne také ID verze již zobrazené na předchozích stránkách. Chyba další stránky zachová načtené karty a původní cursor, nabídne opakování proti API; duplicitní kartu tiše neodstraňuje a neposouvá cursor s neúplnou sadou. Nejde o snapshot databáze ani ochranu proti přesunům, které nevracejí duplicitní ID. Unit test ověřuje obě hranice a mobilní browser E2E mění pouze jednu identitu v odpovědi skutečného D1/API, pak ověřuje zotavení opakováním proti skutečnému API.

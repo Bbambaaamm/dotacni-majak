@@ -62,6 +62,16 @@ describe("search API client", () => {
       undefined, undefined, undefined, undefined, undefined, new Set(["other"]))).results).toEqual([result]);
   });
 
+  it("rejects an empty index on continuation rather than treating old cards as current", async () => {
+    const body = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "EMPTY", nextCursor: null, facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
+    await expect(searchGrants("alpha", undefined, "cursor")).rejects.toMatchObject({
+      code: "INVALID_SEARCH_RESPONSE", status: 200,
+    });
+  });
+
   it("rejects a non-advancing continuation cursor but allows retry with an advancing page", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: "cursor", facets: null };
