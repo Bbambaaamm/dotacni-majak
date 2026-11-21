@@ -164,6 +164,11 @@ function isList(value: unknown, check: (value: unknown) => boolean): boolean {
   return Array.isArray(value) && value.every(check);
 }
 
+function hasUniqueIds(value: unknown): boolean {
+  return Array.isArray(value)
+    && new Set(value.map((item: { id: string }) => item.id)).size === value.length;
+}
+
 const instrumentTypes = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"];
 const isInstrument = (value: unknown) => instrumentTypes.includes(value as string);
 const isVersionNumber = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
@@ -236,7 +241,12 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
       requirements: (x) => x === "AVAILABLE" || x === "UNKNOWN",
       evidence: (x) => x === "AVAILABLE" || x === "SOURCE_ONLY",
     }),
-  }) && isRecord(value.availability)
+  }) && hasUniqueIds(value.deadlines)
+    && hasUniqueIds(value.fundingScenarios)
+    && hasUniqueIds(value.requirements)
+    && hasUniqueIds(value.evidence)
+    && hasUniqueIds(value.changes)
+    && isRecord(value.availability)
     && Array.isArray(value.fundingScenarios)
     && (value.fundingScenarios.length > 0) === (value.availability.funding === "AVAILABLE")
     && Array.isArray(value.requirements)
