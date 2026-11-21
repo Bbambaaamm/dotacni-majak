@@ -70,6 +70,31 @@ describe("search API client", () => {
     }
   });
 
+  it("rejects successful pages that contradict applied status, deadline or exact provider filters", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    for (const cursor of [undefined, "next-page"]) {
+      await expect(searchGrants("alpha", undefined, cursor, "PLANNED"))
+        .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+      await expect(searchGrants("alpha", undefined, cursor, undefined, "KNOWN"))
+        .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+      await expect(searchGrants("alpha", undefined, cursor, undefined, undefined, "Jiná obec"))
+        .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+      expect((await searchGrants("alpha", undefined, cursor, "OPEN", "UNKNOWN", "Obec")).results)
+        .toEqual([result]);
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      results: [{ ...result, submissionCloseAt: "2027-01-01" }],
+    }), { status: 200 })));
+    await expect(searchGrants("alpha", undefined, undefined, undefined, "UNKNOWN"))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    expect((await searchGrants("alpha", undefined, undefined, undefined, "KNOWN")).results).toHaveLength(1);
+  });
+
   it("rejects positive facet counts for an empty index rather than claiming it contains no calls", async () => {
     const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
       deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };
