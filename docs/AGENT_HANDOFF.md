@@ -78,6 +78,8 @@ Karta výsledku přebírá `capturedAt` a `verificationStatus` přímo z aktuál
 
 Při opětovném výběru již aktivního stavu výzvy nebo dostupnosti termínu nesmí klient znovu zahájit hledání: načtené karty, otevřený mobilní panel filtrů a fokus zůstávají beze změny. Skutečná změna filtru stále obnoví první stránku ze Search API. Regrese je ověřena přes lokální D1 → skutečné API → mobilní Chromium, včetně počtu síťových požadavků. Dílčí úprava neuzavírá #400.
 
+Při stránkování vrací Search API facety jen na první stránce; pokračování má `facets: null`. Klient odmítá pokračování s vloženými počty filtrů jako neplatnou odpověď, ponechá již načtené karty a nabídne opakování. Nulové nebo nedostupné počty tím nevyvozuje z dalších stránek. Regrese používá lokální D1 → skutečné API → mobilní Chromium s kontrolou axe/reflow. Jde o dílčí #400, nikoli potvrzení aktuálnosti oficiálních zdrojů.
+
 ## Validace detailu výzvy
 Klient detailu ověřuje úspěšnou odpověď API před vykreslením: identita výzvy musí odpovídat požadavku, základní verze, poskytovatel, dostupnost, zdroje, podmínky, scénáře a doklady musí mít smluvený tvar. Chybějící či poškozený údaj se nesmí vykreslit jako ověřená podmínka nebo nulový počet dokladů; zobrazí se chyba s možností opakování. HTTP 404 zůstává odlišné od poškozené úspěšné odpovědi.
 

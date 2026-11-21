@@ -337,6 +337,22 @@ describe("search API client", () => {
       .toEqual([newer]);
   });
 
+  it("rejects facet counts on a cursor page without replacing initial-page counts", async () => {
+    const result = { grantCallVersionId: "v2", grantCallId: "g2", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [], indexState: "READY",
+      nextCursor: null, facets: { status: { OPEN: 99, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 99 }, providers: [{ name: "Obec", count: 99 }],
+        providersTruncated: false } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).facets).toEqual(body.facets);
+    await expect(searchGrants("alpha", undefined, "page-2"))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: null }), { status: 200 })));
+    expect((await searchGrants("alpha", undefined, "page-2")).results).toEqual([result]);
+  });
+
   it("rejects an empty READY page that claims another page is available", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: "more", facets: null };
