@@ -2738,6 +2738,44 @@ test("search API failure is fail-closed and retries the same intent against real
   await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toHaveCount(0);
 });
 
+test("failed filtered search offers a clean intent-only retry against real D1 on mobile", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const unfiltered = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);
+  expect(unfiltered.status()).toBe(200);
+  expect((await unfiltered.json() as { results: unknown[] }).results.length).toBeGreaterThan(0);
+  await page.route("**/api/search?*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.has("status") || url.searchParams.has("sort")) {
+      await route.fulfill({ status: 503, contentType: "application/json",
+        body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}&status=OPEN`);
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  const reset = page.getByRole("link", { name: "Zrušit filtry a zkusit hledání znovu" });
+  await expect(reset).toBeVisible();
+  await reset.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL((url) => url.pathname === "/hledat"
+    && [...url.searchParams.entries()].length === 1 && url.searchParams.get("intent") === intent);
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Zrušit filtry a zkusit hledání znovu" })).toHaveCount(0);
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}&sort=DEADLINE`);
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  await page.getByRole("link", { name: "Zrušit filtry a zkusit hledání znovu" }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/hledat"
+    && [...url.searchParams.entries()].length === 1 && url.searchParams.get("intent") === intent);
+  await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("search retry keeps keyboard focus through delayed failures and real D1 recovery", async ({ page }) => {
   const state: { mode: "error" | "pendingError" | "pendingSuccess"; retries: number } = { mode: "error", retries: 0 };
   let releaseError!: () => void;
