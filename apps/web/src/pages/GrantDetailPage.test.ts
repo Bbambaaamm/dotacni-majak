@@ -193,9 +193,19 @@ describe("recorded status transitions", () => {
     expect(html).not.toContain("UNRECOGNIZED");
   });
 
-  it("does not interpret unrelated event types or fields", () => {
-    expect(render({ ...change, changeType: "OTHER" })).toBe("");
-    expect(render({ ...change, fieldPath: "status.note" })).toBe("");
+  it("explains canonical /status transitions without changing their historical caution", () => {
+    const html = render({ ...change, fieldPath: "/status" });
+    expect(html).toContain("Dříve zaznamenáno: Příjem žádostí skončil");
+    expect(html).toContain("nově zaznamenáno: Otevřeno v zachycené verzi");
+    expect(html).toContain("nikoli potvrzení současného stavu");
+  });
+
+  it.each(["status.note", "/status/note", "other_status", null])("does not interpret unrelated field %s", (fieldPath) => {
+    expect(render({ ...change, fieldPath })).toBe("");
+  });
+
+  it("does not interpret unrelated event types", () => {
+    expect(render({ ...change, changeType: "OTHER", fieldPath: "/status" })).toBe("");
   });
 });
 

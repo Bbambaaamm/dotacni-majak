@@ -860,7 +860,7 @@ test("unverified change date from real D1/API remains visible with caution on mo
     createdAt: "2026-02-30T12:00:00Z",
   }));
   expect(detail.changes).toContainEqual(expect.objectContaining({
-    id: "e2e-change-status", changeType: "STATUS_CHANGED", fieldPath: "status",
+    id: "e2e-change-status", changeType: "STATUS_CHANGED", fieldPath: "/status",
     oldValue: "CLOSED", newValue: "OPEN",
   }));
 

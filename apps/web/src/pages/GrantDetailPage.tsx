@@ -208,7 +208,8 @@ export function changeSeverityLabel(severity: string): string {
 }
 
 export function ChangeStatusTransition({ change }: { change: GrantChangeDetail }) {
-  if (change.changeType !== "STATUS_CHANGED" || change.fieldPath !== "status") return null;
+  if (change.changeType !== "STATUS_CHANGED"
+    || (change.fieldPath !== "status" && change.fieldPath !== "/status")) return null;
   const statuses = ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"];
   if (typeof change.oldValue !== "string" || typeof change.newValue !== "string"
     || !statuses.includes(change.oldValue) || !statuses.includes(change.newValue)) {
