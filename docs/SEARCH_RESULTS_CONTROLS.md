@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Ochrana před nepostupujícím cursorem (#400, dílčí slice)
+
+Klient při úspěšné odpovědi další stránky odmítne `nextCursor` shodný s právě odeslaným neprůhledným cursorem jako neplatnou odpověď. Jinak by tlačítko opakovalo tutéž stránku bez konce a mohlo vyvolávat dojem, že existují další výsledky. Již načtené výsledky zůstávají zobrazené, zobrazí se chyba načtení další stránky a uživatel může požadavek zopakovat. `nextCursor: null` a jiný neprázdný cursor jsou nadále platné; kontrola nemění význam cursoru ani neodvozuje celkový počet shod. Není to ochrana před každým cyklem více různých cursorů ani snapshot guarantee při souběžných změnách indexu. Kontrakt chyby je pokryt unit regresí; browser test nejprve načte skutečných 20 výsledků z D1/API, jednou upraví pouze cursor v odpovědi skutečného API a poté ověří zotavení opakováním proti skutečnému API. Běžné stránkování nad skutečným API/D1 ověřuje existující full-stack test.
+
 ## Přesný typ nástroje financování
 
 Volitelný parametr `instrument` přijímá právě jednu kanonickou hodnotu z `grant_call_versions.funding_instrument_type`: `GRANT`, `LOAN`, `GUARANTEE`, `EQUITY`, `MIXED`, `OTHER`. Bez parametru jsou zahrnuty všechny typy. Hodnota se porovnává přesně v přímé i ontologické FTS fázi před stránkováním, včetně obou řazení podle termínu. Prázdný, neznámý, jinak zapsaný nebo opakovaný parametr vrací 400 `INVALID_INSTRUMENT` před přístupem k databázi. Cursor je svázán s výběrem; starší cursor bez pole `instrument` lze použít jen bez tohoto filtru.

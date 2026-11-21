@@ -626,6 +626,29 @@ test("real D1 search loads more than 20 distinct results and retries a failed la
   expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
 });
 
+test("non-advancing cursor keeps real D1 results and retry recovers from real API", async ({ page }) => {
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  let corruptOnce = true;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    if (!corruptOnce) {
+      await route.continue();
+      return;
+    }
+    corruptOnce = false;
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body,
+      nextCursor: new URL(route.request().url()).searchParams.get("cursor") } });
+  });
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
+  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  await expect(page.getByRole("button", { name: "Načíst další výsledky" })).toHaveCount(0);
+});
+
 test("mobile pagination preserves a deliberate focus move during the final page", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");

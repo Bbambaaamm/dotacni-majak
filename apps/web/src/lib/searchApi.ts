@@ -105,7 +105,9 @@ export async function searchGrants(
       response.status,
     );
   }
-  if (!isSearchResponse(body, intent)) throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
+  if (!isSearchResponse(body, intent) || (cursor && body.nextCursor === cursor)) {
+    throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
+  }
   return body;
 }
 
