@@ -178,6 +178,7 @@ export function SearchPage() {
     setSortOrder(next);
   }
   function changeStatus(next: StatusFilter) {
+    if (next === statusFilter) return;
     beginFilterSearch();
     setStatusFilter(next);
   }
@@ -204,6 +205,7 @@ export function SearchPage() {
     if (value) setInstrumentFilter("GRANT");
   }
   function changeDeadline(next: "ALL" | "KNOWN" | "UNKNOWN") {
+    if (next === deadlineFilter) return;
     beginFilterSearch();
     if (next === "UNKNOWN") {
       setClosesBy("");
