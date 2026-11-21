@@ -16,6 +16,7 @@ import { buildReturnSearchUrl } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
+import { verificationLabel } from "../lib/verificationLabel";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
@@ -33,21 +34,6 @@ function statusLabel(status: string): string {
       return "Příjem žádostí skončil";
     case "CANCELLED":
       return "Výzva byla zrušena";
-    default:
-      return status;
-  }
-}
-
-function verificationLabel(status: string): string {
-  switch (status) {
-    case "VERIFIED":
-      return "Ověřeno";
-    case "PARTIALLY_VERIFIED":
-      return "Částečně ověřeno";
-    case "AUTO_EXTRACTED":
-      return "Automaticky zpracováno";
-    case "NEEDS_REVIEW":
-      return "Vyžaduje ověření";
     default:
       return status;
   }

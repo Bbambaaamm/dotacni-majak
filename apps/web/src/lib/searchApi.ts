@@ -6,6 +6,8 @@ export interface GrantSearchResult {
   title: string;
   summary: string;
   status: string;
+  capturedAt: string;
+  verificationStatus: "AUTO_EXTRACTED" | "PARTIALLY_VERIFIED" | "VERIFIED" | "NEEDS_REVIEW";
   submissionCloseAt: string | null;
   providerName: string;
   officialDetailUrl: string | null;
@@ -28,6 +30,17 @@ export interface GrantSearchResponse {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCaptureTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59 || Number(match[3]) > 59
+    || (match[4] !== undefined && (Number(match[4]) > 23 || Number(match[5]) > 59))
+    || !Number.isFinite(Date.parse(value))) return false;
+  const day = value.slice(0, 10);
+  const calendarDay = new Date(`${day}T12:00:00Z`);
+  return Number.isFinite(calendarDay.getTime()) && calendarDay.toISOString().slice(0, 10) === day;
 }
 
 function isSearchResponse(value: unknown, intent: string): value is GrantSearchResponse {
@@ -66,6 +79,9 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     && typeof item.title === "string" && item.title.trim().length > 0
     && typeof item.summary === "string"
     && (item.status === "OPEN" || item.status === "PLANNED" || item.status === "ANNOUNCED")
+    && isCaptureTimestamp(item.capturedAt)
+    && (item.verificationStatus === "AUTO_EXTRACTED" || item.verificationStatus === "PARTIALLY_VERIFIED"
+      || item.verificationStatus === "VERIFIED" || item.verificationStatus === "NEEDS_REVIEW")
     && typeof item.providerName === "string" && item.providerName.trim().length > 0
     && (item.submissionCloseAt === null || typeof item.submissionCloseAt === "string")
     && (item.officialDetailUrl === null || typeof item.officialDetailUrl === "string")

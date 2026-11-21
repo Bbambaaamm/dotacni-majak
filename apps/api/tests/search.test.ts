@@ -3,12 +3,14 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/env";
 import { FACET_MATCH_LIMIT, searchGrants } from "../src/search";
 
 type Row = { grant_call_version_id: string; grant_call_id: string; title: string;
-  summary: string; status: string; submission_close_at: string | null; provider_name: string;
+  summary: string; status: string; captured_at: string; verification_status: string;
+  submission_close_at: string | null; provider_name: string;
   official_detail_url: null; rank: number; funding_instrument_type?: string };
 
 function row(id: number, rank = 0): Row {
   return { grant_call_version_id: `v-${String(id).padStart(3, "0")}`,
     grant_call_id: `g-${id}`, title: `Grant ${id}`, summary: "", status: "OPEN",
+    captured_at: "2026-09-26T20:00:00Z", verification_status: "VERIFIED",
     submission_close_at: null, provider_name: "Provider", official_detail_url: null, rank };
 }
 
@@ -26,6 +28,8 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           const ontology = sql.includes("NOT IN");
           expect(sql).toContain("ORDER BY rank ASC, grant_call_version_id ASC");
           expect(sql).toContain("d.status IN (?, ?, ?)");
+          expect(sql).toContain("v.captured_at");
+          expect(sql).toContain("v.verification_status");
           const selectedStatus = sql.includes("AND d.status = ?") ? values[4] : null;
           const provider = sql.includes("AND p.name = ?") ? values[4 + Number(Boolean(selectedStatus))] : null;
           const instrument = sql.includes("AND v.funding_instrument_type = ?") ?
@@ -61,6 +65,12 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
 }
 
 describe("search cursor", () => {
+  it("returns provenance from the current indexed version on relevance results", async () => {
+    const version = { ...row(1), captured_at: "2025-02-03T10:11:12Z", verification_status: "NEEDS_REVIEW" };
+    const result = await searchGrants(database([version], []), "koupaliště");
+    expect(result.results[0]).toMatchObject({ grantCallVersionId: version.grant_call_version_id,
+      capturedAt: version.captured_at, verificationStatus: version.verification_status });
+  });
   it("validates canonical instrument before database access and binds cursors", async () => {
     const noDatabase = { prepare: () => { throw new Error("DB reached"); } } as unknown as D1DatabaseLike;
     for (const value of ["", "ALL", "grant", "LOAN ", "DEBT"]) {
@@ -355,6 +365,7 @@ describe("search cursor", () => {
                 return { success: true, results: [] as T[] };
               if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
               expect(sql).toContain("WITH matches AS");
+              expect(sql.match(/v\.captured_at, v\.verification_status/g)).toHaveLength(2);
               expect(sql.match(/ELSE date\(d\.submission_close_at\) END >= \?/g)).toHaveLength(2);
               expect(sql.match(/ELSE date\(d\.submission_close_at\) END <= \?/g)).toHaveLength(2);
               expect(values.filter((v) => v === "2027-05-01")).toHaveLength(2);
@@ -379,6 +390,7 @@ describe("search cursor", () => {
       const second = await searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null,
         "2027-05-31", sort, "2027-05-01");
       expect(second.results).toHaveLength(1);
+      expect(second.results[0]).toMatchObject({ capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED" });
       await expect(searchGrants(db, "koupaliště", 1, first.nextCursor, null, null, null,
         "2027-05-31", sort, "2027-05-02")).rejects.toMatchObject({ code: "INVALID_CURSOR" });
     }

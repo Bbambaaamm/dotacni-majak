@@ -12,6 +12,8 @@ export interface GrantSearchResult {
   title: string;
   summary: string;
   status: string;
+  capturedAt: string;
+  verificationStatus: string;
   submissionCloseAt: string | null;
   providerName: string;
   officialDetailUrl: string | null;
@@ -50,6 +52,8 @@ interface SearchRow {
   title: string;
   summary: string;
   status: string;
+  captured_at: string;
+  verification_status: string;
   submission_close_at: string | null;
   provider_name: string;
   official_detail_url: string | null;
@@ -238,6 +242,8 @@ async function queryFts(
       d.title,
       d.summary,
       d.status,
+      v.captured_at,
+      v.verification_status,
       d.submission_close_at,
       p.name AS provider_name,
       v.official_detail_url,
@@ -293,6 +299,7 @@ async function queryDateSorted(
     ${dateFilters(closesFrom, closesBy)}`;
   const select = (phase: number, exclude: boolean) => `SELECT
       d.grant_call_version_id, g.id AS grant_call_id, d.title, d.summary, d.status,
+      v.captured_at, v.verification_status,
       d.submission_close_at, julianday(d.submission_close_at) AS close_sort,
       p.name AS provider_name, v.official_detail_url,
       bm25(grant_search_fts, 0.0, 4.0, 1.5, 3.0, 1.5, 2.5) AS rank,
@@ -341,6 +348,8 @@ function toResult(row: SearchRow, matchKind: "DIRECT" | "ONTOLOGY"): GrantSearch
     title: row.title,
     summary: row.summary,
     status: row.status,
+    capturedAt: row.captured_at,
+    verificationStatus: row.verification_status,
     submissionCloseAt: row.submission_close_at,
     providerName: row.provider_name,
     officialDetailUrl: row.official_detail_url,

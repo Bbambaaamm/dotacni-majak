@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { RelevanceFeedback } from "../components/RelevanceFeedback";
+import { SearchProvenance } from "../components/SearchProvenance";
 import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
@@ -685,6 +686,7 @@ export function SearchPage() {
                         <dd>{grant.providerName}</dd>
                       </div>
                     </dl>
+                    <SearchProvenance capturedAt={grant.capturedAt} verificationStatus={grant.verificationStatus} />
                     {sourceDeadlineNeedsReview(grant.submissionCloseAt) ? (
                       <p className="fine-print" role="note">
                         Zdroj uvádí termín, ale jeho formát nelze automaticky ověřit. Ověřte uzávěrku v oficiálních podmínkách; nejde o potvrzené datum.
