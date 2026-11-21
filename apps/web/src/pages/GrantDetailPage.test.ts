@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
-import type { GrantFundingScenarioDetail } from "../lib/grantDetailApi";
+import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
+import type { GrantChangeDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
   it("renders accepted draft and archived statuses without implying an open application", () => {
@@ -124,6 +124,36 @@ describe("detail change severity", () => {
 
   it("does not interpret an unknown severity", () => {
     expect(changeSeverityLabel("NEW_SEVERITY")).toBe("Závažnost není známa; ověřte změnu u poskytovatele");
+  });
+});
+
+describe("recorded status transitions", () => {
+  const change: GrantChangeDetail = {
+    id: "change", changeType: "STATUS_CHANGED", severity: "IMPORTANT", fieldPath: "status",
+    oldValue: "CLOSED", newValue: "OPEN", createdAt: "2026-09-26T20:00:00Z",
+  };
+  const render = (value: GrantChangeDetail) => renderToStaticMarkup(createElement(ChangeStatusTransition, { change: value }));
+
+  it("explains a canonical transition as historical, not current eligibility", () => {
+    const html = render(change);
+    expect(html).toContain("Dříve zaznamenáno: Příjem žádostí skončil");
+    expect(html).toContain("nově zaznamenáno: Otevřeno v zachycené verzi");
+    expect(html).toContain("nikoli potvrzení současného stavu");
+  });
+
+  it.each([
+    { oldValue: null }, { newValue: { status: "OPEN" } },
+    { oldValue: "UNRECOGNIZED" }, { newValue: "UNRECOGNIZED" },
+  ])("fails closed on missing or unrecognized values (%o)", (override) => {
+    const html = render({ ...change, ...override });
+    expect(html).toContain("nelze z tohoto záznamu bezpečně vyložit");
+    expect(html).not.toContain("nově zaznamenáno");
+    expect(html).not.toContain("UNRECOGNIZED");
+  });
+
+  it("does not interpret unrelated event types or fields", () => {
+    expect(render({ ...change, changeType: "OTHER" })).toBe("");
+    expect(render({ ...change, fieldPath: "status.note" })).toBe("");
   });
 });
 
