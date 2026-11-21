@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
+import { ChangeEventDate, changeEventLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
 import type { GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
@@ -87,6 +87,28 @@ describe("detail metadata dates", () => {
       expect(html).toContain(value);
       expect(html).toContain("nepovažujte jej za doloženou aktuálnost");
     }
+  });
+});
+
+describe("detail change-event label", () => {
+  it.each([
+    ["DEADLINE_CHANGED", "Změna termínu výzvy"],
+    ["STATUS_CHANGED", "Změna stavu výzvy"],
+    ["APPLICANT_RULE_CHANGED", "Změna podmínek pro žadatele"],
+    ["FUNDING_CHANGED", "Změna podmínek financování"],
+    ["BUDGET_CHANGED", "Změna finančních limitů projektu"],
+    ["SUPPORTED_ACTIVITY_CHANGED", "Změna podporovaných aktivit"],
+    ["REQUIREMENT_CHANGED", "Změna požadavků výzvy"],
+    ["DOCUMENT_CHANGED", "Změna dokumentu výzvy"],
+    ["OTHER", "Jiná zaznamenaná změna"],
+  ])("explains canonical %s without exposing an internal enum", (type, label) => {
+    expect(changeEventLabel(type)).toBe(label);
+  });
+
+  it("does not guess a meaning for an unknown type", () => {
+    expect(changeEventLabel("NEW_TYPE")).toContain("Neznámý typ změny");
+    expect(changeEventLabel("NEW_TYPE")).toContain("ověřte jej v oficiálním zdroji");
+    expect(changeEventLabel("NEW_TYPE")).not.toContain("NEW_TYPE");
   });
 });
 

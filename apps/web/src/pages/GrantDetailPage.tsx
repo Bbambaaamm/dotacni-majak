@@ -160,6 +160,21 @@ export function DetailMetadataDate({ value, label }: { value: string; label: str
   </>;
 }
 
+export function changeEventLabel(type: string): string {
+  switch (type) {
+    case "DEADLINE_CHANGED": return "Změna termínu výzvy";
+    case "STATUS_CHANGED": return "Změna stavu výzvy";
+    case "APPLICANT_RULE_CHANGED": return "Změna podmínek pro žadatele";
+    case "FUNDING_CHANGED": return "Změna podmínek financování";
+    case "BUDGET_CHANGED": return "Změna finančních limitů projektu";
+    case "SUPPORTED_ACTIVITY_CHANGED": return "Změna podporovaných aktivit";
+    case "REQUIREMENT_CHANGED": return "Změna požadavků výzvy";
+    case "DOCUMENT_CHANGED": return "Změna dokumentu výzvy";
+    case "OTHER": return "Jiná zaznamenaná změna";
+    default: return "Neznámý typ změny; ověřte jej v oficiálním zdroji";
+  }
+}
+
 export function ChangeEventDate({ value }: { value: string }) {
   return <>
     {sourceCalendarDate(value)}
@@ -568,10 +583,10 @@ export function GrantDetailPage() {
               <ul className="reason-list">
                 {detail.changes.map((change) => (
                   <li key={change.id}>
-                    <strong>{change.changeType}</strong>
+                    <strong>{changeEventLabel(change.changeType)}</strong>
                     {" · "}
                     <ChangeEventDate value={change.createdAt} />
-                    {change.fieldPath ? ` · ${change.fieldPath}` : ""}
+                    {change.fieldPath ? <span> · Interní označení pole: <code>{change.fieldPath}</code></span> : null}
                   </li>
                 ))}
               </ul>
