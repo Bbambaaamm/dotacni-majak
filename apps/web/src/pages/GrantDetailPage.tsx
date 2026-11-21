@@ -4,7 +4,7 @@ import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { OfficialSourceLink } from "../components/OfficialSourceLink";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
-import { deadlineTime } from "../lib/deadlineTime";
+import { deadlineTime, sourceDeadlineNeedsReview } from "../lib/deadlineTime";
 import { grantDetailAction } from "../lib/grantDetailAction";
 import { fundingScenarioNotice } from "../lib/fundingScenarioNotice";
 import {
@@ -145,6 +145,15 @@ function lastSeenLabel(detail: GrantDetailResponse): string {
     .filter((observation) => Number.isFinite(observation.instant))
     .sort((a, b) => b.instant - a.instant)[0];
   return latest ? sourceCalendarDate(latest.value) : "Není doložena";
+}
+
+export function SourceDeadline({ value }: { value: string | null }) {
+  return <>
+    {deadlineTime(value)}
+    {sourceDeadlineNeedsReview(value) ? (
+      <span role="note"> — Formát termínu není ověřen; ověřte jej v oficiálním zdroji.</span>
+    ) : null}
+  </>;
 }
 
 export function GrantDetailPage() {
@@ -339,11 +348,11 @@ export function GrantDetailPage() {
               </div>
               <div>
                 <dt>Zahájení příjmu</dt>
-                <dd>{deadlineTime(detail.submissionOpenAt)}</dd>
+                <dd><SourceDeadline value={detail.submissionOpenAt} /></dd>
               </div>
               <div>
                 <dt>Ukončení příjmu</dt>
-                <dd>{deadlineTime(detail.submissionCloseAt)}</dd>
+                <dd><SourceDeadline value={detail.submissionCloseAt} /></dd>
               </div>
               <div>
                 <dt>Verze výzvy zachycena</dt>
@@ -370,8 +379,8 @@ export function GrantDetailPage() {
                     <li key={deadline.id}>
                       <strong>{deadlineLabel(deadline.type)}</strong>
                       <dl className="facts">
-                        {deadline.startsAt ? <div><dt>Od</dt><dd>{deadlineTime(deadline.startsAt)}</dd></div> : null}
-                        <div><dt>Do</dt><dd>{deadlineTime(deadline.endsAt)}</dd></div>
+                        {deadline.startsAt ? <div><dt>Od</dt><dd><SourceDeadline value={deadline.startsAt} /></dd></div> : null}
+                        <div><dt>Do</dt><dd><SourceDeadline value={deadline.endsAt} /></dd></div>
                         {deadline.timezone && deadline.timezone !== "UTC"
                           ? <div><dt>Zóna uvedená zdrojem</dt><dd>{deadline.timezone}</dd></div> : null}
                       </dl>
