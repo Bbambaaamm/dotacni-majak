@@ -618,6 +618,16 @@ test("detail return keeps search intent, but direct deep links fall back safely"
   await expect(page.getByRole("region", { name: "Proč ji vidíte" })).toContainText("Tento detail neobsahuje individuální vysvětlení");
   await page.goto("/dotace/grant%3Ae2e%3Aopen?intent=libovolny&returnResult=cizi-verze");
   await expect(page.getByRole("region", { name: "Proč ji vidíte" })).toContainText("Tento detail neobsahuje individuální vysvětlení");
+  const unrelated = "neexistujici-zamer-xyz";
+  const noMatch = await request.get(`/api/search?intent=${unrelated}`);
+  expect(noMatch.status()).toBe(200);
+  expect((await noMatch.json()).results).toEqual([]);
+  await page.goto(`/dotace/grant%3Ae2e%3Aopen?intent=${unrelated}&returnResult=gcv-e2e-open`);
+  const untrustedContext = page.getByRole("region", { name: "Proč ji vidíte" });
+  await expect(untrustedContext).toContainText("Pokud se výzva stále objevuje");
+  await expect(untrustedContext).toContainText("jinak upravte hledání");
+  await untrustedContext.getByRole("link", { name: "výsledcích hledání" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
 });
 
 test("detail return restores all active API filters and sort in the first real D1 search", async ({ page, request }) => {

@@ -352,7 +352,7 @@ export function GrantDetailPage() {
           <section className="detail-section" aria-labelledby="detail-why-title">
             <h2 id="detail-why-title">Proč ji vidíte</h2>
             {fromResult ? (
-              <p>Odkaz obsahuje kontext hledání záměru „{searchContext.intent}“. Samotný odkaz ani tento detail nepotvrzují konkrétní tematickou shodu. Vysvětlení výsledku najdete u jeho karty ve <a href={backToSearchHref}>výsledcích hledání</a>.</p>
+              <p>Odkaz obsahuje kontext hledání záměru „{searchContext.intent}“. Samotný odkaz ani tento detail nepotvrzují konkrétní tematickou shodu. Pokud se výzva stále objevuje ve <a href={backToSearchHref}>výsledcích hledání</a>, důvod tematické shody najdete u její karty; jinak upravte hledání.</p>
             ) : (
               <p>Tento detail neobsahuje individuální vysvětlení tematické shody. <a href="/hledat">Vyhledejte svůj záměr</a> a zkontrolujte důvod na kartě výsledku.</p>
             )}
