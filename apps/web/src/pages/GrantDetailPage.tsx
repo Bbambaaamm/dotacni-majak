@@ -175,6 +175,15 @@ export function DetailMetadataDate({ value, label }: { value: string; label: str
   </>;
 }
 
+export function ChangeEventDate({ value }: { value: string }) {
+  return <>
+    {sourceCalendarDate(value)}
+    {sourceDeadlineNeedsReview(value) ? (
+      <span role="note"> — Formát data změny není ověřen. Pořadí změn ani datum události nejsou ověřené; ověřte je v oficiálním zdroji.</span>
+    ) : null}
+  </>;
+}
+
 export function GrantDetailPage() {
   const backToSearchHref = buildSearchUrl(readSearchUrlState(window.location.search));
   const grantCallId = useMemo(
@@ -559,7 +568,7 @@ export function GrantDetailPage() {
                   <li key={change.id}>
                     <strong>{change.changeType}</strong>
                     {" · "}
-                    {sourceCalendarDate(change.createdAt)}
+                    <ChangeEventDate value={change.createdAt} />
                     {change.fieldPath ? ` · ${change.fieldPath}` : ""}
                   </li>
                 ))}

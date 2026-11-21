@@ -482,3 +482,10 @@ SELECT 'e2e-change-history-' || printf('%02d',i),'grant:e2e:history',
   'gcv-e2e-history-21','gcv-e2e-history-22','OTHER','INFORMATIONAL',
   '/e2e/history/change/' || printf('%02d',i),
   printf('2026-09-26T%02d:00:00Z',i) FROM n;
+
+-- A malformed event timestamp must not become an apparently verified change date.
+INSERT INTO change_events(id,grant_call_id,from_version_id,to_version_id,change_type,
+  severity,field_path,created_at)
+VALUES ('e2e-change-unverified-date','grant:e2e:reactivated',
+  'gcv-e2e-reactivated-21','gcv-e2e-reactivated-22','OTHER','INFORMATIONAL',
+  '/e2e/unverified-date','2026-02-30T12:00:00Z');
