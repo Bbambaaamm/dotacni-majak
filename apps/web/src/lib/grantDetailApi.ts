@@ -120,6 +120,90 @@ export interface GrantDetailResponse {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNullableString(value: unknown): boolean {
+  return value === null || isString(value);
+}
+
+function isNullableNumber(value: unknown): boolean {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function hasFields(value: unknown, fields: Record<string, (value: unknown) => boolean>): boolean {
+  return isRecord(value) && Object.entries(fields).every(([key, check]) => Object.hasOwn(value, key) && check(value[key]));
+}
+
+function isList(value: unknown, check: (value: unknown) => boolean): boolean {
+  return Array.isArray(value) && value.every(check);
+}
+
+const instrumentTypes = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"];
+const isInstrument = (value: unknown) => instrumentTypes.includes(value as string);
+const isVersionNumber = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
+
+function isGrantDetailResponse(value: unknown, requestedId: string): value is GrantDetailResponse {
+  return hasFields(value, {
+    grantCallId: (v) => v === requestedId,
+    canonicalCode: isNullableString, canonicalSlug: isString,
+    versionId: isString, versionNumber: isVersionNumber, capturedAt: isString,
+    title: isString, summary: isString, status: isString, verificationStatus: isString,
+    publishedAt: isNullableString, submissionOpenAt: isNullableString,
+    submissionCloseAt: isNullableString, applicationUrl: isNullableString,
+    officialDetailUrl: isNullableString, currencyCode: isNullableString,
+    fundingInstrumentType: isInstrument,
+    provider: (v) => hasFields(v, { id: isString, name: isString, type: isString, officialUrl: isNullableString }),
+    programme: (v) => hasFields(v, { id: isString, name: isString, fundingOrigin: isString, officialUrl: isNullableString }),
+    sources: (v) => isList(v, (item) => hasFields(item, {
+      sourceCode: isString, sourceName: isString, canonicalUrl: isString,
+      lastSeenAt: isString, presenceState: isString,
+    })),
+    deadlines: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, type: isString, startsAt: isNullableString, endsAt: isNullableString,
+      timezone: isNullableString, description: isNullableString, evidenceId: isNullableString,
+    })),
+    fundingScenarios: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, name: isString, conditionGroupId: isNullableString,
+      instrumentType: isInstrument, currencyCode: isString,
+      supportRateMinBps: isNullableNumber, supportRateMaxBps: isNullableNumber,
+      grantAmountMinMinor: isNullableNumber, grantAmountMaxMinor: isNullableNumber,
+      projectCostMinMinor: isNullableNumber, projectCostMaxMinor: isNullableNumber,
+      paymentMode: isNullableString, vatRule: isNullableString,
+      advancePaymentAllowed: (x) => x === null || typeof x === "boolean",
+      evidenceId: isNullableString,
+    })),
+    requirements: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, type: isString, title: isString, description: isNullableString,
+      necessity: isString, phase: isNullableString, evidenceId: isNullableString,
+    })),
+    evidence: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, fieldPath: isString, pageFrom: isNullableNumber, pageTo: isNullableNumber,
+      evidenceText: isNullableString, verificationStatus: isString,
+      documentTitle: isNullableString, sourceUrl: isString, retrievedAt: isString,
+    })),
+    changes: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, changeType: isString, severity: isString,
+      fieldPath: isNullableString, oldValue: () => true, newValue: () => true, createdAt: isString,
+    })),
+    versions: (v) => isList(v, (item) => hasFields(item, {
+      id: isString, versionNumber: isVersionNumber, capturedAt: isString,
+      status: isString, verificationStatus: isString,
+      submissionCloseAt: isNullableString, isCurrent: (x) => typeof x === "boolean",
+    })),
+    availability: (v) => hasFields(v, {
+      funding: (x) => x === "AVAILABLE" || x === "UNKNOWN",
+      requirements: (x) => x === "AVAILABLE" || x === "UNKNOWN",
+      evidence: (x) => x === "AVAILABLE" || x === "SOURCE_ONLY",
+    }),
+  });
+}
+
 export class GrantDetailApiError extends Error {
   constructor(
     public readonly code: string,
@@ -140,14 +224,15 @@ export async function fetchGrantDetail(
       signal,
     },
   );
-  const body = await response.json().catch(() => ({})) as
-    | GrantDetailResponse
-    | { error?: string };
+  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     throw new GrantDetailApiError(
-      "error" in body && body.error ? body.error : "GRANT_DETAIL_UNAVAILABLE",
+      isRecord(body) && typeof body.error === "string" && body.error ? body.error : "GRANT_DETAIL_UNAVAILABLE",
       response.status,
     );
   }
-  return body as GrantDetailResponse;
+  if (!isGrantDetailResponse(body, grantCallId)) {
+    throw new GrantDetailApiError("INVALID_GRANT_DETAIL_RESPONSE", response.status);
+  }
+  return body;
 }
