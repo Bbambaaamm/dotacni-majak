@@ -79,5 +79,5 @@ export function App() {
       content = <NotFound />;
   }
 
-  return <AppShell>{content}</AppShell>;
+  return <AppShell pathname={window.location.pathname}>{content}</AppShell>;
 }

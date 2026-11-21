@@ -1,8 +1,18 @@
 import type { PropsWithChildren } from "react";
 
+import { breadcrumbsForPathname } from "../lib/breadcrumbs";
 import { routes } from "../lib/routes";
+import { Breadcrumbs } from "./Breadcrumbs";
 
-export function AppShell({ children }: PropsWithChildren) {
+export interface AppShellProps {
+  /** Current pathname — drives the breadcrumb trail. */
+  pathname?: string;
+}
+
+export function AppShell({
+  children,
+  pathname = "/",
+}: PropsWithChildren<AppShellProps>) {
   return (
     <>
       <a className="skip-link" href="#main-content">
@@ -35,6 +45,10 @@ export function AppShell({ children }: PropsWithChildren) {
           </nav>
         </div>
       </header>
+
+      <div className="shell breadcrumbs-wrapper">
+        <Breadcrumbs items={breadcrumbsForPathname(pathname)} />
+      </div>
 
       <main id="main-content" className="shell main-content" tabIndex={-1}>
         {children}
