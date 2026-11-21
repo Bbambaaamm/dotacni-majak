@@ -118,6 +118,21 @@ describe("grant detail API boundary", () => {
     }
   });
 
+  it("rejects unknown source presence instead of treating it as observed or missing", async () => {
+    for (const presenceState of ["CANCELLED", "", "UNKNOWN", null]) {
+      respond({ ...detail, sources: [{ ...detail.sources[0], presenceState }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    for (const presenceState of ["SEEN", "MISSING_CANDIDATE", "CONFIRMED_MISSING"]) {
+      respond({ ...detail, sources: [{ ...detail.sources[0], presenceState }] });
+      expect((await fetchGrantDetail("grant:one")).sources[0].presenceState).toBe(presenceState);
+    }
+    respond({ ...detail, sources: [] });
+    expect((await fetchGrantDetail("grant:one")).sources).toEqual([]);
+  });
+
   it("rejects duplicate collection identities rather than repeating evidence or requirements", async () => {
     const collections = ["deadlines", "fundingScenarios", "requirements", "evidence", "changes"] as const;
     for (const key of collections) {
