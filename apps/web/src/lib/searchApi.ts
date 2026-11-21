@@ -45,7 +45,7 @@ function isCaptureTimestamp(value: unknown): value is string {
 
 function isSearchResponse(value: unknown, intent: string): value is GrantSearchResponse {
   if (!isRecord(value) || value.intent !== intent || !Array.isArray(value.results)
-    || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
+    || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string" && term.trim().length > 0)
     || (value.indexState !== "READY" && value.indexState !== "EMPTY")
     || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
   // The initial empty-index API response includes explicit zero facets. Null
@@ -73,7 +73,9 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     if (value.indexState === "EMPTY" && ([...Object.values(status), ...Object.values(deadline)].some((count) => count !== 0)
       || facets.providers.length > 0 || facets.providersTruncated)) return false;
   }
+  const expandedTerms = value.expandedTerms as string[];
   return value.results.every((item: unknown) => isRecord(item)
+    && (item.matchKind !== "ONTOLOGY" || expandedTerms.length > 0)
     && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0
     && typeof item.grantCallId === "string" && item.grantCallId.length > 0
     && typeof item.title === "string" && item.title.trim().length > 0

@@ -53,6 +53,28 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
   });
 
+  it("rejects an ontology explanation without expanded search terms on either page", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "ONTOLOGY" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    for (const terms of [[], [" "]]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+        ...body, expandedTerms: terms,
+      }), { status: 200 })));
+      for (const cursor of [undefined, "page-2"]) {
+        await expect(searchGrants("alpha", undefined, cursor)).rejects.toMatchObject({
+          code: "INVALID_SEARCH_RESPONSE", status: 200,
+        });
+      }
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      ...body, expandedTerms: ["širší pojem"],
+    }), { status: 200 })));
+    expect((await searchGrants("alpha")).results).toEqual([result]);
+  });
+
   it("rejects facet counts that contradict visible results, without treating unavailable counts as zero", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,

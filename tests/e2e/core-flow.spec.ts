@@ -2,6 +2,32 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("mobile search rejects unsupported ontology claim then retries real D1/API results", async ({ page, request }) => {
+  const path = "/hledat?intent=digitalizace%20obce";
+  const response = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(response.status()).toBe(200);
+  const actual = await response.json() as { results: Array<{ matchKind: string }> };
+  expect(actual.results.some((item) => item.matchKind === "DIRECT")).toBe(true);
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const fresh = await route.fetch();
+    const body = await fresh.json() as typeof actual;
+    await route.fulfill({ response: fresh, json: { ...body, expandedTerms: [],
+      results: body.results.map((item) => ({ ...item, matchKind: "ONTOLOGY" })) } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.locator(".grant-card").first()).toContainText("Přímá tematická shoda");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("search cards show current indexed version provenance and freshness limits from real D1/API", async ({ page, request }) => {
   for (const sort of ["RELEVANCE", "DEADLINE"] as const) {
     const query = new URLSearchParams({ intent: "digitalizace obce", status: "OPEN", sort });

@@ -70,6 +70,8 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 ## Validace odpovědi vyhledávání
 Klient výsledků kontroluje úspěšnou odpověď Search API před vykreslením: záměr musí odpovídat požadavku, seznam výsledků, stránkovací kurzor a facets musí mít smluvený tvar. Stav `EMPTY` nesmí obsahovat výsledky ani další stránku; karta musí mít neprázdnou identitu, název a poskytovatele a aktivní stav (`OPEN`, `PLANNED`, `ANNOUNCED`). Neplatná či neúplná odpověď se zobrazí jako chyba s možností opakování; nesmí být vydávána za prázdný katalog nebo za konec stránkování.
 
+Karta smí vysvětlovat shodu přes širší význam (`ONTOLOGY`) jen tehdy, když úspěšná odpověď Search API obsahuje alespoň jeden neprázdný rozšířený pojem. Při rozporu klient nezobrazí karty a umožní bezpečné opakování; tematická shoda není způsobilost.
+
 Karta výsledku přebírá `capturedAt` a `verificationStatus` přímo z aktuální indexované neměnné verze výzvy. Datum je čas zachycení, nikoli poslední kontrola; stav ověření se vztahuje k této verzi. Karta výslovně upozorňuje, že tyto údaje nepotvrzují dnešní podmínky ani příjem žádostí. Chybějící, neplatné nebo neznámé hodnoty klient odmítá jako neplatnou odpověď. Tato dílčí úprava neuzavírá #400.
 
 ## Validace detailu výzvy
