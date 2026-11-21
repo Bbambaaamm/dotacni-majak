@@ -166,6 +166,15 @@ export function SourceDeadline({ value }: { value: string | null }) {
   </>;
 }
 
+export function DetailMetadataDate({ value, label }: { value: string; label: string }) {
+  return <>
+    {sourceCalendarDate(value)}
+    {sourceDeadlineNeedsReview(value) ? (
+      <span role="note"> — Formát data ({label}) není ověřen; nepovažujte jej za doloženou aktuálnost.</span>
+    ) : null}
+  </>;
+}
+
 export function GrantDetailPage() {
   const backToSearchHref = buildSearchUrl(readSearchUrlState(window.location.search));
   const grantCallId = useMemo(
@@ -364,7 +373,7 @@ export function GrantDetailPage() {
               </div>
               <div>
                 <dt>Verze výzvy zachycena</dt>
-                <dd>{sourceCalendarDate(detail.capturedAt)}</dd>
+                <dd><DetailMetadataDate value={detail.capturedAt} label="zachycení verze" /></dd>
               </div>
               <div>
                 <dt>Poslední pozorování záznamu u zdroje</dt>
@@ -571,7 +580,7 @@ export function GrantDetailPage() {
                   <li key={version.id}>
                     Verze {version.versionNumber}
                     {" · "}
-                    {sourceCalendarDate(version.capturedAt)}
+                    <DetailMetadataDate value={version.capturedAt} label="zachycení verze" />
                     {" · "}
                     {statusLabel(version.status)}
                     {version.isCurrent ? " · aktuální" : ""}
@@ -655,7 +664,7 @@ export function GrantDetailPage() {
                     </OfficialSourceLink>
                     {evidence.pageFrom ? ` · str. ${evidence.pageFrom}` : ""}
                     <br />
-                    <small>Dokument stažen: {sourceCalendarDate(evidence.retrievedAt)} · Ověření doloženého údaje: {verificationLabel(evidence.verificationStatus)}</small>
+                    <small>Dokument stažen: <DetailMetadataDate value={evidence.retrievedAt} label="stažení dokumentu" /> · Ověření doloženého údaje: {verificationLabel(evidence.verificationStatus)}</small>
                   </li>
                 ))}
               </ul>

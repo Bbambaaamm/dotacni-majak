@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import { DetailMetadataDate, SourceDeadline, SourceObservation } from "./GrantDetailPage";
 
 describe("detail source deadline", () => {
   it.each([
@@ -17,6 +17,24 @@ describe("detail source deadline", () => {
     expect(html).toContain(value ? value.slice(0, 10) : "Není uvedeno");
     expect(html.includes('role="note"')).toBe(caution);
     if (caution) expect(html).toContain("ověřte jej v oficiálním zdroji");
+  });
+});
+
+describe("detail metadata dates", () => {
+  it.each([
+    ["2026-09-26T20:00:00Z", false],
+    ["2026-09-26", false],
+    ["2026-02-30T12:00:00Z", true],
+    ["datum-nejasne", true],
+  ])("preserves %s without implying invalid metadata is verified", (value, caution) => {
+    const html = renderToStaticMarkup(createElement(DetailMetadataDate, {
+      value, label: "stažení dokumentu",
+    }));
+    expect(html.includes('role="note"')).toBe(caution);
+    if (caution) {
+      expect(html).toContain(value);
+      expect(html).toContain("nepovažujte jej za doloženou aktuálnost");
+    }
   });
 });
 
