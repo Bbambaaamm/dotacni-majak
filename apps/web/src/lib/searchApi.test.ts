@@ -44,6 +44,19 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
   });
 
+  it("rejects a non-advancing continuation cursor but allows retry with an advancing page", async () => {
+    const body = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "READY", nextCursor: "cursor", facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).nextCursor).toBe("cursor");
+    await expect(searchGrants("alpha", undefined, "cursor")).rejects.toMatchObject({
+      code: "INVALID_SEARCH_RESPONSE", status: 200,
+    });
+    expect((await searchGrants("alpha", undefined, "previous-cursor")).nextCursor).toBe("cursor");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, nextCursor: null }), { status: 200 })));
+    expect((await searchGrants("alpha", undefined, "cursor")).nextCursor).toBeNull();
+  });
+
   it("accepts a complete response with source-specific result fields and facets", async () => {
     const body = { intent: "alpha", expandedTerms: ["sport"], indexState: "READY", nextCursor: "next",
       facets: { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
