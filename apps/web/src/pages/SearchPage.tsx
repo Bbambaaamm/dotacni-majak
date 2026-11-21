@@ -103,13 +103,15 @@ export function SearchPage() {
     projectBudgetCzk, provider: providerFilter, deadline: deadlineFilter, closesBy, closesFrom, sort: sortOrder });
   useEffect(() => {
     if (!intent || demoState) return;
-    // Keep applied filters (not draft inputs or a pagination cursor) in the local URL.
-    const url = buildSearchUrl({ intent, status: statusFilter, instrument: instrumentFilter,
+    // Keep the return target across refreshes until the bounded replay finishes.
+    const baseUrl = buildSearchUrl({ intent, status: statusFilter, instrument: instrumentFilter,
       projectBudgetCzk, provider: providerFilter, deadline: deadlineFilter, closesBy, closesFrom, sort: sortOrder });
+    const url = returnResult.current
+      ? `${baseUrl}&returnResult=${encodeURIComponent(returnResult.current)}` : baseUrl;
     if (window.location.pathname + window.location.search !== url) {
       window.history.replaceState(window.history.state, "", url + window.location.hash);
     }
-  }, [intent, demoState, statusFilter, instrumentFilter, projectBudgetCzk, providerFilter, deadlineFilter, closesBy, closesFrom, sortOrder]);
+  }, [intent, demoState, statusFilter, instrumentFilter, projectBudgetCzk, providerFilter, deadlineFilter, closesBy, closesFrom, sortOrder, returnNotice]);
 
   const loadedResults = data?.results ?? [];
   const providerOptions = data?.facets?.providers ?? [];

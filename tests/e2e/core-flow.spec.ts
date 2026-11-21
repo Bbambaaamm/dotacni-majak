@@ -1112,6 +1112,23 @@ test("mobile detail return replays fresh D1 cursor and focuses its original resu
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("refresh during detail return keeps the target until fresh cursor replay completes", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let cursorRequests = 0;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    cursorRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    try { await route.continue(); } catch { /* navigation may abort the old request */ }
+  });
+  await page.goto("/hledat?intent=strankovani&returnResult=gcv-e2e-page-25");
+  await expect(page.getByRole("button", { name: "Načítáme další výsledky…" })).toBeVisible();
+  await expect(page).toHaveURL(/returnResult=gcv-e2e-page-25$/);
+  await page.reload();
+  await expect(page.locator("a[data-result-id='gcv-e2e-page-25']")).toBeFocused();
+  await expect(page).toHaveURL(/\/hledat\?intent=strankovani$/);
+  expect(cursorRequests).toBeGreaterThanOrEqual(2);
+});
+
 test("detail return cursor failure preserves first page without claiming cancellation", async ({ page }) => {
   await page.route("**/api/search?*cursor=*", (route) => route.fulfill({ status: 503,
     contentType: "application/json", body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) }));
