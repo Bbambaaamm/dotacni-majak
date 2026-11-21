@@ -48,8 +48,11 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     const deadline = facets.deadline;
     if (!["OPEN", "PLANNED", "ANNOUNCED"].every((key) => Number.isSafeInteger(status[key]) && (status[key] as number) >= 0)
       || !["KNOWN", "UNKNOWN"].every((key) => Number.isSafeInteger(deadline[key]) && (deadline[key] as number) >= 0)
+      || facets.providers.length > 20
       || !facets.providers.every((provider: unknown) => isRecord(provider) && typeof provider.name === "string"
-        && Number.isSafeInteger(provider.count) && (provider.count as number) >= 0)) return false;
+        && provider.name.trim().length > 0 && provider.name === provider.name.trim()
+        && Number.isSafeInteger(provider.count) && (provider.count as number) > 0)
+      || new Set(facets.providers.map((provider: { name: string }) => provider.name)).size !== facets.providers.length) return false;
   }
   return value.results.every((item: unknown) => isRecord(item)
     && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0

@@ -70,6 +70,33 @@ describe("search API client", () => {
     }
   });
 
+  it("rejects duplicate, empty, or nonpositive provider facets before rendering filters", async () => {
+    const facets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [{ name: "Obec", count: 2 }],
+      providersTruncated: false };
+    const body = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets };
+    for (const providers of [
+      [{ name: "Obec", count: 2 }, { name: "Obec", count: 1 }],
+      [{ name: "", count: 1 }], [{ name: "  ", count: 1 }],
+      [{ name: "Obec", count: 0 }],
+      Array.from({ length: 21 }, (_, i) => ({ name: `Poskytovatel ${i}`, count: 1 })),
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+        ...body, facets: { ...facets, providers },
+      }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({
+        code: "INVALID_SEARCH_RESPONSE", status: 200,
+      });
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).facets?.providers).toEqual(facets.providers);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      ...body, facets: { ...facets, providers: [] },
+    }), { status: 200 })));
+    expect((await searchGrants("alpha")).facets?.providers).toEqual([]);
+  });
+
   it("rejects repeated version identities within and across pages without advancing pagination", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,

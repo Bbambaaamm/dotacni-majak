@@ -733,6 +733,33 @@ test("contradictory real D1 facet count fails closed then retries unmodified API
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("duplicate provider facet from real D1/API fails closed and mobile retry restores real results", async ({ page, request }) => {
+  const actual = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { facets: {
+    providers: Array<{ name: string; count: number }> } | null };
+  expect(valid.facets?.providers.length).toBeGreaterThan(0);
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    expect(response.ok()).toBe(true);
+    expect(body.facets?.providers.length).toBeGreaterThan(0);
+    await route.fulfill({ response, json: { ...body, facets: { ...body.facets!,
+      providers: [...body.facets!.providers, body.facets!.providers[0]] } } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("real D1 search loads more than 20 distinct results and retries a failed later page", async ({ page }) => {
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);
