@@ -81,6 +81,29 @@ describe("search API client", () => {
     expect((await continuation(["širší pojem"])).results).toEqual([result]);
   });
 
+  it("rejects a direct relevance match after an ontology match on either page", async () => {
+    const direct = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const ontology = { ...direct, grantCallVersionId: "v2", grantCallId: "g2", matchKind: "ONTOLOGY" };
+    const body = { intent: "alpha", results: [ontology, direct], expandedTerms: ["širší pojem"],
+      indexState: "READY", nextCursor: null, facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    const continuation = (sort?: "RELEVANCE" | "DEADLINE", previous?: "DIRECT" | "ONTOLOGY") =>
+      searchGrants("alpha", undefined, "page-2", undefined, undefined, undefined, undefined,
+        sort, undefined, undefined, undefined, undefined, undefined, undefined, undefined, previous);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, results: [direct] }), { status: 200 })));
+    await expect(continuation("RELEVANCE", "ONTOLOGY"))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    expect((await continuation("RELEVANCE", "DIRECT")).results).toEqual([direct]);
+    // Global date order may interleave match phases; its API contract is distinct.
+    expect((await continuation("DEADLINE", "ONTOLOGY")).results).toEqual([direct]);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, results: [direct, ontology] }), { status: 200 })));
+    expect((await searchGrants("alpha")).results).toEqual([direct, ontology]);
+    expect((await continuation("DEADLINE", "ONTOLOGY")).results).toEqual([direct, ontology]);
+  });
+
   it("rejects facet counts that contradict visible results, without treating unavailable counts as zero", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,

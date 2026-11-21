@@ -1195,6 +1195,33 @@ test("unavailable facets show no counts, allow manual filters, and preserve firs
   await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: Manual provider" })).toBeVisible();
 });
 
+test("relevance phase inversion in real D1 response fails closed and mobile retry restores order", async ({ page, request }) => {
+  const actual = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { results: Array<{ matchKind: string }>; expandedTerms: string[] };
+  expect(valid.results.length).toBeGreaterThanOrEqual(2);
+  expect(valid.expandedTerms.length).toBeGreaterThan(0);
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    expect(response.ok()).toBe(true);
+    await route.fulfill({ response, json: { ...body, results: body.results.map((item, index) =>
+      index === 0 ? { ...item, matchKind: "ONTOLOGY" } : index === 1
+        ? { ...item, matchKind: "DIRECT" } : item) } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("filtered real D1 response with off-filter card fails closed and retries on mobile", async ({ page, request }) => {
   const actual = await request.get("/api/search?intent=digitalizace%20obce&status=OPEN");
   expect(actual.status()).toBe(200);

@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Pořadí přímých a širších shod v relevanci (#400, dílčí slice)
+
+Search API vrací při výchozím `RELEVANCE` všechny přímé tematické shody před širšími ontologickými shodami, i přes hranici cursor stránky. Klient odmítne úspěšnou odpověď, která po kartě „Nalezeno přes širší význam“ znovu předstírá přímou shodu: na první stránce neukáže žádnou z karet, při pokračování ponechá dřívější karty a původní cursor pro retry. Platný přechod `DIRECT → ONTOLOGY` je zachován; pro `DEADLINE`/`DEADLINE_LATEST` se pořadí fází nekontroluje, protože termíny globálně prokládají obě fáze. Jde jen o kontrolu kontraktu vrácené stránky, nikoli o záruku způsobilosti nebo snapshotu indexu. Unit test pokrývá obě stránky a výjimku pro datum; mobilní browser test jednorázově změní odpověď skutečného D1/API a úspěšný retry znovu ověří proti nezměněnému API, axe a reflow.
+
 ## Čitelnost rozhodnutí na mobilu i desktopu (#400, dílčí slice)
 
 Před kartami zůstává viditelný počet dosud načtených výsledků (nikoli celkový počet shod), upozornění, že relevance není způsobilost ani výše podpory, a výzva ověřit aktuální příjem a uzávěrku u oficiálního zdroje. Sekundární technická pravidla globálních filtrů, počtů, rozpočtu a řazení jsou dostupná přes nativní klávesnicově ovladatelný `<details>`; nejsou odstraněna ani vydávána za posouzení žadatele. Volba termínu bez údaje se uživateli jmenuje „Termín neuveden“, zatímco API/URL dál používají kanonickou hodnotu `UNKNOWN`. Reálné D1/API/Chromium E2E ověřuje na mobilu i desktopu viditelná varování, skryté/rozbalitelné vysvětlení, keyboard, axe a reflow; dosavadní testy globálního filtrování zůstávají zachovány.

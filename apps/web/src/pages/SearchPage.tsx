@@ -313,7 +313,8 @@ export function SearchPage() {
         new Set(data.results.map((grant) => grant.grantCallVersionId)),
         new Set(data.results.map((grant) => grant.grantCallId)),
         seenCursors.current,
-        data.expandedTerms);
+        data.expandedTerms,
+        data.results[data.results.length - 1]?.matchKind);
       if (controller.signal.aborted) return;
       if (page.nextCursor) seenCursors.current.add(page.nextCursor);
       setData((current) => {
