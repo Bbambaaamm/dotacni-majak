@@ -139,12 +139,22 @@ function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   return parts.join(" · ") || "Částka nebo míra podpory není v normalizovaných datech uvedena.";
 }
 
-function lastSeenLabel(detail: GrantDetailResponse): string {
-  const latest = detail.sources
-    .map((source) => ({ value: source.lastSeenAt, instant: Date.parse(source.lastSeenAt) }))
-    .filter((observation) => Number.isFinite(observation.instant))
+export function SourceObservation({ sources }: { sources: GrantDetailResponse["sources"] }) {
+  const observations = sources.map((source) => ({
+    value: source.lastSeenAt,
+    instant: Date.parse(source.lastSeenAt),
+    needsReview: sourceDeadlineNeedsReview(source.lastSeenAt),
+  }));
+  const latest = observations
+    .filter((observation) => !observation.needsReview && Number.isFinite(observation.instant))
     .sort((a, b) => b.instant - a.instant)[0];
-  return latest ? sourceCalendarDate(latest.value) : "Není doložena";
+  return <>
+    {latest ? sourceCalendarDate(latest.value) : "Není doložena"}
+    {observations.some((observation) => observation.needsReview) ? (
+      <span role="note"> — U některých zdrojových záznamů nelze ověřit formát data pozorování;
+        zobrazené datum nemusí být nejnovější. Ověřte stav u poskytovatele.</span>
+    ) : null}
+  </>;
 }
 
 export function SourceDeadline({ value }: { value: string | null }) {
@@ -358,7 +368,7 @@ export function GrantDetailPage() {
               </div>
               <div>
                 <dt>Poslední pozorování záznamu u zdroje</dt>
-                <dd>{lastSeenLabel(detail)}</dd>
+                <dd><SourceObservation sources={detail.sources} /></dd>
               </div>
             </dl>
             <p className="fine-print">Pozorování záznamu nepotvrzuje, že podmínky této verze byly znovu ověřeny. Před podáním zkontrolujte oficiální zdroj.</p>
@@ -593,7 +603,11 @@ export function GrantDetailPage() {
                     <br />
                     <strong>{sourcePresenceLabel(source.presenceState)}</strong>
                     <br />
-                    <small>Pozorováno {sourceCalendarDate(source.lastSeenAt)}</small>
+                    <small>Pozorováno {sourceCalendarDate(source.lastSeenAt)}
+                      {sourceDeadlineNeedsReview(source.lastSeenAt) ? (
+                        <span role="note"> — Formát data pozorování není ověřen; ověřte stav u poskytovatele.</span>
+                      ) : null}
+                    </small>
                   </li>
                 ))}
               </ul>
