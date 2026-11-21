@@ -1492,6 +1492,31 @@ test("mobile pagination preserves a deliberate focus move during the final page"
   expect(cursorRequests).toBe(1);
 });
 
+test("unchanged status and deadline filters preserve loaded results without a redundant search", async ({ page, request }) => {
+  const initial = await request.get("/api/search?intent=digitalizace%20obce&status=OPEN&deadline=KNOWN");
+  expect(initial.status()).toBe(200);
+  expect((await initial.json() as { results: unknown[] }).results.length).toBeGreaterThan(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce&status=OPEN&deadline=KNOWN");
+  await expect(page.locator(".grant-card").first()).toBeVisible();
+  const count = await page.locator(".grant-card").count();
+  const filters = page.locator(".filter-panel");
+  await filters.locator("summary").click();
+  let searches = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/api/search?")) searches += 1;
+  });
+  await page.getByLabel("Stav výzvy").focus();
+  await page.getByLabel("Stav výzvy").selectOption("OPEN");
+  await expect(page.getByLabel("Stav výzvy")).toBeFocused();
+  await page.getByLabel("Termín podání").focus();
+  await page.getByLabel("Termín podání").selectOption("KNOWN");
+  await expect(page.getByLabel("Termín podání")).toBeFocused();
+  await expect(page.locator(".grant-card")).toHaveCount(count);
+  await expect(filters).toHaveAttribute("open", "");
+  expect(searches).toBe(0);
+});
+
 test("global status finds a later-page planned result and rejects a changed cursor", async ({ page, request }) => {
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);

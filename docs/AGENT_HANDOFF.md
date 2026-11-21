@@ -74,6 +74,10 @@ Karta smí vysvětlovat shodu přes širší význam (`ONTOLOGY`) jen tehdy, kdy
 
 Karta výsledku přebírá `capturedAt` a `verificationStatus` přímo z aktuální indexované neměnné verze výzvy. Datum je čas zachycení, nikoli poslední kontrola; stav ověření se vztahuje k této verzi. Karta výslovně upozorňuje, že tyto údaje nepotvrzují dnešní podmínky ani příjem žádostí. Chybějící, neplatné nebo neznámé hodnoty klient odmítá jako neplatnou odpověď. Tato dílčí úprava neuzavírá #400.
 
+## Neměnné filtry výsledků
+
+Při opětovném výběru již aktivního stavu výzvy nebo dostupnosti termínu nesmí klient znovu zahájit hledání: načtené karty, otevřený mobilní panel filtrů a fokus zůstávají beze změny. Skutečná změna filtru stále obnoví první stránku ze Search API. Regrese je ověřena přes lokální D1 → skutečné API → mobilní Chromium, včetně počtu síťových požadavků. Dílčí úprava neuzavírá #400.
+
 ## Validace detailu výzvy
 Klient detailu ověřuje úspěšnou odpověď API před vykreslením: identita výzvy musí odpovídat požadavku, základní verze, poskytovatel, dostupnost, zdroje, podmínky, scénáře a doklady musí mít smluvený tvar. Chybějící či poškozený údaj se nesmí vykreslit jako ověřená podmínka nebo nulový počet dokladů; zobrazí se chyba s možností opakování. HTTP 404 zůstává odlišné od poškozené úspěšné odpovědi.
 
