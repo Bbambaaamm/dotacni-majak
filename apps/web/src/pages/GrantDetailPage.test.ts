@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
+import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
 import type { GrantChangeDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
@@ -35,6 +35,19 @@ describe("detail grant amount bounds", () => {
     expect(fundingSummary({ ...scenario, grantAmountMinMinor: 5000000, grantAmountMaxMinor: 10000000 }))
       .toMatch(/min\..*max\./);
     expect(fundingSummary(scenario)).toContain("není v normalizovaných datech uvedena");
+  });
+});
+
+describe("detail VAT rule provenance", () => {
+  it("quotes a documented scenario rule without treating it as personal tax advice", () => {
+    expect(vatRuleLabel("DPH je nezpůsobilá pouze při možnosti odpočtu"))
+      .toBe("Údaj ze scénáře: DPH je nezpůsobilá pouze při možnosti odpočtu. Ověřte u poskytovatele, zda platí pro váš projekt.");
+  });
+
+  it("keeps missing or blank rule unknown rather than inferring VAT recovery", () => {
+    expect(vatRuleLabel(null)).toContain("Není doloženo");
+    expect(vatRuleLabel("  ")).toBe(vatRuleLabel(null));
+    expect(vatRuleLabel(null)).toContain("nevyvozujte");
   });
 });
 

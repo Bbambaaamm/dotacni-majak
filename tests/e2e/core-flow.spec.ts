@@ -1988,7 +1988,14 @@ test("real D1 cursor crosses from direct to ontology without replaying direct ma
   expect(third.nextCursor).toBeNull();
 });
 
-test("non-sport intent -> real API results -> filters -> detail -> provenance", async ({ page }) => {
+test("non-sport intent -> real API results -> filters -> detail -> provenance", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(response.status()).toBe(200);
+  const body = await response.json() as { fundingScenarios: Array<{ id: string; vatRule: string | null }> };
+  expect(body.fundingScenarios.find((scenario) => scenario.id === "e2e-funding-open")?.vatRule)
+    .toBe("DPH je nezpůsobilá pouze při možnosti odpočtu");
+  expect(body.fundingScenarios.find((scenario) => scenario.id === "e2e-funding-undocumented")?.vatRule)
+    .toBeNull();
   await page.goto("/");
 
   await page.getByLabel("Co chcete uskutečnit?").first().fill("digitalizace obce");
@@ -2055,10 +2062,14 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(funded).toContainText("Maximální náklady projektu podle scénáře");
   await expect(funded).toContainText("400 000");
   await expect(funded).toContainText("Proplacení po úhradě nákladů");
+  await expect(funded.getByText("Pravidlo DPH podle scénáře").locator("..").locator("dd"))
+    .toHaveText("Údaj ze scénáře: DPH je nezpůsobilá pouze při možnosti odpočtu. Ověřte u poskytovatele, zda platí pro váš projekt.");
   await expect(funded).toContainText("Ne, podle scénáře");
   await expect(funded).toContainText("Individuální potřebu vlastních peněz a předfinancování");
   const undocumented = finance.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E scénář bez samostatného dokladu" }) });
   await expect(undocumented).toContainText("Není doložen");
+  await expect(undocumented.getByText("Pravidlo DPH podle scénáře").locator("..").locator("dd"))
+    .toHaveText("Není doloženo; nevyvozujte z toho nárok na odpočet ani výši DPH.");
   await expect(undocumented).toContainText("Není doloženo");
   await expect(undocumented).toContainText("Není uvedeno");
   await expect(undocumented.getByText("Samostatný doklad financování není připojen")).toBeVisible();
