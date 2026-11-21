@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { DetailMetadataDate, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import { ChangeEventDate, DetailMetadataDate, SourceDeadline, SourceObservation } from "./GrantDetailPage";
 
 describe("detail source deadline", () => {
   it.each([
@@ -34,6 +34,22 @@ describe("detail metadata dates", () => {
     if (caution) {
       expect(html).toContain(value);
       expect(html).toContain("nepovažujte jej za doloženou aktuálnost");
+    }
+  });
+});
+
+describe("detail change-event date", () => {
+  it.each([
+    ["2026-09-26T20:00:00Z", false],
+    ["2026-09-26", false],
+    ["2026-02-30T12:00:00Z", true],
+    ["datum-nejasne", true],
+  ])("does not present %s as a verified event date (caution %s)", (value, caution) => {
+    const html = renderToStaticMarkup(createElement(ChangeEventDate, { value }));
+    expect(html.includes('role="note"')).toBe(caution);
+    if (caution) {
+      expect(html).toContain(value);
+      expect(html).toContain("Pořadí změn ani datum události nejsou ověřené");
     }
   });
 });

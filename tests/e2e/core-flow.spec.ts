@@ -696,6 +696,24 @@ test("detail distinguishes omitted referenced evidence from unattached items at 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("unverified change date from real D1/API remains visible with caution on mobile", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Areactivated");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { changes: Array<{ id: string; createdAt: string }> };
+  expect(detail.changes).toEqual([expect.objectContaining({
+    id: "e2e-change-unverified-date", createdAt: "2026-02-30T12:00:00Z",
+  })]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Areactivated");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E reaktivovaná verze" })).toBeVisible();
+  const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (1)" }) });
+  await expect(changes.locator("li")).toContainText("2026-02-30T12:00:00Z");
+  await expect(changes.getByRole("note")).toContainText("Pořadí změn ani datum události nejsou ověřené");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("detail discloses bounded versions, sources and changes from real D1/API on mobile", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Ahistory");
   expect(response.status()).toBe(200);
