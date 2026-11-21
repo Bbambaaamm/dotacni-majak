@@ -93,6 +93,24 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].supportRateMaxBps).toBe(10000);
   });
 
+  it("rejects noncanonical call status instead of showing an untrusted decision state", async () => {
+    for (const status of ["OPENED", "UNKNOWN", "OPEN ", "", null]) {
+      for (const body of [
+        { ...detail, status, versions: [{ ...detail.versions[0], status }] },
+        { ...detail, versions: [{ ...detail.versions[0], status }] },
+      ]) {
+        respond(body);
+        await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+          code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+        });
+      }
+    }
+    for (const status of ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"]) {
+      respond({ ...detail, status, versions: [{ ...detail.versions[0], status }] });
+      expect((await fetchGrantDetail("grant:one")).status).toBe(status);
+    }
+  });
+
   it("rejects unknown verification states at the detail, document and version boundaries", async () => {
     for (const status of ["Ověřeno", "VERIFIED ", "UNKNOWN", "", null]) {
       for (const body of [
