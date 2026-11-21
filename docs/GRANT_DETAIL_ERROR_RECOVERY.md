@@ -31,7 +31,8 @@ kontroluje a11y/reflow. Nejde o ověření správnosti oficiálních podmínek.
 
 ## Vazba aktuální verze na zobrazená tvrzení
 
-Detail API vrací horní souhrn zachycené verze a nejvýše 20 historických verzí.
+Detail API vrací horní souhrn zachycené verze a nejvýše 20 verzí (aktuální
+verzi a nejnovější další verze, i po reaktivaci starší neměnné verze).
 Klient odmítne HTTP 200, pokud v omezeném seznamu není právě jedna položka
 `isCurrent`, její ID/číslo/čas zachycení/stav/ověření/uzávěrka neodpovídají
 hornímu souhrnu nebo se v seznamu opakuje ID či číslo verze. Tím nelze

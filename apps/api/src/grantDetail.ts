@@ -423,10 +423,11 @@ export async function getGrantDetail(
           verification_status, submission_close_at
         FROM grant_call_versions
         WHERE grant_call_id = ?
-        ORDER BY version_number DESC
+        ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, version_number DESC
         LIMIT 20
       `,
       grantCallId,
+      base.version_id,
     ),
   ]);
 

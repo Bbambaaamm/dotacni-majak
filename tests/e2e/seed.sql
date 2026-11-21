@@ -388,6 +388,24 @@ SELECT 'gcv-e2e-history-' || i,'grant:e2e:history',i,
 UPDATE grant_calls SET current_version_id='gcv-e2e-history-22'
 WHERE id='grant:e2e:history';
 
+-- Previously published content reactivated after 22 immutable versions. The
+-- current pointer can legitimately refer to a version outside the newest 20.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+VALUES ('grant:e2e:reactivated','e2e-programme-open','E2E-REACTIVATED','e2e-reactivated',NULL,
+  'OPEN','E2E reaktivovaná verze','2026-09-01T20:00:00Z','2026-09-01T20:00:00Z',
+  '2026-09-01T20:00:00Z','2026-09-26T20:00:00Z');
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 22)
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-reactivated-' || i,'grant:e2e:reactivated',i,
+  '2026-09-26T20:00:00Z','E2E reaktivovaná verze',
+  'Syntetická reaktivace dřívější neměnné verze.', 'OPEN',
+  'https://example.invalid/e2e/reactivated','CZK','e2e-v1',printf('%064d',600 + i),
+  'VERIFIED','2026-09-26T20:00:00Z' FROM n;
+UPDATE grant_calls SET current_version_id='gcv-e2e-reactivated-1'
+WHERE id='grant:e2e:reactivated';
+
 -- Detail source and change limits: the 21st source is SEEN but sorts after 20 missing records.
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 21)
 INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
