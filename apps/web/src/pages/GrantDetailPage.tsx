@@ -102,12 +102,15 @@ function advanceLabel(value: boolean | null): string {
   return "Není doloženo";
 }
 
-function fundingSummary(scenario: GrantFundingScenarioDetail): string {
+export function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   const parts: string[] = [];
   if (scenario.supportRateMaxBps !== null) {
     parts.push(`max. ${formatRate(scenario.supportRateMaxBps)}`);
   } else if (scenario.supportRateMinBps !== null) {
     parts.push(`min. ${formatRate(scenario.supportRateMinBps)}; horní mez není uvedena`);
+  }
+  if (scenario.grantAmountMinMinor !== null) {
+    parts.push(`min. ${formatMinor(scenario.grantAmountMinMinor, scenario.currencyCode)}${scenario.grantAmountMaxMinor === null ? "; horní mez není uvedena" : ""}`);
   }
   if (scenario.grantAmountMaxMinor !== null) {
     parts.push(
@@ -442,8 +445,14 @@ export function GrantDetailPage() {
                               <dd>{supportRateLabel(scenario.supportRateMinBps, scenario.supportRateMaxBps)}</dd>
                             </div>
                             <div>
+                              <dt>Spodní mez dotace podle scénáře</dt>
+                              <dd>{formatMinor(scenario.grantAmountMinMinor, scenario.currencyCode)}</dd>
+                            </div>
+                            <div>
                               <dt>Maximální dotace</dt>
-                              <dd>{formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
+                              <dd>{scenario.grantAmountMinMinor !== null && scenario.grantAmountMaxMinor === null
+                                ? "Horní mez není uvedena"
+                                : formatMinor(scenario.grantAmountMaxMinor, scenario.currencyCode)}</dd>
                             </div>
                             <div>
                               <dt>Minimální náklady projektu podle scénáře</dt>
