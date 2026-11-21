@@ -844,7 +844,10 @@ test("unverified change date from real D1/API remains visible with caution on mo
   await expect(unverified).not.toContainText("CRITICAL");
   await expect(changes.getByText(/Závažnost je klasifikace zaznamenané změny/)).toContainText("nikoli potvrzení aktuálních podmínek nebo vaší způsobilosti");
   await expect(unverified).not.toContainText("OTHER");
-  await expect(unverified).toContainText("Interní označení pole: /e2e/unverified-date");
+  await expect(unverified).toContainText("Dotčený údaj: Jiný údaj (přesné pole zde není ověřeno)");
+  await expect(unverified).not.toContainText("/e2e/unverified-date");
+  await expect(transition).toContainText("Dotčený údaj: Stav výzvy");
+  await expect(transition).not.toContainText("Interní označení pole");
   expect(await unverified.evaluate((element) => getComputedStyle(element).display)).toBe("block");
   expect(await unverified.locator("span").last().evaluate((element) => getComputedStyle(element).flexBasis)).toBe("auto");
   await expect(unverified).toContainText("2026-02-30T12:00:00Z");
@@ -874,6 +877,9 @@ test("detail discloses bounded versions, sources and changes from real D1/API on
   expect(detail.changes.map((change) => change.id)).toEqual(
     Array.from({ length: 20 }, (_, index) => `e2e-change-history-${String(21 - index).padStart(2, "0")}`),
   );
+  expect(detail.changes.map((change) => change.fieldPath)).toEqual(
+    Array.from({ length: 20 }, (_, index) => `/e2e/history/change/${String(21 - index).padStart(2, "0")}`),
+  );
   expect(detail.versions).toHaveLength(20);
   expect(detail.versions[0]).toMatchObject({ versionNumber: 22, isCurrent: true });
   expect(detail.versions[19]).toMatchObject({ versionNumber: 3, isCurrent: false });
@@ -891,9 +897,9 @@ test("detail discloses bounded versions, sources and changes from real D1/API on
   const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (20 zobrazených)" }) });
   await expect(changes.getByRole("status")).toContainText("Mohou existovat další změny");
   await expect(changes.locator("li")).toHaveCount(20);
-  await expect(changes.locator("li").first()).toContainText("/e2e/history/change/21");
-  await expect(changes.locator("li").last()).toContainText("/e2e/history/change/02");
-  await expect(changes.getByText("/e2e/history/change/01")).toHaveCount(0);
+  await expect(changes.locator("li").first()).toContainText("Dotčený údaj: Jiný údaj (přesné pole zde není ověřeno)");
+  await expect(changes.locator("li").last()).toContainText("Dotčený údaj: Jiný údaj (přesné pole zde není ověřeno)");
+  await expect(changes).not.toContainText("/e2e/history/change/");
   const history = page.locator("details.detail-section").filter({ hasText: "Historie verzí" });
   await history.getByText("Historie verzí (20 zobrazených)").click();
   await expect(history.getByRole("status")).toContainText("Další verze mohou existovat");

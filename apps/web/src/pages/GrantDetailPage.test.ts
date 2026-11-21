@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
+import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeFieldLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
 import type { GrantChangeDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
@@ -122,6 +122,22 @@ describe("detail change-event label", () => {
     expect(changeEventLabel("NEW_TYPE")).toContain("Neznámý typ změny");
     expect(changeEventLabel("NEW_TYPE")).toContain("ověřte jej v oficiálním zdroji");
     expect(changeEventLabel("NEW_TYPE")).not.toContain("NEW_TYPE");
+  });
+});
+
+describe("detail change field presentation", () => {
+  it("labels only recognized canonical fields without exposing their storage path", () => {
+    expect(changeFieldLabel("status")).toBe("Stav výzvy");
+    expect(changeFieldLabel("/status")).toBe("Stav výzvy");
+    expect(changeFieldLabel("/submission_close_at")).toBe("Ukončení příjmu žádostí");
+    expect(changeFieldLabel("submission_close_at")).toBe("Ukončení příjmu žádostí");
+  });
+
+  it("does not publish arbitrary internal paths or infer a meaning for them", () => {
+    expect(changeFieldLabel("/internal/unknown/field"))
+      .toBe("Jiný údaj (přesné pole zde není ověřeno)");
+    expect(changeFieldLabel("/e2e/unverified-date")).not.toContain("/e2e/");
+    expect(changeFieldLabel(null)).toBeNull();
   });
 });
 
