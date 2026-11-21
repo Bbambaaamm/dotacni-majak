@@ -113,6 +113,7 @@ describe("search API client", () => {
         });
       }
       for (const submissionCloseAt of ["2027-05-01", "2027-05-01T12:00:00z",
+        "2027-05-01T12:00:00Z ", "2027-05-01T12:00:00 Z",
         "2027-05-31T23:59:00+02:00", "2027-04-30T23:30:00-02:00"]) {
         vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
           results: [{ ...result, submissionCloseAt }],
