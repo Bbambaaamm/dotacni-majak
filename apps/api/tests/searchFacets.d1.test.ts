@@ -15,7 +15,7 @@ it("real D1 returns complete facets at the cap and null beyond it", async () => 
   const db = await mf.getD1Database("DB");
   for (const sql of [
     "CREATE TABLE grant_search_documents (grant_call_version_id TEXT PRIMARY KEY, title TEXT, summary TEXT, status TEXT, submission_close_at TEXT)",
-    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT NOT NULL DEFAULT 'GRANT')",
+    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT NOT NULL DEFAULT 'GRANT', captured_at TEXT NOT NULL DEFAULT '2026-09-26T20:00:00Z', verification_status TEXT NOT NULL DEFAULT 'VERIFIED')",
     "CREATE TABLE grant_calls (id TEXT PRIMARY KEY, programme_id TEXT)",
     "CREATE TABLE programmes (id TEXT PRIMARY KEY, provider_id TEXT)",
     "CREATE TABLE providers (id TEXT PRIMARY KEY, name TEXT)",
@@ -23,7 +23,7 @@ it("real D1 returns complete facets at the cap and null beyond it", async () => 
     "INSERT INTO providers VALUES ('p', 'Test provider')",
     "INSERT INTO programmes VALUES ('pr', 'p')",
     "INSERT INTO grant_calls VALUES ('g', 'pr')",
-    "INSERT INTO grant_call_versions VALUES ('v-0', 'g', NULL, 'GRANT')",
+    "INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES ('v-0', 'g', NULL, 'GRANT')",
     "INSERT INTO grant_search_documents VALUES ('v-0', 'alpha grant', '', 'OPEN', NULL)",
   ]) await db.prepare(sql).run();
   const insert = db.prepare("INSERT INTO grant_search_fts(grant_call_version_id, title) VALUES (?, 'alpha grant')");
@@ -50,7 +50,7 @@ it("real D1 filters canonical instrument before pagination and in bounded facets
   const db = await mf.getD1Database("DB");
   for (const sql of [
     "CREATE TABLE grant_search_documents (grant_call_version_id TEXT PRIMARY KEY, title TEXT, summary TEXT, status TEXT, submission_close_at TEXT)",
-    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT)",
+    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT, captured_at TEXT NOT NULL DEFAULT '2026-09-26T20:00:00Z', verification_status TEXT NOT NULL DEFAULT 'VERIFIED')",
     "CREATE TABLE grant_calls (id TEXT PRIMARY KEY, programme_id TEXT)",
     "CREATE TABLE programmes (id TEXT PRIMARY KEY, provider_id TEXT)",
     "CREATE TABLE providers (id TEXT PRIMARY KEY, name TEXT)",
@@ -64,7 +64,7 @@ it("real D1 filters canonical instrument before pagination and in bounded facets
     ["l1", "LOAN", "OPEN", "2027-02-01T00:00:00Z"],
     ["l2", "LOAN", "PLANNED", "2027-03-01T00:00:00Z"],
   ]) {
-    await db.prepare("INSERT INTO grant_call_versions VALUES (?, 'g', NULL, ?)").bind(id, instrument).run();
+    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, 'g', NULL, ?)").bind(id, instrument).run();
     await db.prepare("INSERT INTO grant_search_documents VALUES (?, 'alpha grant', '', ?, ?)").bind(id, status, date).run();
     await db.prepare("INSERT INTO grant_search_fts(grant_call_version_id, title) VALUES (?, 'alpha grant')").bind(id).run();
   }

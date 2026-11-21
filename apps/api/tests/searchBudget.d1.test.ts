@@ -16,7 +16,7 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
   const db = await mf.getD1Database("DB");
   for (const sql of [
     "CREATE TABLE grant_search_documents (grant_call_version_id TEXT PRIMARY KEY, title TEXT, summary TEXT, status TEXT, submission_close_at TEXT)",
-    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT)",
+    "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT, captured_at TEXT NOT NULL DEFAULT '2026-09-26T20:00:00Z', verification_status TEXT NOT NULL DEFAULT 'VERIFIED')",
     "CREATE TABLE grant_calls (id TEXT PRIMARY KEY, programme_id TEXT)",
     "CREATE TABLE programmes (id TEXT PRIMARY KEY, provider_id TEXT)",
     "CREATE TABLE providers (id TEXT PRIMARY KEY, name TEXT)",
@@ -47,7 +47,7 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
     ["no-evidence", "GRANT", "CZK", 10000, 20000, "VERIFIED", "GRANT", "OPEN"],
   ];
   for (const [id, type, currency, min, max, verification, versionType, status] of cases) {
-    await db.prepare("INSERT INTO grant_call_versions VALUES (?, 'g', NULL, ?)").bind(id, versionType).run();
+    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, 'g', NULL, ?)").bind(id, versionType).run();
     await db.prepare("INSERT INTO grant_search_documents VALUES (?, 'alpha grant', '', ?, ?)")
       .bind(id, status, `2027-01-${id === "a" ? "01" : "02"}T00:00:00Z`).run();
     await db.prepare("INSERT INTO grant_search_fts(grant_call_version_id, title) VALUES (?, 'alpha grant')").bind(id).run();
@@ -66,7 +66,10 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
   const env: Env = { DB: typed, ENVIRONMENT: "local", RAW: { head: async () => null }, SEARCH: { describe: async () => ({}) } };
   const response = await handleRequest(new Request("https://example.test/search?intent=alpha&projectBudgetCzk=150"), env);
   expect(response.status).toBe(200);
-  expect((await response.json() as { results: Array<{ grantCallVersionId: string }> }).results.map((row) => row.grantCallVersionId).sort()).toEqual(["a", "b"]);
+  const results = (await response.json() as { results: Array<{ grantCallVersionId: string; capturedAt: string; verificationStatus: string }> }).results;
+  expect(results.map((row) => row.grantCallVersionId).sort()).toEqual(["a", "b"]);
+  expect(results).toEqual(expect.arrayContaining([expect.objectContaining({ grantCallVersionId: "a",
+    capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED" })]));
   const invalid = await handleRequest(new Request("https://example.test/search?intent=alpha&projectBudgetCzk=150&projectBudgetCzk=151"), env);
   expect(invalid.status).toBe(400);
   expect(await invalid.json()).toEqual({ error: "INVALID_PROJECT_BUDGET" });

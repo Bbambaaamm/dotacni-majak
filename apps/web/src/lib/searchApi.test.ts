@@ -25,9 +25,16 @@ describe("search API client", () => {
   it("rejects contradictory index state and unrenderable result identities/status", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const valid = { intent: "alpha", expandedTerms: [], indexState: "READY", nextCursor: null,
       facets: null, results: [result] };
+    for (const change of [{ capturedAt: undefined }, { capturedAt: "2026-02-30T20:00:00Z" },
+      { capturedAt: "not-a-date" }, { verificationStatus: undefined },
+      { verificationStatus: "RECHECKED_TODAY" }]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...valid,
+        results: [{ ...result, ...change }] }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    }
     for (const body of [
       { ...valid, indexState: "EMPTY" },
       { ...valid, indexState: "EMPTY", results: [], nextCursor: "more" },
@@ -49,7 +56,7 @@ describe("search API client", () => {
   it("rejects facet counts that contradict visible results, without treating unavailable counts as zero", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const facets = { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
       deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }],
       providersTruncated: false };
@@ -75,7 +82,7 @@ describe("search API client", () => {
   it("rejects successful pages that contradict applied status, deadline or exact provider filters", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const body = { intent: "alpha", results: [result], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
@@ -100,7 +107,7 @@ describe("search API client", () => {
   it("rejects result dates outside an applied inclusive window on initial and continuation pages", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: "2027-05-01T23:59:00+02:00", providerName: "Obec",
-      officialDetailUrl: null, matchKind: "DIRECT" };
+      officialDetailUrl: null, capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const body = { intent: "alpha", results: [result], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
     for (const cursor of [undefined, "page-2"]) {
@@ -136,7 +143,7 @@ describe("search API client", () => {
   it("keeps SQLite's 24:00:00Z source day inside an inclusive UTC window", async () => {
     const result = { grantCallVersionId: "v24", grantCallId: "g24", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: "2027-05-01T24:00:00Z", providerName: "Obec",
-      officialDetailUrl: null, matchKind: "DIRECT" };
+      officialDetailUrl: null, capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const body = { intent: "alpha", results: [result], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
     for (const submissionCloseAt of ["2027-05-01T24:00:00Z", "2027-05-01T24:00:00.001Z",
@@ -206,7 +213,7 @@ describe("search API client", () => {
   it("rejects an oversized page on initial search and continuation, while accepting the 20-card boundary", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const cards = Array.from({ length: 21 }, (_, i) => ({ ...result,
       grantCallVersionId: `v${i}`, grantCallId: `g${i}` }));
     const body = { intent: "alpha", results: cards, expandedTerms: [],
@@ -226,7 +233,7 @@ describe("search API client", () => {
   it("rejects repeated version identities within and across pages without advancing pagination", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const response = { intent: "alpha", results: [result, result], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(response), { status: 200 })));
@@ -244,7 +251,7 @@ describe("search API client", () => {
   it("rejects two versions of one call within or across pages", async () => {
     const first = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const newer = { ...first, grantCallVersionId: "v2" };
     const response = { intent: "alpha", results: [first, newer], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
@@ -284,7 +291,7 @@ describe("search API client", () => {
   it("rejects a non-advancing continuation cursor but allows retry with an advancing page", async () => {
     const body = { intent: "alpha", results: [{ grantCallVersionId: "v1", grantCallId: "g1", title: "Test",
       summary: "Text", status: "OPEN", submissionCloseAt: null, providerName: "Obec",
-      officialDetailUrl: null, matchKind: "DIRECT" }], expandedTerms: [],
+      officialDetailUrl: null, capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" }], expandedTerms: [],
       indexState: "READY", nextCursor: "cursor", facets: null };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
     expect((await searchGrants("alpha")).nextCursor).toBe("cursor");
@@ -299,7 +306,7 @@ describe("search API client", () => {
   it("rejects a multi-page cursor cycle but permits retry with a new cursor", async () => {
     const result = { grantCallVersionId: "v3", grantCallId: "g3", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-      matchKind: "DIRECT" };
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
     const body = { intent: "alpha", results: [result], expandedTerms: [],
       indexState: "READY", nextCursor: "cursor-a", facets: null };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
@@ -322,7 +329,7 @@ describe("search API client", () => {
         deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }], providersTruncated: false },
       results: [{ grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
         status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
-        matchKind: "DIRECT" }] };
+        capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" }] };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
     expect(await searchGrants("alpha")).toEqual(body);
   });

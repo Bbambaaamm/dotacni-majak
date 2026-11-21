@@ -2,6 +2,27 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("search cards show current indexed version provenance and freshness limits from real D1/API", async ({ page, request }) => {
+  for (const sort of ["RELEVANCE", "DEADLINE"] as const) {
+    const query = new URLSearchParams({ intent: "digitalizace obce", status: "OPEN", sort });
+    const api = await request.get(`/api/search?${query}`);
+    expect(api.status()).toBe(200);
+    const body = await api.json() as { results: Array<{ grantCallVersionId: string; capturedAt: string; verificationStatus: string }> };
+    expect(body.results).toContainEqual(expect.objectContaining({ grantCallVersionId: "gcv-e2e-open",
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED" }));
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/hledat?${query}`);
+      const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
+      await expect(card).toBeVisible();
+      await expect(card.locator(".facts")).toContainText("Verze zachycena26. září 2026");
+      await expect(card.locator(".facts")).toContainText("Ověření zachycené verzeOvěřeno");
+      await expect(card.getByRole("note")).toContainText("nepotvrzují aktuální podmínky nebo příjem žádostí");
+      await expect(card).toContainText("Otevřeno v zachycené verzi");
+    }
+  }
+});
+
 test("detail marks only malformed source deadline from real D1/API at mobile width", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aunsafe-url";
   const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");
@@ -319,7 +340,8 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
     const card = page.locator(".grant-card");
     await expect(card.getByRole("heading", { name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
     await expect(card.getByRole("link", { name: /Oficiální zdroj/ })).toHaveCount(0);
-    await expect(card.getByRole("note")).toContainText("chybějící odkaz neznamená zrušení výzvy");
+    await expect(card.getByRole("note").filter({ hasText: "chybějící odkaz neznamená zrušení výzvy" }))
+      .toHaveCount(1);
     await card.getByRole("link", { name: /Zobrazit detail/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
     const sources = page.locator(".evidence-card");
@@ -925,7 +947,8 @@ test("mobile instrument selector filters real API and D1 before pagination", asy
 test("unavailable facets show no counts, allow manual filters, and preserve first-page facets on load-more", async ({ page }) => {
   const result = (id: string) => ({ grantCallVersionId: id, grantCallId: id,
     title: `Facet test ${id}`, summary: "", status: "OPEN", submissionCloseAt: null,
-    providerName: "Manual provider", officialDetailUrl: null, matchKind: "DIRECT" });
+    providerName: "Manual provider", officialDetailUrl: null,
+    capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" });
   await page.route("**/api/search?*", async (route) => {
     const url = new URL(route.request().url());
     const provider = url.searchParams.get("provider");
@@ -1853,7 +1876,8 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await expect(page.locator(".grant-card").getByRole("link", { name: /Oficiální zdroj/ }))
     .toHaveAttribute("href", "https://example.invalid/e2e/open");
-  await expect(page.locator(".grant-card").getByRole("note")).toHaveCount(0);
+  await expect(page.locator(".grant-card").getByRole("note")
+    .filter({ hasText: "Přímý odkaz na oficiální stránku" })).toHaveCount(0);
   await page.getByRole("link", { name: "Zobrazit detail" }).click();
 
   await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen\?intent=digitalizace%20obce&status=OPEN&provider=E2E\+test\+provider\+A&returnResult=gcv-e2e-open$/);
