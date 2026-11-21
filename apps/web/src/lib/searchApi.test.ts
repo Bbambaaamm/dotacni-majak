@@ -112,8 +112,8 @@ describe("search API client", () => {
           code: "INVALID_SEARCH_RESPONSE", status: 200,
         });
       }
-      for (const submissionCloseAt of ["2027-05-01", "2027-05-31T23:59:00+02:00",
-        "2027-04-30T23:30:00-02:00"]) {
+      for (const submissionCloseAt of ["2027-05-01", "2027-05-01T12:00:00z",
+        "2027-05-31T23:59:00+02:00", "2027-04-30T23:30:00-02:00"]) {
         vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
           results: [{ ...result, submissionCloseAt }],
         }), { status: 200 })));

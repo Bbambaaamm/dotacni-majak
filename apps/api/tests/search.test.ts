@@ -33,8 +33,8 @@ function database(direct: Row[], expanded: Row[], empty = false): D1DatabaseLike
           const deadline = sql.includes("AND d.submission_close_at IS NOT NULL") ? "KNOWN" :
             sql.includes("AND d.submission_close_at IS NULL") ? "UNKNOWN" : null;
           const dateIndex = 4 + Number(Boolean(selectedStatus)) + Number(Boolean(provider)) + Number(Boolean(instrument));
-          const closesFrom = sql.includes("AND date(d.submission_close_at) >= ?") ? String(values[dateIndex]) : null;
-          const closesBy = sql.includes("AND date(d.submission_close_at) <= ?") ?
+          const closesFrom = sql.includes("ELSE date(d.submission_close_at) END >= ?") ? String(values[dateIndex]) : null;
+          const closesBy = sql.includes("ELSE date(d.submission_close_at) END <= ?") ?
             String(values[dateIndex + Number(Boolean(closesFrom))]) : null;
           const candidates = (ontology ? expanded.filter((r) => !direct.some((d) => d.grant_call_version_id === r.grant_call_version_id)) : direct)
             .filter((r) => ["OPEN", "PLANNED", "ANNOUNCED"].includes(r.status) &&
@@ -355,8 +355,8 @@ describe("search cursor", () => {
                 return { success: true, results: [] as T[] };
               if (sql.startsWith("WITH matched AS MATERIALIZED")) return { success: true, results: [] as T[] };
               expect(sql).toContain("WITH matches AS");
-              expect(sql.match(/AND date\(d\.submission_close_at\) >= \?/g)).toHaveLength(2);
-              expect(sql.match(/AND date\(d\.submission_close_at\) <= \?/g)).toHaveLength(2);
+              expect(sql.match(/ELSE date\(d\.submission_close_at\) END >= \?/g)).toHaveLength(2);
+              expect(sql.match(/ELSE date\(d\.submission_close_at\) END <= \?/g)).toHaveLength(2);
               expect(values.filter((v) => v === "2027-05-01")).toHaveLength(2);
               expect(values.filter((v) => v === "2027-05-31")).toHaveLength(2);
               expect(sql.indexOf("WITH matches AS")).toBeLessThan(sql.indexOf("ORDER BY (close_sort IS NULL)"));

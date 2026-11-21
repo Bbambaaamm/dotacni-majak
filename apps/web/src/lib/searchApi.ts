@@ -72,14 +72,15 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
 
 function resultDateInWindow(value: string | null, closesFrom?: string, closesBy?: string): boolean {
   if (!closesFrom && !closesBy) return true;
-  if (value === null || !/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value)) return false;
+  if (value === null || !/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})?)?$/.test(value)) return false;
   const sourceDate = value.slice(0, 10);
   if (!Number.isFinite(Date.parse(`${sourceDate}T00:00:00Z`))
     || new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) return false;
   // SQLite keeps hour 24 on the written day at zero offset, while a nonzero
   // offset can move its UTC day. Date.parse instead normalizes or rejects it.
   const hour24 = value.includes("T24:");
-  const normalized = value.length > 10 && !/(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? `${value}Z` : value;
+  const normalized = value.length > 10 && !/(?:[Zz]|[+-]\d{2}:\d{2})$/.test(value)
+    ? `${value}Z` : value.replace(/z$/, "Z");
   const offset = normalized.match(/([+-]\d{2}:\d{2})$/)?.[1];
   const comparable = hour24 ? normalized.replace("T24:", "T00:") : normalized;
   const timestamp = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : comparable);

@@ -329,6 +329,23 @@ INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported
 VALUES ('gcv-e2e-endofday','E2E end-of-day výzva','endofday-boundary fixture',
   'endofday-boundary','','endofday-boundary','OPEN','2027-05-01T24:00:00Z','2026-09-26T20:00:00Z');
 
+-- Lowercase UTC suffix is accepted by SQLite's bounded date expression.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+VALUES ('grant:e2e:lowerz','e2e-programme-open','E2E-LOWERZ','e2e-lowerz',NULL,
+  'OPEN','E2E lowercase UTC výzva','2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z');
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  submission_close_at,official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+VALUES ('gcv-e2e-lowerz','grant:e2e:lowerz',1,'2026-09-26T20:00:00Z',
+  'E2E lowercase UTC výzva','lowerz-boundary fixture','OPEN','2027-05-01T12:00:00z',NULL,
+  'CZK','e2e-v1',printf('%064d',221),'VERIFIED','2026-09-26T20:00:00Z');
+UPDATE grant_calls SET current_version_id='gcv-e2e-lowerz' WHERE id='grant:e2e:lowerz';
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+VALUES ('gcv-e2e-lowerz','E2E lowercase UTC výzva','lowerz-boundary fixture',
+  'lowerz-boundary','','lowerz-boundary','OPEN','2027-05-01T12:00:00z','2026-09-26T20:00:00Z');
+
 -- Canonical status boundaries for detail actions; no source-record disappearance is involved.
 INSERT INTO providers(id,name,provider_type,official_url)
 VALUES ('e2e-provider-no-url','E2E provider bez odkazu','NATIONAL',NULL);
