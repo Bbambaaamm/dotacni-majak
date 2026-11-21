@@ -26,6 +26,35 @@ export interface GrantSearchResponse {
   } | null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSearchResponse(value: unknown, intent: string): value is GrantSearchResponse {
+  if (!isRecord(value) || value.intent !== intent || !Array.isArray(value.results)
+    || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
+    || (value.indexState !== "READY" && value.indexState !== "EMPTY")
+    || !(value.nextCursor === null || typeof value.nextCursor === "string")) return false;
+  if (value.facets !== null) {
+    const facets = value.facets;
+    if (!isRecord(facets) || !isRecord(facets.status) || !isRecord(facets.deadline)
+      || !Array.isArray(facets.providers) || typeof facets.providersTruncated !== "boolean") return false;
+    const status = facets.status;
+    const deadline = facets.deadline;
+    if (!["OPEN", "PLANNED", "ANNOUNCED"].every((key) => Number.isSafeInteger(status[key]) && (status[key] as number) >= 0)
+      || !["KNOWN", "UNKNOWN"].every((key) => Number.isSafeInteger(deadline[key]) && (deadline[key] as number) >= 0)
+      || !facets.providers.every((provider: unknown) => isRecord(provider) && typeof provider.name === "string"
+        && Number.isSafeInteger(provider.count) && (provider.count as number) >= 0)) return false;
+  }
+  return value.results.every((item: unknown) => isRecord(item)
+    && typeof item.grantCallVersionId === "string" && typeof item.grantCallId === "string"
+    && typeof item.title === "string" && typeof item.summary === "string"
+    && typeof item.status === "string" && typeof item.providerName === "string"
+    && (item.submissionCloseAt === null || typeof item.submissionCloseAt === "string")
+    && (item.officialDetailUrl === null || typeof item.officialDetailUrl === "string")
+    && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));
+}
+
 export class SearchApiError extends Error {
   constructor(
     public readonly code: string,
@@ -64,18 +93,15 @@ export async function searchGrants(
     signal,
   });
 
-  const body = await response.json().catch(() => ({})) as
-    | GrantSearchResponse
-    | { error?: string };
-
+  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     throw new SearchApiError(
-      "error" in body && body.error ? body.error : "SEARCH_UNAVAILABLE",
+      isRecord(body) && typeof body.error === "string" && body.error ? body.error : "SEARCH_UNAVAILABLE",
       response.status,
     );
   }
-
-  return body as GrantSearchResponse;
+  if (!isSearchResponse(body, intent)) throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
+  return body;
 }
 
 export function searchErrorMessage(error: unknown): string {

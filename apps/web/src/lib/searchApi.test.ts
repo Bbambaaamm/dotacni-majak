@@ -7,12 +7,37 @@ afterEach(() => {
 });
 
 describe("search API client", () => {
+  it("fails closed on malformed successful responses instead of showing false results", async () => {
+    const valid = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    for (const body of [null, [], { ...valid, intent: "other" },
+      { ...valid, results: null }, { ...valid, nextCursor: undefined },
+      { ...valid, facets: undefined }, { ...valid, facets: { providers: [] } },
+      { ...valid, results: [{ title: "partial" }] }]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("not-json", { status: 200 })));
+    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+  });
+
+  it("accepts a complete response with source-specific result fields and facets", async () => {
+    const body = { intent: "alpha", expandedTerms: ["sport"], indexState: "READY", nextCursor: "next",
+      facets: { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }], providersTruncated: false },
+      results: [{ grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+        status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+        matchKind: "DIRECT" }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect(await searchGrants("alpha")).toEqual(body);
+  });
+
   it("keeps the exact project cost on the initial and cursor requests", async () => {
     const urls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "alpha", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
       undefined, undefined, undefined, "GRANT", "300000");
@@ -28,7 +53,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "alpha", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
       undefined, undefined, undefined, "LOAN");
@@ -48,6 +73,8 @@ describe("search API client", () => {
           results: [],
           expandedTerms: ["Koupaliště", "Sportovní infrastruktura"],
           indexState: "READY",
+          nextCursor: null,
+          facets: null,
         }),
         {
           status: 200,
@@ -84,7 +111,7 @@ describe("search API client", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       expect(String(input)).toContain("intent=koupali%C5%A1t%C4%9B&cursor=next-page");
       return new Response(JSON.stringify({ intent: "koupaliště", results: [],
-        expandedTerms: [], indexState: "READY", nextCursor: null }), { status: 200 });
+        expandedTerms: [], indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
     await searchGrants("koupaliště", undefined, "next-page");
@@ -96,7 +123,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani");
     await searchGrants("strankovani", undefined, undefined, "PLANNED");
@@ -113,7 +140,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani");
     await searchGrants("strankovani", undefined, undefined, "PLANNED", "KNOWN");
@@ -130,7 +157,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani", undefined, undefined, "PLANNED", "KNOWN", "E2E test provider B");
     await searchGrants("strankovani", undefined, "next-page", "PLANNED", "KNOWN", "E2E test provider B");
@@ -145,7 +172,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, "2027-03-31");
     await searchGrants("strankovani", undefined, "next-page", undefined, undefined, undefined, "2027-03-31");
@@ -160,7 +187,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined,
       "2027-05-31", "DEADLINE_LATEST", "2027-05-01");
@@ -177,7 +204,7 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ intent: "strankovani", results: [], expandedTerms: [],
-        indexState: "READY", nextCursor: null }), { status: 200 });
+        indexState: "READY", nextCursor: null, facets: null }), { status: 200 });
     }));
     await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, undefined, "RELEVANCE");
     await searchGrants("strankovani", undefined, undefined, undefined, undefined, undefined, undefined, "DEADLINE");
