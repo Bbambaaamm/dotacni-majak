@@ -34,7 +34,7 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
   if (!isRecord(value) || value.intent !== intent || !Array.isArray(value.results)
     || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
     || (value.indexState !== "READY" && value.indexState !== "EMPTY")
-    || !(value.nextCursor === null || typeof value.nextCursor === "string")) return false;
+    || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
   if (value.facets !== null) {
     const facets = value.facets;
     if (!isRecord(facets) || !isRecord(facets.status) || !isRecord(facets.deadline)

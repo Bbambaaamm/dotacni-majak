@@ -12,6 +12,7 @@ describe("search API client", () => {
       indexState: "READY", nextCursor: null, facets: null };
     for (const body of [null, [], { ...valid, intent: "other" },
       { ...valid, results: null }, { ...valid, nextCursor: undefined },
+      { ...valid, nextCursor: "" },
       { ...valid, facets: undefined }, { ...valid, facets: { providers: [] } },
       { ...valid, results: [{ title: "partial" }] }]) {
       vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
