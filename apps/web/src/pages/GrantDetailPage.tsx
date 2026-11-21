@@ -107,6 +107,12 @@ function advanceLabel(value: boolean | null): string {
   return "Není doloženo";
 }
 
+export function vatRuleLabel(value: string | null): string {
+  return value?.trim()
+    ? `Údaj ze scénáře: ${value}. Ověřte u poskytovatele, zda platí pro váš projekt.`
+    : "Není doloženo; nevyvozujte z toho nárok na odpočet ani výši DPH.";
+}
+
 export function fundingSummary(scenario: GrantFundingScenarioDetail): string {
   const parts: string[] = [];
   if (scenario.supportRateMaxBps !== null) {
@@ -506,6 +512,10 @@ export function GrantDetailPage() {
                             <div>
                               <dt>Režim platby</dt>
                               <dd>{paymentModeLabel(scenario.paymentMode)}</dd>
+                            </div>
+                            <div>
+                              <dt>Pravidlo DPH podle scénáře</dt>
+                              <dd>{vatRuleLabel(scenario.vatRule)}</dd>
                             </div>
                             <div>
                               <dt>Záloha povolena</dt>

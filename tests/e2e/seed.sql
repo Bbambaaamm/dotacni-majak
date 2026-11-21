@@ -141,15 +141,15 @@ INSERT INTO field_evidence(
    1,1,'Pouze syntetický E2E test: žadatel je obec.',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-funding','GRANT_CALL_VERSION','gcv-e2e-open','/funding_scenarios/e2e-funding-open','e2e-dv-open',
-   3,3,'Pouze syntetický E2E test: spodní mez dotace 50 000 Kč a strop 100 000 Kč podle scénáře, náklady projektu 200 000–400 000 Kč, platba po úhradě, bez zálohy.',
+   3,3,'Pouze syntetický E2E test: spodní mez dotace 50 000 Kč a strop 100 000 Kč podle scénáře, náklady projektu 200 000–400 000 Kč, platba po úhradě, bez zálohy; pravidlo DPH je nutné ověřit pro konkrétní projekt.',
    'E2E_SEED','e2e-v1',1000000,'VERIFIED','2026-09-26T20:00:00Z'),
   ('e2e-fe-uncertain','GRANT_CALL_VERSION','gcv-e2e-unsafe-url','/summary','e2e-dv-uncertain',
    1,1,'Syntetický doklad s chybným datem stažení.',
    'E2E_SEED','e2e-v1',1000000,'NEEDS_REVIEW','2026-09-26T20:00:00Z');
 
-INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_min_minor,grant_amount_max_minor,project_cost_min_minor,project_cost_max_minor,payment_mode,advance_payment_allowed,evidence_id)
-VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,5000000,10000000,20000000,40000000,'REIMBURSEMENT',0,'e2e-fe-funding'),
-       ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_min_minor,grant_amount_max_minor,project_cost_min_minor,project_cost_max_minor,payment_mode,vat_rule,advance_payment_allowed,evidence_id)
+VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,5000000,10000000,20000000,40000000,'REIMBURSEMENT','DPH je nezpůsobilá pouze při možnosti odpočtu',0,'e2e-fe-funding'),
+       ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 -- Only lower bounds are known; no upper rate, upper grant amount or personal award can be inferred.
 INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_min_bps,grant_amount_min_minor)
 VALUES ('e2e-funding-min-only','gcv-e2e-open','E2E pouze minimální míra','CZK',2500,5000000);
