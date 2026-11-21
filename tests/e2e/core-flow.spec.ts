@@ -789,7 +789,7 @@ test("source observation uses the latest instant across offsets in detail and wo
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
-  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();
   await expect(page.getByRole("heading", { name: "Příprava žádosti · Dotáhne" })).toBeVisible();
   const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {
@@ -1778,7 +1778,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
     "href",
     "https://example.invalid/e2e/open-source",
   );
-  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
+  await expect(page.locator(".sticky-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(finance.getByRole("link", { name: /Doklad financování/ })).toBeVisible();
   await expect(requirements.getByRole("link", { name: /Doklad požadavku/ })).toBeVisible();
@@ -1912,10 +1912,27 @@ test("non-grant instrument remains a loan in real D1/API and mobile detail", asy
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("OPEN non-grant detail offers project verification, not a grant promise", async ({ page, request }) => {
+  const response = await request.get("http://127.0.0.1:8787/grants/grant%3Ae2e%3Apage%3A24");
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({ status: "OPEN", fundingInstrumentType: "LOAN" });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A24");
+  const projectLink = page.locator(".sticky-action").getByRole("link", { name: "Přidat k projektu" });
+  await expect(projectLink).toBeVisible();
+  await expect(projectLink).toHaveAttribute("href", /grantCallId=grant%3Ae2e%3Apage%3A24/);
+  await expect(page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Způsobilost pro váš projekt" })).toContainText("Osobní způsobilost zde není posouzena");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-definitive", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
-  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();
   const eligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
   await expect(eligibility.getByText("Chybí údaj pro posouzení (UNKNOWN)")).toBeVisible();
@@ -1957,7 +1974,7 @@ test("UNKNOWN applicant type -> one answer -> fresh D1 reevaluation stays non-de
 
 test("pending profile write blocks workspace switching until owner-wide update commits", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
-  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();
   const eligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
   await expect(eligibility.getByRole("status")).toContainText("Chybí údaj pro posouzení (UNKNOWN)");
@@ -1990,7 +2007,7 @@ test("pending profile write blocks workspace switching until owner-wide update c
 
 test("eligibility outage hides a previously computed result and recovers only from real D1", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
-  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();
   const eligibility = page.getByRole("region", { name: "Způsobilost pro vybranou výzvu" });
   await expect(eligibility.getByText("Chybí údaj pro posouzení (UNKNOWN)")).toBeVisible();
@@ -2203,7 +2220,7 @@ test("detail does not present version capture as a source check when no source r
     .toContainText("Není doložena");
   await expect(page.getByText("Zdrojový odkaz zatím není v indexu dostupný")).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();
   await expect(page.getByRole("heading", { name: "Příprava žádosti · Dotáhne" })).toBeVisible();
   const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {
@@ -2612,5 +2629,5 @@ test("canonical paused/closed/cancelled and pre-open detail never offer an activ
   const missing = await request.get("/api/grants/grant%3Ae2e%3Apage%3A22");
   expect((await missing.json()).status).toBe("OPEN");
   await page.goto("/dotace/grant%3Ae2e%3Apage%3A22");
-  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toBeVisible();
+  await expect(page.locator(".sticky-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
 });

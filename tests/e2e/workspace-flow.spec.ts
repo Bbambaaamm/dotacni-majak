@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 
 test("Dotáhne: detail → project → persisted owner workspace → trusted version diff → failed RAW", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
-  await page.getByRole("link", { name: "Chci tuto dotaci" }).click();
+  await page.locator(".sticky-action").getByRole("link", { name: "Přidat k projektu" }).click();
   await expect(page).toHaveURL(/\/projekty\?.*grantCallId=/);
   await page.getByLabel("Název projektu").fill("E2E obec");
   await page.getByRole("button", { name: "Vytvořit projekt" }).click();

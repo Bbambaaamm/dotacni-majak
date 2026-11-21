@@ -263,8 +263,6 @@ export function GrantDetailPage() {
   }
 
   const projectHref = `/projekty?intent=${encodeURIComponent(detail.title)}&grantCallId=${encodeURIComponent(detail.grantCallId)}`;
-  const nonGrant = detail.fundingInstrumentType !== "GRANT"
-    || detail.fundingScenarios.some((scenario) => scenario.instrumentType !== "GRANT");
   const versionSource = safeOfficialUrl(detail.officialDetailUrl);
   const recordSource = detail.sources.map((source) => safeOfficialUrl(source.canonicalUrl)).find(Boolean);
   const providerSource = safeOfficialUrl(detail.provider.officialUrl);
@@ -670,7 +668,7 @@ export function GrantDetailPage() {
       <div className="sticky-action">
         {action.applicationCandidate ? (
           <a className="button button--primary button-link" href={projectHref}>
-            {nonGrant ? "Prověřit tuto podporu" : "Chci tuto dotaci"}
+            {action.projectLabel}
           </a>
         ) : (
           <a className="button button--primary button-link" href={primarySource ?? "/hledat"}
