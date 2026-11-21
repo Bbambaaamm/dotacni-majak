@@ -676,6 +676,47 @@ test("non-advancing cursor keeps real D1 results and retry recovers from real AP
   await expect(page.getByRole("button", { name: "Načíst další výsledky" })).toHaveCount(0);
 });
 
+test("empty READY first page with a cursor fails closed and retry uses real D1/API", async ({ page }) => {
+  const corruptPage = async (route: import("@playwright/test").Route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(body.nextCursor).toBeTruthy();
+    await route.fulfill({ response, json: { ...body, results: [] } });
+  };
+  await page.route("**/api/search?*", corruptPage);
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  await expect(page.getByText("Žádné výsledky", { exact: false })).toHaveCount(0);
+  await page.unroute("**/api/search?*", corruptPage);
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("button", { name: "Načíst další výsledky" })).toBeVisible();
+});
+
+test("empty READY continuation with cursor retains real D1 cards and retry recovers", async ({ page }) => {
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  let corruptOnce = true;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    if (!corruptOnce) {
+      await route.continue();
+      return;
+    }
+    corruptOnce = false;
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, results: [], nextCursor: "another-page" } });
+  });
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
+  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+});
+
 test("empty index on continuation retains real D1 cards and retry recovers from real API", async ({ page }) => {
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);

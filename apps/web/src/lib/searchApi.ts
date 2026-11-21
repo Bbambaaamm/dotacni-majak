@@ -37,6 +37,9 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
   // An empty index cannot contain search results or a continuation page.
   if (value.indexState === "EMPTY" && (value.results.length > 0 || value.nextCursor !== null)) return false;
+  // A page cannot be empty while promising more results: the UI would hide
+  // pagination on the first page or loop forever on a continuation.
+  if (value.results.length === 0 && value.nextCursor !== null) return false;
   if (value.facets !== null) {
     const facets = value.facets;
     if (!isRecord(facets) || !isRecord(facets.status) || !isRecord(facets.deadline)
