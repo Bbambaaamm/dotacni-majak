@@ -73,6 +73,12 @@ describe("search API client", () => {
       ...body, expandedTerms: ["širší pojem"],
     }), { status: 200 })));
     expect((await searchGrants("alpha")).results).toEqual([result]);
+    const continuation = (expected: string[]) => searchGrants("alpha", undefined, "page-2",
+      undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, expected);
+    await expect(continuation([])).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    await expect(continuation(["jiný pojem"])).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    expect((await continuation(["širší pojem"])).results).toEqual([result]);
   });
 
   it("rejects facet counts that contradict visible results, without treating unavailable counts as zero", async () => {
