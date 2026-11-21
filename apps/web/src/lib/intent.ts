@@ -91,6 +91,21 @@ export function buildDetailSearchQuery(state: SearchUrlState): string {
   return query ? query.replace(/^intent=[^&]*/, `intent=${encodeURIComponent(state.intent)}`) : "";
 }
 
+export function readReturnResult(search: string): string | null {
+  const values = new URLSearchParams(search).getAll("returnResult");
+  const value = values.length === 1 ? values[0] : "";
+  return value.length > 0 && value.length <= 200 && !/[\u0000-\u001f\u007f]/.test(value) ? value : null;
+}
+
+export function buildReturnSearchUrl(search: string): string {
+  const url = buildSearchUrl(readSearchUrlState(search));
+  const result = readReturnResult(search);
+  if (!result || url === "/hledat") return url;
+  const params = new URLSearchParams(url.split("?")[1]);
+  params.set("returnResult", result);
+  return `/hledat?${params.toString()}`;
+}
+
 export function buildIntentSearchUrl(intent: string): string {
   const normalized = normalizeIntent(intent);
   if (!normalized) {

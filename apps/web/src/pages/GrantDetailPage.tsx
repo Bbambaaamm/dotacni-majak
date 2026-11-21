@@ -12,7 +12,7 @@ import {
   type GrantDetailResponse,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
-import { buildSearchUrl, readSearchUrlState } from "../lib/intent";
+import { buildReturnSearchUrl } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
@@ -185,7 +185,7 @@ export function ChangeEventDate({ value }: { value: string }) {
 }
 
 export function GrantDetailPage() {
-  const backToSearchHref = buildSearchUrl(readSearchUrlState(window.location.search));
+  const backToSearchHref = buildReturnSearchUrl(window.location.search);
   const grantCallId = useMemo(
     () => grantCallIdFromWebPath(window.location.pathname),
     [],
