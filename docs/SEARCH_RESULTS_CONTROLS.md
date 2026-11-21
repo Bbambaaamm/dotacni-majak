@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Soulad vrácených karet s aktivním filtrem (#400, dílčí slice)
+
+Klient kontroluje každou kartu úspěšné odpovědi vůči požadovanému stavu, dostupnosti termínu (`KNOWN` znamená nenulový zdrojový údaj, nikoli ověření data) a přesnému názvu poskytovatele, a to na první i další stránce. Nesoulad nezobrazí jako filtrovaný výsledek: první stránka nabídne opakování, další zachová dříve načtené karty a původní cursor pro retry. Nedostupné facety (`null`) tuto kontrolu neobcházejí. Karta neobsahuje typ financování ani doložený rozpočtový interval, takže klient z ní tyto dva filtry neodvozuje; jejich enforcement zůstává v API. Unit test ověřuje všechny tři dimenze a obě stránky, mobilní browser regresi tvoří jednorázově změněná odpověď skutečného D1/API a retry proti nezměněnému API. Nejde o záruku snapshotu indexu.
+
 ## Prázdný index s rozpornými facety (#400, dílčí slice)
 
 Server vrací pro `indexState: EMPTY` jen prázdné výsledky a nulové facety (na první stránce); při pokračování žádné facety nepočítá. Klient nyní odmítne HTTP 200, které zároveň tvrdí prázdný index a vrací kladný počet v některém stavu/dostupnosti termínu, alespoň jednoho poskytovatele nebo zkrácený seznam poskytovatelů. Nezobrazuje falešné tvrzení o prázdném indexu a nabízí opakování. `facets: null` je nedostupný počet, nikoli důkaz kladné shody; nulové facety jsou platné. Unit test pokrývá každou dimenzi; mobilní browser test mění stav/results/cursor skutečné D1/API odpovědi, ponechává její kladné facety a poté opakuje požadavek na skutečné API.

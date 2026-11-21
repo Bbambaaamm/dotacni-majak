@@ -70,6 +70,18 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));
 }
 
+function resultsMatchFilters(
+  response: GrantSearchResponse,
+  status?: "OPEN" | "PLANNED" | "ANNOUNCED",
+  deadline?: "KNOWN" | "UNKNOWN",
+  provider?: string,
+): boolean {
+  return response.results.every((result) =>
+    (!status || result.status === status)
+    && (!deadline || (result.submissionCloseAt === null ? "UNKNOWN" : "KNOWN") === deadline)
+    && (!provider || result.providerName === provider));
+}
+
 function facetsCoverResults(response: GrantSearchResponse): boolean {
   if (response.facets === null) return true; // Counts above the facet cap are unavailable, not zero.
   const statuses = new Map<string, number>();
@@ -138,6 +150,7 @@ export async function searchGrants(
     );
   }
   if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
+    || !resultsMatchFilters(body, status, deadline, provider)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
