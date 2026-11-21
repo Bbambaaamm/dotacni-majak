@@ -200,7 +200,8 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     programme: (v) => hasFields(v, { id: isString, name: isString, fundingOrigin: isString, officialUrl: isNullableString }),
     sources: (v) => isList(v, (item) => hasFields(item, {
       sourceCode: isString, sourceName: isString, canonicalUrl: isString,
-      lastSeenAt: isString, presenceState: isString,
+      lastSeenAt: isString,
+      presenceState: (x) => x === "SEEN" || x === "MISSING_CANDIDATE" || x === "CONFIRMED_MISSING",
     })),
     deadlines: (v) => isList(v, (item) => hasFields(item, {
       id: isString, type: isString, startsAt: isNullableString, endsAt: isNullableString,

@@ -2,6 +2,33 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("unknown source presence in a 200 detail fails closed then retries real D1 source", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Aopen";
+  const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { sources: Array<{ presenceState: string }> };
+  expect(valid.sources.some((source) => source.presenceState === "SEEN")).toBe(true);
+  let corrupt = true;
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    await route.fulfill({ response, json: { ...body, sources: body.sources.map((source, index) =>
+      index === 0 ? { ...source, presenceState: "CANCELLED" } : source) } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByText("Poslední pozorování záznamu u zdroje")).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("invalid provenance page in a 200 detail fails closed, then retries real D1 evidence", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
