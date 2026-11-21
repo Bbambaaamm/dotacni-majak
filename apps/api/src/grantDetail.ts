@@ -395,7 +395,8 @@ export async function getGrantDetail(
           ON dv.id = fe.document_version_id
         JOIN source_documents sd
           ON sd.id = dv.source_document_id
-        WHERE fe.entity_id IN (?, ?)
+        WHERE (fe.entity_type = 'GRANT_CALL_VERSION' AND fe.entity_id = ?)
+           OR (fe.entity_type = 'GRANT_CALL' AND fe.entity_id = ?)
         ORDER BY fe.created_at DESC, fe.id ASC
         LIMIT 100
       `,

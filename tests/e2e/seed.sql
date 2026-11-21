@@ -147,6 +147,15 @@ INSERT INTO field_evidence(
    1,1,'Syntetický doklad s chybným datem stažení.',
    'E2E_SEED','e2e-v1',1000000,'NEEDS_REVIEW','2026-09-26T20:00:00Z');
 
+-- Same text identity does not make evidence of another entity part of this call.
+-- A superseded version marker must not leak into the current version either.
+INSERT INTO field_evidence(id,entity_type,entity_id,field_path,document_version_id,
+  verification_status,created_at) VALUES
+  ('e2e-fe-collision-call','OTHER','grant:e2e:open','/summary','e2e-dv-open',
+   'VERIFIED','2026-09-27T20:00:00Z'),
+  ('e2e-fe-collision-version','GRANT_CALL_VERSION_SUPERSEDED','gcv-e2e-open','/title','e2e-dv-open',
+   'VERIFIED','2026-09-27T20:00:00Z');
+
 INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,support_rate_max_bps,grant_amount_min_minor,grant_amount_max_minor,project_cost_min_minor,project_cost_max_minor,payment_mode,vat_rule,advance_payment_allowed,evidence_id)
 VALUES ('e2e-funding-open','gcv-e2e-open','E2E syntetický scénář','CZK',6000,5000000,10000000,20000000,40000000,'REIMBURSEMENT','DPH je nezpůsobilá pouze při možnosti odpočtu',0,'e2e-fe-funding'),
        ('e2e-funding-undocumented','gcv-e2e-open','E2E scénář bez samostatného dokladu','CZK',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
