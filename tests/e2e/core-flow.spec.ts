@@ -1545,7 +1545,8 @@ test("lowercase UTC suffix from real D1/API remains visible inside a bounded sea
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=lowerz-boundary&closesFrom=2027-05-01&closesBy=2027-05-01");
   await expect(page.getByRole("heading", { name: "E2E lowercase UTC výzva" })).toBeVisible();
-  await expect(page.locator(".grant-card")).toContainText("2027-05-01T12:00:00z");
+  await expect(page.locator(".grant-card")).toContainText("2027-05-01 12:00:00z");
+  await expect(page.locator(".grant-card").getByRole("note").filter({ hasText: "formát nelze automaticky ověřit" })).toHaveCount(0);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
