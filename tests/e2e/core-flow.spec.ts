@@ -820,9 +820,9 @@ test("detail distinguishes omitted referenced evidence from unattached items at 
 test("unverified change date from real D1/API remains visible with caution on mobile", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Areactivated");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { changes: Array<{ id: string; changeType: string; fieldPath: string; createdAt: string }> };
+  const detail = await response.json() as { changes: Array<{ id: string; changeType: string; severity: string; fieldPath: string; createdAt: string }> };
   expect(detail.changes).toEqual([expect.objectContaining({
-    id: "e2e-change-unverified-date", changeType: "OTHER", fieldPath: "/e2e/unverified-date",
+    id: "e2e-change-unverified-date", changeType: "OTHER", severity: "CRITICAL", fieldPath: "/e2e/unverified-date",
     createdAt: "2026-02-30T12:00:00Z",
   })]);
 
@@ -831,6 +831,9 @@ test("unverified change date from real D1/API remains visible with caution on mo
   await expect(page.getByRole("heading", { level: 1, name: "E2E reaktivovaná verze" })).toBeVisible();
   const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (1)" }) });
   await expect(changes.locator("li")).toContainText("Jiná zaznamenaná změna");
+  await expect(changes.locator("li")).toContainText("Závažnost: Kritická");
+  await expect(changes.locator("li")).not.toContainText("CRITICAL");
+  await expect(changes.getByText(/Závažnost je klasifikace zaznamenané změny/)).toContainText("nikoli potvrzení aktuálních podmínek nebo vaší způsobilosti");
   await expect(changes.locator("li")).not.toContainText("OTHER");
   await expect(changes.locator("li")).toContainText("Interní označení pole: /e2e/unverified-date");
   expect(await changes.locator("li").evaluate((element) => getComputedStyle(element).display)).toBe("block");

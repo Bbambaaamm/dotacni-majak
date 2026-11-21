@@ -175,6 +175,16 @@ export function changeEventLabel(type: string): string {
   }
 }
 
+export function changeSeverityLabel(severity: string): string {
+  switch (severity) {
+    case "CRITICAL": return "Kritická";
+    case "IMPORTANT": return "Důležitá";
+    case "INFORMATIONAL": return "Informativní";
+    case "EDITORIAL": return "Redakční";
+    default: return "Závažnost není známa; ověřte změnu u poskytovatele";
+  }
+}
+
 export function ChangeEventDate({ value }: { value: string }) {
   return <>
     {sourceCalendarDate(value)}
@@ -580,12 +590,14 @@ export function GrantDetailPage() {
                   Detail API vrací nejvýše 20 změn. Mohou existovat další změny; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
                 </p>
               ) : null}
+              <p className="fine-print">Závažnost je klasifikace zaznamenané změny, nikoli potvrzení aktuálních podmínek nebo vaší způsobilosti. Ověřte změnu u poskytovatele.</p>
               <ul className="reason-list change-event-list">
                 {detail.changes.map((change) => (
                   <li key={change.id}>
                     <strong>{changeEventLabel(change.changeType)}</strong>
                     {" · "}
                     <ChangeEventDate value={change.createdAt} />
+                    {" · Závažnost: "}{changeSeverityLabel(change.severity)}
                     {change.fieldPath ? <span> · Interní označení pole: <code>{change.fieldPath}</code></span> : null}
                   </li>
                 ))}

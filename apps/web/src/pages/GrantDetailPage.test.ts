@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, changeEventLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
+import { ChangeEventDate, changeEventLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
 import type { GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
@@ -109,6 +109,21 @@ describe("detail change-event label", () => {
     expect(changeEventLabel("NEW_TYPE")).toContain("Neznámý typ změny");
     expect(changeEventLabel("NEW_TYPE")).toContain("ověřte jej v oficiálním zdroji");
     expect(changeEventLabel("NEW_TYPE")).not.toContain("NEW_TYPE");
+  });
+});
+
+describe("detail change severity", () => {
+  it.each([
+    ["CRITICAL", "Kritická"],
+    ["IMPORTANT", "Důležitá"],
+    ["INFORMATIONAL", "Informativní"],
+    ["EDITORIAL", "Redakční"],
+  ])("explains canonical severity %s without exposing an internal enum", (severity, label) => {
+    expect(changeSeverityLabel(severity)).toBe(label);
+  });
+
+  it("does not interpret an unknown severity", () => {
+    expect(changeSeverityLabel("NEW_SEVERITY")).toBe("Závažnost není známa; ověřte změnu u poskytovatele");
   });
 });
 
