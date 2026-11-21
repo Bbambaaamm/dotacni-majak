@@ -1772,6 +1772,31 @@ test("mobile detail retry respects a deliberate focus move while waiting for rea
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("mobile detail rejects duplicate evidence identity and retries real D1/API", async ({ page, request }) => {
+  const original = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(original.status()).toBe(200);
+  const detail = await original.json() as { evidence: Array<{ id: string }> };
+  expect(detail.evidence.length).toBeGreaterThan(0);
+  let servedDuplicate = false;
+  let retryWithOriginal = false;
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (retryWithOriginal) return route.continue();
+    servedDuplicate = true;
+    await route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ ...detail, evidence: [...detail.evidence, { ...detail.evidence[0] }] }) });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  retryWithOriginal = true;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect(servedDuplicate).toBe(true);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("missing detail is not presented as a transient outage", async ({ page }) => {
   await page.route("**/api/grants/grant%3Ae2e%3Aopen", (route) => route.fulfill({
     status: 404, contentType: "application/json", body: JSON.stringify({ error: "NOT_FOUND" }),

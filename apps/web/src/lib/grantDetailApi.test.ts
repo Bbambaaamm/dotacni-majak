@@ -118,6 +118,19 @@ describe("grant detail API boundary", () => {
     }
   });
 
+  it("rejects duplicate collection identities rather than repeating evidence or requirements", async () => {
+    const collections = ["deadlines", "fundingScenarios", "requirements", "evidence", "changes"] as const;
+    for (const key of collections) {
+      const items = detail[key];
+      respond({ ...detail, [key]: [items[0], { ...items[0] }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond(detail);
+    expect((await fetchGrantDetail("grant:one")).evidence).toHaveLength(1);
+  });
+
   it("rejects contradictory availability rather than implying complete requirements or evidence", async () => {
     const invalid = [
       { ...detail, availability: { ...detail.availability, funding: "UNKNOWN" } },
