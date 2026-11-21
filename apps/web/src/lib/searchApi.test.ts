@@ -44,6 +44,24 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
   });
 
+  it("rejects repeated version identities within and across pages without advancing pagination", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const response = { intent: "alpha", results: [result, result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(response), { status: 200 })));
+    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    const second = { ...response, results: [result] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(second), { status: 200 })));
+    await expect(searchGrants("alpha", undefined, "cursor", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["v1"]))).rejects.toMatchObject({
+      code: "INVALID_SEARCH_RESPONSE", status: 200,
+    });
+    expect((await searchGrants("alpha", undefined, "cursor", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["other"]))).results).toEqual([result]);
+  });
+
   it("rejects a non-advancing continuation cursor but allows retry with an advancing page", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: "cursor", facets: null };

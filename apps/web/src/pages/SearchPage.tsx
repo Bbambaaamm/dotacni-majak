@@ -295,13 +295,13 @@ export function SearchPage() {
       const page = await searchGrants(intent, controller.signal, cursor,
         statusFilter === "ALL" ? undefined : statusFilter,
         deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
-        instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined);
+        instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined,
+        new Set(data.results.map((grant) => grant.grantCallVersionId)));
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
-        const seen = new Set(current.results.map((grant) => grant.grantCallVersionId));
         return { ...current, nextCursor: page.nextCursor,
-          results: [...current.results, ...page.results.filter((grant) => !seen.has(grant.grantCallVersionId))] };
+          results: [...current.results, ...page.results] };
       });
     } catch (reason) {
       if (!controller.signal.aborted) setMoreError(searchErrorMessage(reason));
