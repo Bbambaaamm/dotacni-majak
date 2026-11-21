@@ -671,7 +671,7 @@ test("source observation uses the latest instant across offsets in detail and wo
   await expect(page.getByRole("heading", { level: 1, name: "E2E stránkování 23" })).toBeVisible();
   const observed = page.locator(".detail-section .facts").first().locator("div")
     .filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first();
-  await expect(observed).toContainText("2. října 2026");
+  await expect(observed).toContainText("1. října 2026");
   await expect(page.locator(".source-presence-caution")).toHaveCount(0);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -690,6 +690,31 @@ test("source observation uses the latest instant across offsets in detail and wo
   const workspace = await page.request.get(`${base}/${id}`, { headers });
   expect(workspace.status()).toBe(200);
   expect((await workspace.json()).versionReview.sourceCheckedAt).toBe("2026-10-01T23:30:00-10:00");
+});
+
+test("detail preserves source calendar dates for a viewer in another timezone", async ({ browser, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A23");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { sources: Array<{ lastSeenAt: string }> };
+  expect(detail.sources.map((source) => source.lastSeenAt)).toEqual([
+    "2026-10-01T23:30:00-10:00", "2026-10-02T00:30:00+14:00",
+  ]);
+
+  const context = await browser.newContext({ timezoneId: "Pacific/Honolulu", viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.goto("/dotace/grant%3Ae2e%3Apage%3A23");
+    await expect(page.getByRole("heading", { level: 1, name: "E2E stránkování 23" })).toBeVisible();
+    const sources = page.getByRole("complementary", { name: "Oficiální zdroje" });
+    await expect(sources.locator("li").filter({ has: page.getByRole("link", { name: "E2E oficiální zdroj B ↗" }) }))
+      .toContainText("Pozorováno 2. října 2026");
+    await expect(sources.locator("li").filter({ has: page.getByRole("link", { name: "E2E oficiální zdroj A ↗" }) }))
+      .toContainText("Pozorováno 1. října 2026");
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  } finally {
+    await context.close();
+  }
 });
 
 test("mobile instrument selector filters real API and D1 before pagination", async ({ page, request }) => {
