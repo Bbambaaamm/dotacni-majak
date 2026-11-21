@@ -170,6 +170,8 @@ function hasUniqueIds(value: unknown): boolean {
 }
 
 const instrumentTypes = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"];
+const callStatuses = ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"];
+const isCallStatus = (value: unknown) => typeof value === "string" && callStatuses.includes(value);
 const verificationStatuses = ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"];
 const isVerificationStatus = (value: unknown) => typeof value === "string" && verificationStatuses.includes(value);
 const isInstrument = (value: unknown) => instrumentTypes.includes(value as string);
@@ -193,7 +195,7 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     grantCallId: (v) => v === requestedId,
     canonicalCode: isNullableString, canonicalSlug: isString,
     versionId: isString, versionNumber: isVersionNumber, capturedAt: isString,
-    title: isString, summary: isString, status: isString, verificationStatus: isVerificationStatus,
+    title: isString, summary: isString, status: isCallStatus, verificationStatus: isVerificationStatus,
     publishedAt: isNullableString, submissionOpenAt: isNullableString,
     submissionCloseAt: isNullableString, applicationUrl: isNullableString,
     officialDetailUrl: isNullableString, currencyCode: isNullableString,
@@ -237,7 +239,7 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     })),
     versions: (v) => isList(v, (item) => hasFields(item, {
       id: isString, versionNumber: isVersionNumber, capturedAt: isString,
-      status: isString, verificationStatus: isVerificationStatus,
+      status: isCallStatus, verificationStatus: isVerificationStatus,
       submissionCloseAt: isNullableString, isCurrent: (x) => typeof x === "boolean",
     })),
     availability: (v) => hasFields(v, {

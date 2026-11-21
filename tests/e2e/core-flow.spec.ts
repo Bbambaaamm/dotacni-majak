@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("unknown call status in a 200 detail fails closed then retries real D1 status", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Aopen";
+  const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { status: string; versions: Array<{ status: string; isCurrent: boolean }> };
+  expect(valid.status).toBe("OPEN");
+  expect(valid.versions.find((item) => item.isCurrent)?.status).toBe("OPEN");
+  let corrupt = true;
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    await route.fulfill({ response, json: { ...body, status: "OPENED",
+      versions: body.versions.map((item) => item.isCurrent ? { ...item, status: "OPENED" } : item),
+    } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByText("Otevřeno v zachycené verzi").first()).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("mobile detail rejects oversized evidence and retries actual D1/API provenance", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
