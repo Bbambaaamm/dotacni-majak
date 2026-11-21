@@ -6,7 +6,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
 import { buildDetailSearchQuery, buildSearchUrl, readSearchUrlState } from "../lib/intent";
-import { deadlineTime } from "../lib/deadlineTime";
+import { deadlineTime, sourceDeadlineNeedsReview } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import {
@@ -651,6 +651,11 @@ export function SearchPage() {
                         <dd>{grant.providerName}</dd>
                       </div>
                     </dl>
+                    {sourceDeadlineNeedsReview(grant.submissionCloseAt) ? (
+                      <p className="fine-print" role="note">
+                        Zdroj uvádí termín, ale jeho formát nelze automaticky ověřit. Ověřte uzávěrku v oficiálních podmínkách; nejde o potvrzené datum.
+                      </p>
+                    ) : null}
                   </section>
                 </div>
 

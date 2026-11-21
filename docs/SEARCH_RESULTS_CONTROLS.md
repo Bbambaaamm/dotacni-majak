@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Neověřitelný formát zdrojového termínu (#400, dílčí slice)
+
+Na výsledkové kartě zůstává nenulový zdrojový text termínu beze změny, i když nejde o kalendářně platný den či parsovatelný timestamp s časovým pásmem. Bezprostředně u takové hodnoty je textové upozornění, že formát nelze automaticky ověřit a uzávěrku je nutné potvrdit v oficiálních podmínkách. Platný zdrojový datum-only údaj se nezaměňuje za chybu; `null` zůstává „Není uvedeno“ (UNKNOWN), nikoli neplatným datem. Upozornění není úsudkem o způsobilosti ani změnou kontraktu API: `KNOWN` stále znamená pouze nenulový údaj a kalendářní filtry na serveru dál neparsovatelné hodnoty vyřazují. Unit regresní test pokrývá platný den, timestamp s offsetem, chybné datum a libovolný text; browser E2E ověřuje skutečné D1/API fixture s validními, chybnými a nulovými termíny na desktopu i mobilu včetně axe a reflow.
+
 ## Soulad vrácených karet s aktivním filtrem (#400, dílčí slice)
 
 Klient kontroluje každou kartu úspěšné odpovědi vůči požadovanému stavu, dostupnosti termínu (`KNOWN` znamená nenulový zdrojový údaj, nikoli ověření data) a přesnému názvu poskytovatele, a to na první i další stránce. Nesoulad nezobrazí jako filtrovaný výsledek: první stránka nabídne opakování, další zachová dříve načtené karty a původní cursor pro retry. Nedostupné facety (`null`) tuto kontrolu neobcházejí. Karta neobsahuje typ financování ani doložený rozpočtový interval, takže klient z ní tyto dva filtry neodvozuje; jejich enforcement zůstává v API. Unit test ověřuje všechny tři dimenze a obě stránky, mobilní browser regresi tvoří jednorázově změněná odpověď skutečného D1/API a retry proti nezměněnému API. Nejde o záruku snapshotu indexu.

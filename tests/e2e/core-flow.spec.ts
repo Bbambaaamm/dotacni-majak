@@ -1454,6 +1454,32 @@ test("inclusive start and end find a later-page D1 result on mobile and reset st
   }
 });
 
+test("real D1 search keeps malformed source deadlines visible but warns on each card", async ({ page, request }) => {
+  const actual = await request.get("/api/search?intent=date-boundary");
+  expect(actual.status()).toBe(200);
+  const body = await actual.json() as { results: Array<{ submissionCloseAt: string | null }> };
+  expect(body.results.map((result) => result.submissionCloseAt)).toEqual(expect.arrayContaining([
+    "2027-05-01", "2027-02-30", "not-a-date", null,
+  ]));
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/hledat?intent=date-boundary");
+    await expect(page.locator(".grant-card")).toHaveCount(4);
+    for (const kind of ["invalid", "malformed"]) {
+      const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: `E2E date ${kind}` }) });
+      await expect(card.getByRole("note").filter({ hasText: "formát nelze automaticky ověřit" })).toContainText("nejde o potvrzené datum");
+    }
+    for (const kind of ["only", "null"]) {
+      const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: `E2E date ${kind}` }) });
+      await expect(card.getByRole("note").filter({ hasText: "formát nelze automaticky ověřit" })).toHaveCount(0);
+    }
+    await expect(page.locator(".grant-card").filter({ hasText: "2027-02-30" })).toHaveCount(1);
+    await expect(page.locator(".grant-card").filter({ hasText: "not-a-date" })).toHaveCount(1);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("bounded API search includes date-only source values and excludes invalid source dates", async ({ request }) => {
   for (const bounds of ["closesFrom=2027-02-01", "closesBy=2027-05-31",
     "closesFrom=2027-05-01&closesBy=2027-05-01"]) {
@@ -1519,7 +1545,8 @@ test("lowercase UTC suffix from real D1/API remains visible inside a bounded sea
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=lowerz-boundary&closesFrom=2027-05-01&closesBy=2027-05-01");
   await expect(page.getByRole("heading", { name: "E2E lowercase UTC výzva" })).toBeVisible();
-  await expect(page.locator(".grant-card")).toContainText("2027-05-01T12:00:00z");
+  await expect(page.locator(".grant-card")).toContainText("2027-05-01 12:00:00z");
+  await expect(page.locator(".grant-card").getByRole("note").filter({ hasText: "formát nelze automaticky ověřit" })).toHaveCount(0);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
