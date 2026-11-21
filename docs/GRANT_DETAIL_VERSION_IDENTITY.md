@@ -1,0 +1,5 @@
+# Detail #401: current-version identity guard
+
+`grant_calls.current_version_id` is an untyped string, not a composite foreign key to the call's own `grant_call_versions` row. The Detail API must join both the referenced version ID and `v.grant_call_id = g.id`. If an inconsistent pointer refers to another grant, this read returns no detail (HTTP 404) rather than combining another grant's title, dates and finance with the requested grant's provider, sources or evidence. It does not rewrite or delete either record; the canonical publisher remains responsible for repairing the pointer.
+
+Regression `apps/api/tests/grantDetailIdentity.d1.test.ts` executes the schema and a mismatched pointer on actual local D1, checks a valid detail before and after, and asserts the public API does not disclose the wrong version. This is a narrow integrity slice, not live official-source proof or completion of all #401 acceptance criteria. The same-version constraint in eligibility/finance paths already exists; review search-index currency separately under #400.
