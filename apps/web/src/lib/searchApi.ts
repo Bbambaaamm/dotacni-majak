@@ -53,6 +53,10 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
         && provider.name.trim().length > 0 && provider.name === provider.name.trim()
         && Number.isSafeInteger(provider.count) && (provider.count as number) > 0)
       || new Set(facets.providers.map((provider: { name: string }) => provider.name)).size !== facets.providers.length) return false;
+    // The API returns zero facets for an empty index. Positive counts or a
+    // truncated list contradict the UI's "no indexed calls" conclusion.
+    if (value.indexState === "EMPTY" && ([...Object.values(status), ...Object.values(deadline)].some((count) => count !== 0)
+      || facets.providers.length > 0 || facets.providersTruncated)) return false;
   }
   return value.results.every((item: unknown) => isRecord(item)
     && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0
