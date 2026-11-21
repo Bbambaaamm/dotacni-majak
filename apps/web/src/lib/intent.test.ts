@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDetailSearchQuery, buildIntentSearchUrl, buildSearchUrl, readIntentFromSearch, readSearchUrlState } from "./intent";
+import { buildDetailSearchQuery, buildIntentSearchUrl, buildReturnSearchUrl, buildSearchUrl, readIntentFromSearch, readReturnResult, readSearchUrlState } from "./intent";
 
 describe("intent search URLs", () => {
   it("normalizes whitespace and URL-encodes the intent", () => {
@@ -20,6 +20,17 @@ describe("intent search URLs", () => {
 });
 
 describe("search return state", () => {
+  it("restores only an inert result identifier with validated filters", () => {
+    const source = "?intent=tenis&status=OPEN&returnResult=grant%3Ansa%3A1-v2";
+    expect(readReturnResult(source)).toBe("grant:nsa:1-v2");
+    expect(buildReturnSearchUrl(source)).toBe("/hledat?intent=tenis&status=OPEN&returnResult=grant%3Ansa%3A1-v2");
+    expect(buildReturnSearchUrl("?returnResult=v1")).toBe("/hledat");
+    for (const query of ["returnResult=a&returnResult=b", "returnResult=%0A", `returnResult=${"x".repeat(201)}`]) {
+      expect(readReturnResult(`?intent=tenis&${query}`)).toBeNull();
+      expect(buildReturnSearchUrl(`?intent=tenis&${query}`)).toBe("/hledat?intent=tenis");
+    }
+  });
+
   it("round trips every API filter and sort through the detail query", () => {
     const state = readSearchUrlState("?intent=digitalizace%20obce&status=OPEN&instrument=GRANT&projectBudgetCzk=300000&provider=E2E+test+provider+A&deadline=KNOWN&closesFrom=2026-01-01&closesBy=2026-12-31&sort=DEADLINE_LATEST");
     const detailQuery = buildDetailSearchQuery(state);

@@ -5,7 +5,7 @@ import { ResultStatePanel } from "../components/ResultStatePanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
 import { parseDemoResultState, resultStateContent } from "../lib/resultState";
-import { buildDetailSearchQuery, buildSearchUrl, readSearchUrlState } from "../lib/intent";
+import { buildDetailSearchQuery, buildSearchUrl, readReturnResult, readSearchUrlState } from "../lib/intent";
 import { deadlineTime, sourceDeadlineNeedsReview } from "../lib/deadlineTime";
 import { filteredEmptyMessage } from "../lib/searchEmptyState";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
@@ -55,6 +55,10 @@ export function SearchPage() {
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
   const seenCursors = useRef(new Set<string>());
+  const returnResult = useRef(intent && !demoState ? readReturnResult(window.location.search) : null);
+  const returnPages = useRef(0);
+  const autoLoading = useRef(false);
+  const [returnNotice, setReturnNotice] = useState<string | null>(null);
   const filterPanel = useRef<HTMLDetailsElement | null>(null);
   const retryButton = useRef<HTMLButtonElement | null>(null);
   const loadMoreButton = useRef<HTMLButtonElement | null>(null);
@@ -111,6 +115,8 @@ export function SearchPage() {
   const providerOptions = data?.facets?.providers ?? [];
   const filteredResults = loadedResults;
   function beginFilterSearch() {
+    returnResult.current = null;
+    setReturnNotice(null);
     pendingPaginationFocus.current = false;
     const active = document.activeElement;
     if (active instanceof HTMLElement) {
@@ -316,6 +322,31 @@ export function SearchPage() {
     }
   }
 
+  // A detail return is a hint, not cached search data. Replay at most five fresh
+  // cursor pages; changed results or a failed request never imply disappearance.
+  useEffect(() => {
+    const targetId = returnResult.current;
+    if (!targetId || !data || loading || loadingMore || autoLoading.current) return;
+    const found = data.results.some((grant) => grant.grantCallVersionId === targetId);
+    if (found) {
+      returnResult.current = null;
+      const link = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[data-result-id]"))
+        .find((item) => item.dataset.resultId === targetId);
+      const active = document.activeElement;
+      if (!active || active === document.body || active === document.documentElement) link?.focus();
+      setReturnNotice("Výsledek z detailu je znovu načtený z aktuálního vyhledávání.");
+      return;
+    }
+    if (moreError || !data.nextCursor || returnPages.current >= 5) {
+      returnResult.current = null;
+      setReturnNotice("Původní výsledek se v načtených stránkách nepodařilo obnovit. Výzva se mohla v indexu změnit; můžete načíst další výsledky nebo upravit hledání.");
+      return;
+    }
+    returnPages.current += 1;
+    autoLoading.current = true;
+    void loadMore().finally(() => { autoLoading.current = false; });
+  }, [data, loading, loadingMore, moreError]);
+
   if (demoState) {
     return (
       <div className="results-page">
@@ -371,6 +402,7 @@ export function SearchPage() {
         </details>
       </header>
 
+      {returnNotice ? <p role="status" aria-live="polite">{returnNotice}</p> : null}
       {loading ? (
         <section className="next-action" aria-live="polite">
           <div>
@@ -662,7 +694,8 @@ export function SearchPage() {
                 <div className="grant-card__actions">
                   <a
                     className="button button--primary button-link"
-                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}?${detailSearchQuery}`}
+                    href={`/dotace/${encodeURIComponent(grant.grantCallId)}?${detailSearchQuery}&returnResult=${encodeURIComponent(grant.grantCallVersionId)}`}
+                    data-result-id={grant.grantCallVersionId}
                     aria-label={`Zobrazit detail: ${grant.title}`}
                   >
                     Zobrazit detail

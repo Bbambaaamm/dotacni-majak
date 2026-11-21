@@ -558,7 +558,7 @@ test("captured OPEN stays distinct from current submit-ability in real D1 search
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const backToResults = page.getByRole("link", { name: "← Zpět na výsledky" });
-  await expect(backToResults).toHaveAttribute("href", "/hledat?intent=digitalizace+obce&status=OPEN");
+  await expect(backToResults).toHaveAttribute("href", "/hledat?intent=digitalizace+obce&status=OPEN&returnResult=gcv-e2e-open");
   await backToResults.click();
   await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce&status=OPEN$/);
   await expect(page.getByLabel("Stav výzvy")).toHaveValue("OPEN");
@@ -573,7 +573,7 @@ test("detail return keeps search intent, but direct deep links fall back safely"
   const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
   await expect(card).toBeVisible();
   await expect(card.getByRole("link", { name: "Zobrazit detail" }))
-    .toHaveAttribute("href", "/dotace/grant%3Ae2e%3Aopen?intent=digitalizace%20obce");
+    .toHaveAttribute("href", "/dotace/grant%3Ae2e%3Aopen?intent=digitalizace%20obce&returnResult=gcv-e2e-open");
   await card.getByRole("link", { name: "Zobrazit detail" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
   await page.getByRole("link", { name: "← Zpět na výsledky" }).click();
@@ -1091,6 +1091,35 @@ test("duplicate provider facet from real D1/API fails closed and mobile retry re
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("mobile detail return replays fresh D1 cursor and focuses its original result", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  const link = page.locator(".grant-card").last().getByRole("link", { name: /Zobrazit detail/ });
+  const targetId = await link.getAttribute("data-result-id");
+  await link.click();
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+  await page.getByRole("link", { name: "Zpět na výsledky" }).first().click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  await expect(page.locator("a[data-result-id]").last()).toHaveAttribute("data-result-id", targetId!);
+  await expect(page.locator("a[data-result-id]").last()).toBeFocused();
+  await expect(page.getByText("Výsledek z detailu je znovu načtený", { exact: false })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("detail return cursor failure preserves first page without claiming cancellation", async ({ page }) => {
+  await page.route("**/api/search?*cursor=*", (route) => route.fulfill({ status: 503,
+    contentType: "application/json", body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) }));
+  await page.goto("/hledat?intent=strankovani&returnResult=gcv-e2e-page-25");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByText("Původní výsledek se v načtených stránkách nepodařilo obnovit", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zkusit načíst další znovu" })).toBeVisible();
+  await expect(page.getByText("Dosud načtené výsledky zůstávají zobrazené", { exact: false })).toBeVisible();
 });
 
 test("real D1 search loads more than 20 distinct results and retries a failed later page", async ({ page }) => {
@@ -1810,7 +1839,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(page.locator(".grant-card").getByRole("note")).toHaveCount(0);
   await page.getByRole("link", { name: "Zobrazit detail" }).click();
 
-  await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen\?intent=digitalizace%20obce&status=OPEN&provider=E2E\+test\+provider\+A$/);
+  await expect(page).toHaveURL(/\/dotace\/grant%3Ae2e%3Aopen\?intent=digitalizace%20obce&status=OPEN&provider=E2E\+test\+provider\+A&returnResult=gcv-e2e-open$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" }),
   ).toBeVisible();
