@@ -43,6 +43,23 @@ function isCaptureTimestamp(value: unknown): value is string {
   return Number.isFinite(calendarDay.getTime()) && calendarDay.toISOString().slice(0, 10) === day;
 }
 
+function providerFacetsInOrder(providers: readonly { name: string; count: number }[]): boolean {
+  // D1 uses SQLite's default BINARY collation (UTF-8 byte order), not localeCompare
+  // or JavaScript's UTF-16 string order. This matters for equal-count names.
+  const encoder = new TextEncoder();
+  return providers.every((provider, index) => {
+    if (!index) return true;
+    const previous = providers[index - 1];
+    if (previous.count !== provider.count) return previous.count > provider.count;
+    const left = encoder.encode(previous.name);
+    const right = encoder.encode(provider.name);
+    for (let offset = 0; offset < Math.min(left.length, right.length); offset += 1) {
+      if (left[offset] !== right[offset]) return left[offset] < right[offset];
+    }
+    return left.length < right.length;
+  });
+}
+
 function isSearchResponse(value: unknown, intent: string): value is GrantSearchResponse {
   if (!isRecord(value) || value.intent !== intent || !Array.isArray(value.results)
     || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string" && term.trim().length > 0)
@@ -67,7 +84,8 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
       || !facets.providers.every((provider: unknown) => isRecord(provider) && typeof provider.name === "string"
         && provider.name.trim().length > 0 && provider.name === provider.name.trim()
         && Number.isSafeInteger(provider.count) && (provider.count as number) > 0)
-      || new Set(facets.providers.map((provider: { name: string }) => provider.name)).size !== facets.providers.length) return false;
+      || new Set(facets.providers.map((provider: { name: string }) => provider.name)).size !== facets.providers.length
+      || !providerFacetsInOrder(facets.providers as { name: string; count: number }[])) return false;
     // The API returns zero facets for an empty index. Positive counts or a
     // truncated list contradict the UI's "no indexed calls" conclusion.
     if (value.indexState === "EMPTY" && ([...Object.values(status), ...Object.values(deadline)].some((count) => count !== 0)

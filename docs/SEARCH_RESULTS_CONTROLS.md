@@ -16,6 +16,10 @@ Klient kontroluje každou kartu úspěšné odpovědi vůči požadovanému stav
 
 Server vrací pro `indexState: EMPTY` jen prázdné výsledky a nulové facety (na první stránce); při pokračování žádné facety nepočítá. Klient nyní odmítne HTTP 200, které zároveň tvrdí prázdný index a vrací kladný počet v některém stavu/dostupnosti termínu, alespoň jednoho poskytovatele nebo zkrácený seznam poskytovatelů. Nezobrazuje falešné tvrzení o prázdném indexu a nabízí opakování. `facets: null` je nedostupný počet, nikoli důkaz kladné shody; nulové facety jsou platné. Unit test pokrývá každou dimenzi; mobilní browser test mění stav/results/cursor skutečné D1/API odpovědi, ponechává její kladné facety a poté opakuje požadavek na skutečné API.
 
+## Pořadí facetů poskytovatelů (#400, dílčí slice)
+
+Search API vrací nápovědu nejvýše 20 poskytovatelů podle počtu sestupně a při shodě podle názvu vzestupně v SQLite `BINARY` pořadí (UTF-8 bajty). Klient nyní odmítne HTTP 200 s jinak platným, ale nesprávně seřazeným facetem: zkrácený seznam by jinak mohl označovat libovolných 20 jmen za nejčetnější. Při chybě první stránky skryje karty a nabídne opakování proti API; `facets: null` zůstává nedostupným počtem, nikoli chybou. Prázdný či správně seřazený seznam je platný. Unit regresní test zahrnuje odlišné počty i shodné počty s Unicode pořadím, mobilní browser test přehodí jen pořadí skutečného D1/API facetu a po retry ověří původní API, axe a reflow. Není to záruka úplnosti indexu ani osobní způsobilosti.
+
 ## Jednoznačný seznam poskytovatelů (#400, dílčí slice)
 
 Klient odmítá i HTTP 200 s duplicitním jménem poskytovatele, prázdným nebo okrajově oříznutým jménem, nulovým počtem či více než 20 položkami. Serverový facet je seskupen přesně podle názvu a vrací pouze kladné počty; duplicitní volby by nabízely stejný filtr s různým počtem, a neplatné jméno by nešlo bezpečně odeslat. `providers: []` je platný prázdný seznam; chybějící záznam ve zkráceném seznamu ani `facets: null` nejsou nula. Při rozporu klient skryje odpověď a nabídne opakování proti skutečnému API, neodvozuje způsobilost ani nezaručuje snapshot indexu. Unit regresní test pokrývá neplatné a platné hranice.

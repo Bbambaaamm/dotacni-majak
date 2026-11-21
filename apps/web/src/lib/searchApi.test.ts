@@ -238,6 +238,26 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).facets?.providers).toEqual([]);
   });
 
+  it("rejects provider facets outside API count-descending, SQLite name-ascending order", async () => {
+    const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 0 } };
+    const providers = [{ name: "Alfa", count: 3 }, { name: "Beta", count: 2 },
+      { name: "\uE000", count: 1 }, { name: "\u{10000}", count: 1 }];
+    const body = { intent: "alpha", results: [], expandedTerms: [], indexState: "READY",
+      nextCursor: null, facets: { ...zero, providers, providersTruncated: true } };
+    for (const changed of [
+      [providers[1], providers[0], ...providers.slice(2)],
+      [providers[0], providers[1], providers[3], providers[2]],
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+        facets: { ...body.facets, providers: changed },
+      }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).facets?.providers).toEqual(providers);
+  });
+
   it("rejects an oversized page on initial search and continuation, while accepting the 20-card boundary", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
