@@ -132,8 +132,14 @@ function isNullableString(value: unknown): boolean {
   return value === null || isString(value);
 }
 
-function isNullableNumber(value: unknown): boolean {
-  return value === null || (typeof value === "number" && Number.isFinite(value));
+function isPageNumber(value: unknown): boolean {
+  return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+}
+
+function isPageRange(value: Record<string, unknown>): boolean {
+  return value.pageFrom === null || value.pageTo === null
+    || (typeof value.pageFrom === "number" && typeof value.pageTo === "number"
+      && value.pageFrom <= value.pageTo);
 }
 
 function isNonnegativeMinor(value: unknown): boolean {
@@ -212,10 +218,10 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
       necessity: isString, phase: isNullableString, evidenceId: isNullableString,
     })),
     evidence: (v) => isList(v, (item) => hasFields(item, {
-      id: isString, fieldPath: isString, pageFrom: isNullableNumber, pageTo: isNullableNumber,
+      id: isString, fieldPath: isString, pageFrom: isPageNumber, pageTo: isPageNumber,
       evidenceText: isNullableString, verificationStatus: isString,
       documentTitle: isNullableString, sourceUrl: isString, retrievedAt: isString,
-    })),
+    }) && isPageRange(item)),
     changes: (v) => isList(v, (item) => hasFields(item, {
       id: isString, changeType: isString, severity: isString,
       fieldPath: isNullableString, oldValue: () => true, newValue: () => true, createdAt: isString,
