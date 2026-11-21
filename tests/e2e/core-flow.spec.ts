@@ -826,6 +826,36 @@ test("duplicate continuation identity retains real D1 cards and retry recovers f
   expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
 });
 
+test("different version of an already loaded call fails closed on mobile then real D1 retry recovers", async ({ page, request }) => {
+  const first = await request.get("/api/search?intent=strankovani");
+  expect(first.status()).toBe(200);
+  const { results } = await first.json() as { results: Array<{ grantCallId: string; grantCallVersionId: string }> };
+  expect(results).toHaveLength(20);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  let corruptOnce = true;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    if (!corruptOnce) return route.continue();
+    corruptOnce = false;
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json() as { results: Array<{ grantCallId: string; grantCallVersionId: string }> };
+    expect(body.results.length).toBeGreaterThan(0);
+    expect(body.results[0].grantCallVersionId).not.toBe(results[0].grantCallVersionId);
+    await route.fulfill({ response, json: { ...body, results: [
+      { ...body.results[0], grantCallId: results[0].grantCallId }, ...body.results.slice(1),
+    ] } });
+  });
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
+  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  expect(new Set(await page.locator(".grant-card").evaluateAll((cards) => cards.map((card) =>
+    card.querySelector("a[aria-label^='Zobrazit detail']")?.getAttribute("href")))).size).toBe(25);
+});
+
 test("mobile pagination preserves a deliberate focus move during the final page", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");

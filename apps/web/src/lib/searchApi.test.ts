@@ -62,6 +62,24 @@ describe("search API client", () => {
       undefined, undefined, undefined, undefined, undefined, new Set(["other"]))).results).toEqual([result]);
   });
 
+  it("rejects two versions of one call within or across pages", async () => {
+    const first = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const newer = { ...first, grantCallVersionId: "v2" };
+    const response = { intent: "alpha", results: [first, newer], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(response), { status: 200 })));
+    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...response, results: [newer] }), { status: 200 })));
+    await expect(searchGrants("alpha", undefined, "cursor", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["v1"]), new Set(["g1"])))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    expect((await searchGrants("alpha", undefined, "cursor", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["v1"]), new Set(["other"]))).results)
+      .toEqual([newer]);
+  });
+
   it("rejects an empty READY page that claims another page is available", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: "more", facets: null };
