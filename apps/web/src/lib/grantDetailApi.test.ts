@@ -93,6 +93,27 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].supportRateMaxBps).toBe(10000);
   });
 
+  it("rejects unknown verification states at the detail, document and version boundaries", async () => {
+    for (const status of ["Ověřeno", "VERIFIED ", "UNKNOWN", "", null]) {
+      for (const body of [
+        { ...detail, verificationStatus: status, versions: [{ ...detail.versions[0], verificationStatus: status }] },
+        { ...detail, evidence: [{ ...detail.evidence[0], verificationStatus: status }] },
+        { ...detail, versions: [{ ...detail.versions[0], verificationStatus: status }] },
+      ]) {
+        respond(body);
+        await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+          code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+        });
+      }
+    }
+    for (const status of ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"]) {
+      respond({ ...detail, verificationStatus: status,
+        versions: [{ ...detail.versions[0], verificationStatus: status }],
+        evidence: [{ ...detail.evidence[0], verificationStatus: status }] });
+      expect((await fetchGrantDetail("grant:one")).evidence[0].verificationStatus).toBe(status);
+    }
+  });
+
   it("rejects invalid provenance page ranges without inventing a source page", async () => {
     const evidence = detail.evidence[0];
     for (const pages of [

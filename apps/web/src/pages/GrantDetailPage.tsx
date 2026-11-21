@@ -621,6 +621,7 @@ export function GrantDetailPage() {
                   Detail API vrací nejvýše 100 dokladů. Mohou existovat další; tento seznam není zaručeně úplný. Ověřte podmínky v oficiálním zdroji.
                 </p>
               ) : null}
+              <p className="fine-print">Datum stažení dokumentu není datum opětovného ověření podmínek výzvy.</p>
               <ul>
                 {detail.evidence.map((evidence) => (
                   <li key={evidence.id}>
@@ -628,6 +629,8 @@ export function GrantDetailPage() {
                       {evidence.documentTitle ?? evidence.fieldPath} ↗
                     </OfficialSourceLink>
                     {evidence.pageFrom ? ` · str. ${evidence.pageFrom}` : ""}
+                    <br />
+                    <small>Dokument stažen: {sourceCalendarDate(evidence.retrievedAt)} · Ověření doloženého údaje: {verificationLabel(evidence.verificationStatus)}</small>
                   </li>
                 ))}
               </ul>

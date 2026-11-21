@@ -6,6 +6,10 @@ Termín s propojeným `evidenceId` nabízí odkaz na oficiální dokument a str�
 
 Regrese `tests/e2e/core-flow.spec.ts` ověřuje skutečnou D1/API/browser cestu, zachování UTC sekundy a odkaz na doklad stránky 2. Celé #401 zůstává otevřené: personalizovaná relevance/eligibility/finance, responsive a další stavy vyžadují samostatné reviewovatelné slice.
 
+## Provenance dokladu v rozbaleném seznamu
+
+Každý vrácený `field_evidence` v rozbalené části „Konkrétní evidence“ ukazuje vedle bezpečného odkazu na dokument a stránky také stav ověření doloženého údaje (`verificationStatus`) a kalendářní datum stažení příslušné immutable `DocumentVersion` (`retrievedAt`). Datum je převzato ze zdrojové časové značky bez posunu podle zóny prohlížeče. Klient přijímá jen čtyři kanonické stavy ověření z DB kontraktu (`AUTO_EXTRACTED`, `PARTIALLY_VERIFIED`, `VERIFIED`, `NEEDS_REVIEW`) u detailu, jednotlivých dokladů i historie; neznámý stav vrátí chybový pohled s retry, nikoli neověřené tvrzení. Stažení dokumentu není opětovné ověření podmínek výzvy ani důkaz, že je příjem právě otevřený. Chybějící doklad v omezeném seznamu se dál nevydává za ověřený. Full-stack regresní test kontroluje skutečnou D1/API odpověď a viditelný doklad v desktopovém i mobilním prohlížeči, axe a reflow; syntetická E2E fixture není živý oficiální zdroj.
+
 ## Hranice finančních hodnot detailu
 
 Klient při úspěšném HTTP 200 ověřuje vedle tvaru odpovědi také meze každého scénáře: sazby jsou celé basis points v rozsahu 0–10000, částky v minor units jsou nezáporná bezpečná celá čísla a případná dolní mez nesmí převyšovat horní. `null` znamená neznámou mez, nikoli nulu; platné 0 a 100 % zůstávají zachované. Neplatný či protichůdný scénář zneplatní celou odpověď a ukáže bezpečný chybový stav, nikoli vymyšlený finanční závěr. Jde o druhou hranici vůči chybnému API payloadu, nikoli náhradu DB CHECK a publikačního gate ani výpočet osobní podpory.
