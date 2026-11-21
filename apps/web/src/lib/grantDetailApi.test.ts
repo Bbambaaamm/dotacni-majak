@@ -93,6 +93,26 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].supportRateMaxBps).toBe(10000);
   });
 
+  it("rejects contradictory availability rather than implying complete requirements or evidence", async () => {
+    const invalid = [
+      { ...detail, availability: { ...detail.availability, funding: "UNKNOWN" } },
+      { ...detail, availability: { ...detail.availability, requirements: "UNKNOWN" } },
+      { ...detail, availability: { ...detail.availability, evidence: "SOURCE_ONLY" } },
+      { ...detail, fundingScenarios: [] },
+      { ...detail, requirements: [] },
+      { ...detail, evidence: [] },
+    ];
+    for (const body of invalid) {
+      respond(body);
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond({ ...detail, fundingScenarios: [], requirements: [], evidence: [],
+      availability: { funding: "UNKNOWN", requirements: "UNKNOWN", evidence: "SOURCE_ONLY" } });
+    expect((await fetchGrantDetail("grant:one")).availability.requirements).toBe("UNKNOWN");
+  });
+
   it("preserves the API error status and rejects malformed error envelopes safely", async () => {
     respond({ error: "GRANT_NOT_FOUND" }, 404);
     await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "GRANT_NOT_FOUND", status: 404 });
