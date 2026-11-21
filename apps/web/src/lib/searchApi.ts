@@ -193,6 +193,7 @@ export async function searchGrants(
   seenCallIds?: ReadonlySet<string>,
   seenCursors?: ReadonlySet<string>,
   expectedExpandedTerms?: readonly string[],
+  previousMatchKind?: SearchMatchKind,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -225,6 +226,13 @@ export async function searchGrants(
     || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))
     || (body.nextCursor !== null && seenCursors?.has(body.nextCursor))) {
+    throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
+  }
+  // Relevance is phase-ordered across pages; deadline sorts interleave phases.
+  // Do not promote a direct match after any ontology result was already shown.
+  if ((!sort || sort === "RELEVANCE") && body.results.some((item, index) =>
+    item.matchKind === "DIRECT" && (previousMatchKind === "ONTOLOGY"
+      || body.results.slice(0, index).some((prior) => prior.matchKind === "ONTOLOGY")))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));
