@@ -627,6 +627,7 @@ test("detail return keeps search intent, but direct deep links fall back safely"
   await expect(untrustedContext).toContainText("Pokud se výzva stále objevuje");
   await expect(untrustedContext).toContainText("jinak upravte hledání");
   await untrustedContext.getByRole("link", { name: "výsledcích hledání" }).click();
+  await expect(page.getByRole("heading", { name: "Maják může hledat dál." })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(0);
 });
 
