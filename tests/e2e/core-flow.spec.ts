@@ -2043,9 +2043,11 @@ test("min-only support rate stays a lower bound in real API and mobile detail", 
   expect(response.status()).toBe(200);
   const { fundingScenarios } = await response.json() as { fundingScenarios: Array<{
     id: string; supportRateMinBps: number | null; supportRateMaxBps: number | null;
+    grantAmountMinMinor: number | null; grantAmountMaxMinor: number | null;
   }> };
   expect(fundingScenarios.find((scenario) => scenario.id === "e2e-funding-min-only"))
-    .toMatchObject({ supportRateMinBps: 2500, supportRateMaxBps: null });
+    .toMatchObject({ supportRateMinBps: 2500, supportRateMaxBps: null,
+      grantAmountMinMinor: 5000000, grantAmountMaxMinor: null });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Aopen");
@@ -2054,11 +2056,20 @@ test("min-only support rate stays a lower bound in real API and mobile detail", 
   await expect(scenario.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Míra podpory" }) }).locator("dd"))
     .toHaveText("min. 25 %; horní mez není uvedena");
   await expect(scenario).toContainText("min. 25 %; horní mez není uvedena");
+  await expect(scenario.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Spodní mez dotace" }) }).locator("dd"))
+    .toContainText("50 000");
+  await expect(scenario.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Maximální dotace" }) }).locator("dd"))
+    .toHaveText("Horní mez není uvedena");
+  await expect(scenario).toContainText("min. 50");
   await expect(scenario).not.toContainText("Částka nebo míra podpory není v normalizovaných datech uvedena");
   await expect(scenario).not.toContainText("max. 25 %");
   await expect(scenario).toContainText("Individuální potřebu vlastních peněz");
   const maxOnly = page.getByRole("region", { name: "Finance" }).locator(".grant-card")
     .filter({ has: page.getByRole("heading", { name: "E2E syntetický scénář" }) });
+  await expect(maxOnly.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Spodní mez dotace" }) }).locator("dd"))
+    .toContainText("50 000");
+  await expect(maxOnly.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Maximální dotace" }) }).locator("dd"))
+    .toContainText("100 000");
   await expect(maxOnly.locator(".facts div").filter({ has: page.locator("dt", { hasText: "Míra podpory" }) }).locator("dd"))
     .toHaveText("max. 60 %; dolní mez není uvedena");
   const unknown = page.getByRole("region", { name: "Finance" }).locator(".grant-card")

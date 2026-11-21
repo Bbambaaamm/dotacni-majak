@@ -3,7 +3,31 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, DetailMetadataDate, formatMinor, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import { ChangeEventDate, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import type { GrantFundingScenarioDetail } from "../lib/grantDetailApi";
+
+describe("detail grant amount bounds", () => {
+  const scenario: GrantFundingScenarioDetail = {
+    id: "scenario", name: "Synthetic", conditionGroupId: null, instrumentType: "GRANT",
+    currencyCode: "CZK", supportRateMinBps: null, supportRateMaxBps: null,
+    grantAmountMinMinor: null, grantAmountMaxMinor: null,
+    projectCostMinMinor: null, projectCostMaxMinor: null, paymentMode: null,
+    vatRule: null, advancePaymentAllowed: null, evidenceId: null,
+  };
+
+  it("does not turn a grant lower bound into a maximum", () => {
+    expect(fundingSummary({ ...scenario, grantAmountMinMinor: 5000000 }))
+      .toContain("min. 50 000");
+    expect(fundingSummary({ ...scenario, grantAmountMinMinor: 5000000 }))
+      .toContain("horní mez není uvedena");
+  });
+
+  it("shows both bounds when documented, and preserves unknown amounts", () => {
+    expect(fundingSummary({ ...scenario, grantAmountMinMinor: 5000000, grantAmountMaxMinor: 10000000 }))
+      .toMatch(/min\..*max\./);
+    expect(fundingSummary(scenario)).toContain("není v normalizovaných datech uvedena");
+  });
+});
 
 describe("detail currency minor units", () => {
   it.each([
