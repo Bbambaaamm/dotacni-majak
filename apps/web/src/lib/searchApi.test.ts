@@ -95,6 +95,41 @@ describe("search API client", () => {
     expect((await searchGrants("alpha", undefined, undefined, undefined, "KNOWN")).results).toHaveLength(1);
   });
 
+  it("rejects result dates outside an applied inclusive window on initial and continuation pages", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: "2027-05-01T23:59:00+02:00", providerName: "Obec",
+      officialDetailUrl: null, matchKind: "DIRECT" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    for (const cursor of [undefined, "page-2"]) {
+      for (const submissionCloseAt of [null, "2027-04-30", "2027-06-01T00:00:00Z",
+        "2027-05-01T00:30:00+02:00", "2027-02-30", "2027-05-01T99:99:99Z", "not-a-date"]) {
+        vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+          results: [{ ...result, submissionCloseAt }],
+        }), { status: 200 })));
+        await expect(searchGrants("alpha", undefined, cursor, undefined, undefined, undefined,
+          "2027-05-31", undefined, "2027-05-01")).rejects.toMatchObject({
+          code: "INVALID_SEARCH_RESPONSE", status: 200,
+        });
+      }
+      for (const submissionCloseAt of ["2027-05-01", "2027-05-31T23:59:00+02:00",
+        "2027-04-30T23:30:00-02:00"]) {
+        vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+          results: [{ ...result, submissionCloseAt }],
+        }), { status: 200 })));
+        expect((await searchGrants("alpha", undefined, cursor, undefined, undefined, undefined,
+          "2027-05-31", undefined, "2027-05-01")).results[0].submissionCloseAt).toBe(submissionCloseAt);
+      }
+    }
+    // A date-only upper or lower bound also works independently.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    await expect(searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+      "2027-04-30")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    await expect(searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, "2027-05-02")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    expect((await searchGrants("alpha")).results).toHaveLength(1);
+  });
+
   it("rejects positive facet counts for an empty index rather than claiming it contains no calls", async () => {
     const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
       deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };

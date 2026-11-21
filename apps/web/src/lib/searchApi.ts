@@ -70,16 +70,33 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));
 }
 
+function resultDateInWindow(value: string | null, closesFrom?: string, closesBy?: string): boolean {
+  if (!closesFrom && !closesBy) return true;
+  if (value === null || !/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value)) return false;
+  const sourceDate = value.slice(0, 10);
+  if (!Number.isFinite(Date.parse(`${sourceDate}T00:00:00Z`))
+    || new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) return false;
+  // SQLite date(timestamp) applies an explicit offset before UTC date filtering.
+  const normalized = value.length > 10 && !/(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? `${value}Z` : value;
+  const timestamp = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : normalized);
+  if (!Number.isFinite(timestamp)) return false;
+  const date = new Date(timestamp).toISOString().slice(0, 10);
+  return (!closesFrom || date >= closesFrom) && (!closesBy || date <= closesBy);
+}
+
 function resultsMatchFilters(
   response: GrantSearchResponse,
   status?: "OPEN" | "PLANNED" | "ANNOUNCED",
   deadline?: "KNOWN" | "UNKNOWN",
   provider?: string,
+  closesFrom?: string,
+  closesBy?: string,
 ): boolean {
   return response.results.every((result) =>
     (!status || result.status === status)
     && (!deadline || (result.submissionCloseAt === null ? "UNKNOWN" : "KNOWN") === deadline)
-    && (!provider || result.providerName === provider));
+    && (!provider || result.providerName === provider)
+    && resultDateInWindow(result.submissionCloseAt, closesFrom, closesBy));
 }
 
 function facetsCoverResults(response: GrantSearchResponse): boolean {
@@ -150,7 +167,7 @@ export async function searchGrants(
     );
   }
   if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
-    || !resultsMatchFilters(body, status, deadline, provider)
+    || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }

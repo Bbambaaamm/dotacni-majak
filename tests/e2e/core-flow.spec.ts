@@ -1327,6 +1327,34 @@ test("bounded API search includes date-only source values and excludes invalid s
   }
 });
 
+test("bounded real D1 search rejects an off-window response and mobile retry restores source date", async ({ page, request }) => {
+  const url = "/api/search?intent=date-boundary&closesFrom=2027-05-01&closesBy=2027-05-01";
+  const actual = await request.get(url);
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { results: Array<{ submissionCloseAt: string | null }> };
+  expect(valid.results).toHaveLength(1);
+  expect(valid.results[0].submissionCloseAt).toBe("2027-05-01");
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const body = await response.json() as typeof valid;
+    await route.fulfill({ response, json: { ...body, facets: null,
+      results: [{ ...body.results[0], submissionCloseAt: "2027-06-01" }] } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/hledat?intent=date-boundary&closesFrom=2027-05-01&closesBy=2027-05-01`);
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.locator(".grant-card")).toContainText("2027-05-01");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("UTC date bounds keep sub-millisecond deadlines on their actual source day", async ({ request }) => {
   for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
     for (const [bounds, expected] of [
