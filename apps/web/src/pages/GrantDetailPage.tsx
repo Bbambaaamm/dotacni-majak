@@ -15,6 +15,7 @@ import {
 import { buildReturnSearchUrl, readReturnResult, readSearchUrlState } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
+import { formatMinorMoney } from "../lib/sharedProject";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
 import { verificationLabel } from "../lib/verificationLabel";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
@@ -65,19 +66,10 @@ function supportRateLabel(min: number | null, max: number | null): string {
   return "Není uvedeno";
 }
 
-function formatMinor(value: number | null, currency: string): string {
+export function formatMinor(value: number | null, currency: string): string {
   if (value === null) return "Není uvedeno";
-  try {
-    const formatter = new Intl.NumberFormat("cs-CZ", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    });
-    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
-    return formatter.format(value / (10 ** digits));
-  } catch {
-    return `${value} ${currency}`;
-  }
+  return formatMinorMoney(value, currency)
+    ?? "Částku nelze bezpečně zobrazit; ověřte ji u poskytovatele.";
 }
 
 function instrumentLabel(type: GrantFundingScenarioDetail["instrumentType"]): string {

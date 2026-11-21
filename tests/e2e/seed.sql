@@ -489,3 +489,24 @@ INSERT INTO change_events(id,grant_call_id,from_version_id,to_version_id,change_
 VALUES ('e2e-change-unverified-date','grant:e2e:reactivated',
   'gcv-e2e-reactivated-21','gcv-e2e-reactivated-22','OTHER','INFORMATIONAL',
   '/e2e/unverified-date','2026-02-30T12:00:00Z');
+
+-- Isolated zero-decimal currency: the UI must not divide JPY minor units by 100.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+VALUES ('grant:e2e:jpy','e2e-programme-open','E2E-JPY','e2e-jpy',NULL,
+  'PLANNED','E2E měnová přesnost JPY','2026-09-20T08:00:00Z','2026-09-20T08:00:00Z',
+  '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z');
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+VALUES ('gcv-e2e-jpy','grant:e2e:jpy',1,'2026-09-26T20:00:00Z',
+  'E2E měnová přesnost JPY','Syntetická výzva pouze pro ověření měnového zobrazení.',
+  'PLANNED','https://example.invalid/e2e/jpy','JPY','e2e-v1',
+  'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+  'NEEDS_REVIEW','2026-09-26T20:00:00Z');
+UPDATE grant_calls SET current_version_id='gcv-e2e-jpy' WHERE id='grant:e2e:jpy';
+INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
+  first_seen_at,last_seen_at,presence_state,missing_run_count)
+VALUES ('e2e-sr-jpy','e2e-source-open','E2E-JPY','https://example.invalid/e2e/jpy',
+  'GRANT_CALL','grant:e2e:jpy','2026-09-20T08:00:00Z','2026-09-26T20:00:00Z','SEEN',0);
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,grant_amount_max_minor)
+VALUES ('e2e-funding-jpy','gcv-e2e-jpy','E2E JPY scénář','JPY',1234);

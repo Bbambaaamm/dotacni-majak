@@ -98,5 +98,8 @@ Datum zachycení aktuální/historické verze a datum stažení dokladu se zobra
 ## Akce z detailu výzvy
 OPEN je zachycený stav, nikoli potvrzení živého příjmu nebo osobní způsobilosti. Horní i mobilní sticky akce používají stejné „Přidat k projektu“ pro GRANT i negrantový nástroj; až projekt může vyhodnotit známé podmínky. Nepoužívat zde „Chci tuto dotaci“ ani z negrantového nástroje dovozovat dotaci. Neotevřené stavy vedou na ověření u poskytovatele nebo zpět k hledání. Syntetická OPEN úvěrová verze v D1 fixture ověřuje skutečné API a mobilní prohlížeč, bez tvrzení o reálné výzvě.
 
+## Finanční částky v detailu
+Detail výzvy zobrazuje celočíselné `amount_minor` podle počtu desetinných míst měny (např. JPY 0, CZK 2, KWD 3), nikoli vždy dělené 100. Používá stejný formátovací kontrakt jako sdílený projekt. Neplatnou měnu nebo nebezpečně velké číslo nevydává za částku v hlavních jednotkách; chybějící částka zůstává „Není uvedeno“. Izolovaná syntetická JPY verze v E2E fixture dokládá cestu D1 → Detail API → mobilní prohlížeč; nejde o skutečnou nabídku podpory ani o výpočet individuální spoluúčasti. Dílčí úprava neuzavírá #401.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

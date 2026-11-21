@@ -124,6 +124,27 @@ test("unverifiable document retrieval date from real D1/API is cautioned on mobi
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("JPY minor units from real D1/API render as major JPY on mobile detail", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Ajpy");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    fundingScenarios: Array<{ id: string; currencyCode: string; grantAmountMaxMinor: number }>;
+  };
+  expect(detail.fundingScenarios).toEqual([expect.objectContaining({
+    id: "e2e-funding-jpy", currencyCode: "JPY", grantAmountMaxMinor: 1234,
+  })]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Ajpy");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E měnová přesnost JPY" })).toBeVisible();
+  const finance = page.getByRole("region", { name: "Finance" });
+  await expect(finance.getByText("Maximální dotace", { exact: true }).locator(".."))
+    .toContainText(new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "JPY" }).format(1234));
+  await expect(finance).toContainText("vlastních peněz");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("unknown call status in a 200 detail fails closed then retries real D1 status", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
