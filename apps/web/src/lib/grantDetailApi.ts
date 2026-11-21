@@ -186,6 +186,11 @@ function hasConsistentVersions(value: GrantDetailResponse): boolean {
     && current[0].status === value.status
     && current[0].verificationStatus === value.verificationStatus
     && current[0].submissionCloseAt === value.submissionCloseAt
+    && value.versions[0]?.isCurrent === true
+    // The API places the current pointer first even when an older version was
+    // reactivated, then returns the newest other versions by version number.
+    && value.versions.slice(2).every((version, index) =>
+      value.versions[index + 1].versionNumber > version.versionNumber)
     && new Set(value.versions.map((version) => version.id)).size === value.versions.length
     && new Set(value.versions.map((version) => version.versionNumber)).size === value.versions.length;
 }

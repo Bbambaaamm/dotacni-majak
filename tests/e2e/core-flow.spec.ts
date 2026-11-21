@@ -430,6 +430,40 @@ test("contradictory current-version history fails closed then retries real D1 de
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("out-of-order historical versions fail closed, then retry real D1 detail on mobile", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Areactivated";
+  const actual = await request.get("/api/grants/grant%3Ae2e%3Areactivated");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as {
+    versionId: string;
+    versions: Array<{ id: string; versionNumber: number; isCurrent: boolean }>;
+  };
+  expect(valid.versions[0]).toMatchObject({ id: valid.versionId, isCurrent: true, versionNumber: 1 });
+  expect(valid.versions[1].versionNumber).toBeGreaterThan(valid.versions[2].versionNumber);
+  let corrupt = true;
+  await page.route("**/api/grants/grant%3Ae2e%3Areactivated", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    const versions = [...body.versions];
+    [versions[1], versions[2]] = [versions[2], versions[1]];
+    await route.fulfill({ response, json: { ...body, versions } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E reaktivovaná verze" })).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E reaktivovaná verze" })).toBeVisible();
+  const history = page.locator("details.detail-section").filter({ hasText: "Historie verzí" });
+  await history.getByText("Historie verzí (20 zobrazených)").click();
+  await expect(history.locator("li").first()).toContainText("Verze 1 ·");
+  await expect(history.locator("li").nth(1)).toContainText("Verze 22 ·");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("reactivated older version remains current outside the newest 20 D1 versions", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Areactivated");
   expect(response.status()).toBe(200);

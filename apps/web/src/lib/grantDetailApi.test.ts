@@ -263,6 +263,25 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).versions).toHaveLength(2);
   });
 
+  it("rejects out-of-order history without rejecting a reactivated older current version", async () => {
+    const current = detail.versions[0];
+    const history = [
+      current,
+      { ...current, id: "v3", versionNumber: 3, isCurrent: false },
+      { ...current, id: "v2", versionNumber: 2, isCurrent: false },
+    ];
+    respond({ ...detail, versions: history });
+    expect((await fetchGrantDetail("grant:one")).versions).toEqual(history);
+    respond({ ...detail, versions: [current, history[2], history[1]] });
+    await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+      code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+    });
+    respond({ ...detail, versions: [history[1], current, history[2]] });
+    await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+      code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+    });
+  });
+
   it("rejects oversized bounded API collections without silently truncating evidence or history", async () => {
     const capped = {
       ...detail,
@@ -270,7 +289,7 @@ describe("grant detail API boundary", () => {
       evidence: Array.from({ length: 100 }, (_, index) => ({ ...detail.evidence[0], id: `e${index}` })),
       changes: Array.from({ length: 20 }, (_, index) => ({ ...detail.changes[0], id: `c${index}` })),
       versions: [detail.versions[0], ...Array.from({ length: 19 }, (_, index) => ({
-        ...detail.versions[0], id: `v${index + 2}`, versionNumber: index + 2, isCurrent: false,
+        ...detail.versions[0], id: `v${20 - index}`, versionNumber: 20 - index, isCurrent: false,
       }))],
     };
     respond(capped);
