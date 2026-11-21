@@ -705,6 +705,34 @@ test("unavailable facets show no counts, allow manual filters, and preserve firs
   await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: Manual provider" })).toBeVisible();
 });
 
+test("contradictory real D1 facet count fails closed then retries unmodified API on mobile", async ({ page, request }) => {
+  const actual = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { results: Array<{ status: string }>; facets: {
+    status: { OPEN: number }; deadline: { KNOWN: number; UNKNOWN: number } } | null };
+  expect(valid.results.some((result) => result.status === "OPEN")).toBe(true);
+  expect(valid.facets?.status.OPEN).toBeGreaterThan(0);
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    expect(response.ok()).toBe(true);
+    expect(body.facets).not.toBeNull();
+    await route.fulfill({ response, json: { ...body,
+      facets: { ...body.facets!, status: { ...body.facets!.status, OPEN: 0 } } } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("real D1 search loads more than 20 distinct results and retries a failed later page", async ({ page }) => {
   await page.goto("/hledat?intent=strankovani");
   await expect(page.locator(".grant-card")).toHaveCount(20);

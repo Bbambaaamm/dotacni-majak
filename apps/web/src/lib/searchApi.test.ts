@@ -44,6 +44,32 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
   });
 
+  it("rejects facet counts that contradict visible results, without treating unavailable counts as zero", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const facets = { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }],
+      providersTruncated: false };
+    const valid = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets };
+    for (const invalid of [
+      { ...valid, facets: { ...facets, status: { ...facets.status, OPEN: 0 } } },
+      { ...valid, facets: { ...facets, deadline: { ...facets.deadline, UNKNOWN: 0 } } },
+      { ...valid, facets: { ...facets, providers: [{ name: "Obec", count: 0 }] } },
+      { ...valid, facets: { ...facets, providers: [] } },
+      { ...valid, results: [result, { ...result, grantCallVersionId: "v2", grantCallId: "g2" }] },
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(invalid), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    }
+    for (const accepted of [valid, { ...valid, facets: null },
+      { ...valid, facets: { ...facets, providers: [], providersTruncated: true } }]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(accepted), { status: 200 })));
+      expect((await searchGrants("alpha")).results).toEqual([result]);
+    }
+  });
+
   it("rejects repeated version identities within and across pages without advancing pagination", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
