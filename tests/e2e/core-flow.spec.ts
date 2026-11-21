@@ -1252,6 +1252,49 @@ test("mobile detail return replays fresh D1 cursor and focuses its original resu
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("mobile detail return restores a third fresh D1 cursor page", async ({ page, request }) => {
+  const first = await request.get("/api/search?intent=zzq45x");
+  expect(first.status()).toBe(200);
+  const firstBody = await first.json() as { results: unknown[]; nextCursor: string | null };
+  expect(firstBody.results).toHaveLength(20);
+  const second = await request.get(`/api/search?intent=zzq45x&cursor=${encodeURIComponent(firstBody.nextCursor!)}`);
+  expect(second.status()).toBe(200);
+  const secondBody = await second.json() as { results: unknown[]; nextCursor: string | null };
+  expect(secondBody.results).toHaveLength(20);
+  const third = await request.get(`/api/search?intent=zzq45x&cursor=${encodeURIComponent(secondBody.nextCursor!)}`);
+  expect(third.status()).toBe(200);
+  const thirdBody = await third.json() as { results: unknown[]; nextCursor: string | null };
+  expect(thirdBody.results).toHaveLength(5);
+  expect(thirdBody.nextCursor).toBeNull();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=zzq45x");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(40);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(45);
+  const link = page.locator(".grant-card").last().getByRole("link", { name: /Zobrazit detail/ });
+  const targetId = await link.getAttribute("data-result-id");
+  await link.click();
+  await expect(page.locator(".detail-hero h1")).toBeVisible();
+  await page.getByRole("link", { name: "Zpět na výsledky" }).first().click();
+  await expect(page.locator(`a[data-result-id='${targetId}']`)).toBeFocused();
+  await expect(page.locator(".grant-card")).toHaveCount(45);
+  await expect(page).toHaveURL(/\/hledat\?intent=zzq45x$/);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("detail return absent from fresh D1 pages does not claim cancellation", async ({ page }) => {
+  await page.goto("/hledat?intent=zzq45x&returnResult=gcv-e2e-long-missing");
+  await expect(page.locator(".grant-card")).toHaveCount(45);
+  await expect(page.getByRole("status").filter({ hasText: "Původní výsledek se v načtených stránkách nepodařilo obnovit" })).toBeVisible();
+  await expect(page).toHaveURL(/\/hledat\?intent=zzq45x$/);
+  await expect(page.getByRole("button", { name: "Načíst další výsledky" })).toHaveCount(0);
+  expect(await page.getByRole("status").filter({ hasText: "Původní výsledek" }).textContent()).not.toContain("zrušen");
+});
+
 test("refresh during detail return keeps the target until fresh cursor replay completes", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let cursorRequests = 0;

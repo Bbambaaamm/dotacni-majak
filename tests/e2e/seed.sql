@@ -276,6 +276,30 @@ SELECT 'gcv-e2e-page-' || i,
   CASE WHEN i = 25 THEN '2027-05-01T00:00:00Z' ELSE NULL END,
   '2026-09-26T20:00:00Z' FROM n;
 
+-- Separate three-page dataset for restoring a result beyond the first cursor.
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 45)
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+SELECT 'grant:e2e:long:' || i,'e2e-programme-open','E2E-LONG-' || i,
+  'e2e-long-' || i,NULL,'OPEN','E2E izolovana sada ' || i,
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z' FROM n;
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 45)
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+SELECT 'gcv-e2e-long-' || i,'grant:e2e:long:' || i,1,'2026-09-26T20:00:00Z',
+  'E2E izolovana sada ' || i,'Ucelovy zaznam pro test navratu.',
+  'OPEN','https://example.invalid/e2e/long/' || i,'CZK','e2e-v1',
+  printf('%064d',1000+i),'VERIFIED','2026-09-26T20:00:00Z' FROM n;
+UPDATE grant_calls SET current_version_id = 'gcv-e2e-long-' || substr(id, length('grant:e2e:long:') + 1)
+WHERE id LIKE 'grant:e2e:long:%';
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 45)
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+SELECT 'gcv-e2e-long-' || i,'E2E izolovana sada ' || i,
+  'Ucelovy zaznam pro test navratu.','zzq45x','','zzq45x',
+  'OPEN',NULL,'2026-09-26T20:00:00Z' FROM n;
+
 -- Isolated source-date cases for bounded search; they do not match journey intents.
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
   current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
