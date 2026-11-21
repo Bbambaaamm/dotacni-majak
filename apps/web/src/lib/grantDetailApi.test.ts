@@ -232,6 +232,32 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).versions).toHaveLength(2);
   });
 
+  it("rejects oversized bounded API collections without silently truncating evidence or history", async () => {
+    const capped = {
+      ...detail,
+      sources: Array.from({ length: 20 }, (_, index) => ({ ...detail.sources[0], sourceCode: `source-${index}` })),
+      evidence: Array.from({ length: 100 }, (_, index) => ({ ...detail.evidence[0], id: `e${index}` })),
+      changes: Array.from({ length: 20 }, (_, index) => ({ ...detail.changes[0], id: `c${index}` })),
+      versions: [detail.versions[0], ...Array.from({ length: 19 }, (_, index) => ({
+        ...detail.versions[0], id: `v${index + 2}`, versionNumber: index + 2, isCurrent: false,
+      }))],
+    };
+    respond(capped);
+    expect((await fetchGrantDetail("grant:one")).evidence).toHaveLength(100);
+    for (const key of ["sources", "evidence", "changes", "versions"] as const) {
+      respond({ ...capped, [key]: [...capped[key], {
+        ...capped[key][0], ...(key === "versions" ? { id: "v21", versionNumber: 21, isCurrent: false }
+          : key === "sources" ? { sourceCode: "source-21" } : { id: "extra" }),
+      }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond({ ...detail, sources: [], evidence: [], changes: [],
+      availability: { ...detail.availability, evidence: "SOURCE_ONLY" } });
+    expect((await fetchGrantDetail("grant:one")).availability.evidence).toBe("SOURCE_ONLY");
+  });
+
   it("preserves the API error status and rejects malformed error envelopes safely", async () => {
     respond({ error: "GRANT_NOT_FOUND" }, 404);
     await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "GRANT_NOT_FOUND", status: 404 });

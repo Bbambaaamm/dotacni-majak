@@ -250,6 +250,12 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     && hasUniqueIds(value.requirements)
     && hasUniqueIds(value.evidence)
     && hasUniqueIds(value.changes)
+    // The Detail API bounds these collections; an oversized 200 is not a
+    // trustworthy page and must not be silently presented as complete.
+    && Array.isArray(value.sources) && value.sources.length <= 20
+    && Array.isArray(value.evidence) && value.evidence.length <= 100
+    && Array.isArray(value.changes) && value.changes.length <= 20
+    && Array.isArray(value.versions) && value.versions.length <= 20
     && isRecord(value.availability)
     && Array.isArray(value.fundingScenarios)
     && (value.fundingScenarios.length > 0) === (value.availability.funding === "AVAILABLE")
