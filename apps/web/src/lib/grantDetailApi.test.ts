@@ -133,6 +133,21 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).sources).toEqual([]);
   });
 
+  it("rejects unknown requirement necessity instead of demoting it to recommended", async () => {
+    for (const necessity of ["MANDATORY", "", "UNKNOWN", null]) {
+      respond({ ...detail, requirements: [{ ...detail.requirements[0], necessity }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    for (const necessity of ["REQUIRED", "CONDITIONAL", "RECOMMENDED"]) {
+      respond({ ...detail, requirements: [{ ...detail.requirements[0], necessity }] });
+      expect((await fetchGrantDetail("grant:one")).requirements[0].necessity).toBe(necessity);
+    }
+    respond({ ...detail, requirements: [], availability: { ...detail.availability, requirements: "UNKNOWN" } });
+    expect((await fetchGrantDetail("grant:one")).requirements).toEqual([]);
+  });
+
   it("rejects duplicate collection identities rather than repeating evidence or requirements", async () => {
     const collections = ["deadlines", "fundingScenarios", "requirements", "evidence", "changes"] as const;
     for (const key of collections) {

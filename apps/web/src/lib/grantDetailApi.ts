@@ -39,7 +39,7 @@ export interface GrantRequirementDetail {
   type: string;
   title: string;
   description: string | null;
-  necessity: string;
+  necessity: "REQUIRED" | "CONDITIONAL" | "RECOMMENDED";
   phase: string | null;
   evidenceId: string | null;
 }
@@ -221,7 +221,8 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
       && boundsOrdered(item, "projectCostMinMinor", "projectCostMaxMinor")),
     requirements: (v) => isList(v, (item) => hasFields(item, {
       id: isString, type: isString, title: isString, description: isNullableString,
-      necessity: isString, phase: isNullableString, evidenceId: isNullableString,
+      necessity: (x) => x === "REQUIRED" || x === "CONDITIONAL" || x === "RECOMMENDED",
+      phase: isNullableString, evidenceId: isNullableString,
     })),
     evidence: (v) => isList(v, (item) => hasFields(item, {
       id: isString, fieldPath: isString, pageFrom: isPageNumber, pageTo: isPageNumber,
