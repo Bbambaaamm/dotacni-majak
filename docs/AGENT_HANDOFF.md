@@ -66,6 +66,9 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - canonical schema měň jen přes ADR/review,
 - po merge navazuj z čerstvého main; nepokračuj stacked historií přes squash bez vyčištění.
 
+## Validace odpovědi vyhledávání
+Klient výsledků kontroluje úspěšnou odpověď Search API před vykreslením: záměr musí odpovídat požadavku, seznam výsledků, stránkovací kurzor a facets musí mít smluvený tvar. Neplatná či neúplná odpověď se zobrazí jako chyba s možností opakování; nesmí být vydávána za prázdný katalog nebo za konec stránkování.
+
 ## Návrat z detailu do vyhledávání
 Detail přenáší v URL pouze ověřené parametry záměru, aktivních API filtrů a řazení. Zpětný odkaz obnoví filtry a první stránku výsledků novým požadavkem na API. Stránkovací kurzor ani dříve načtené stránky se neukládají a po návratu se neobnovují.
 
