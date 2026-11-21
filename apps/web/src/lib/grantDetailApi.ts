@@ -136,8 +136,22 @@ function isNullableNumber(value: unknown): boolean {
   return value === null || (typeof value === "number" && Number.isFinite(value));
 }
 
-function hasFields(value: unknown, fields: Record<string, (value: unknown) => boolean>): boolean {
+function isNonnegativeMinor(value: unknown): boolean {
+  return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+}
+
+function isRateBps(value: unknown): boolean {
+  return isNonnegativeMinor(value) && (value === null || (typeof value === "number" && value <= 10000));
+}
+
+function hasFields(value: unknown, fields: Record<string, (value: unknown) => boolean>): value is Record<string, unknown> {
   return isRecord(value) && Object.entries(fields).every(([key, check]) => Object.hasOwn(value, key) && check(value[key]));
+}
+
+function boundsOrdered(value: Record<string, unknown>, lower: string, upper: string): boolean {
+  const min = value[lower];
+  const max = value[upper];
+  return min === null || max === null || (typeof min === "number" && typeof max === "number" && min <= max);
 }
 
 function isList(value: unknown, check: (value: unknown) => boolean): boolean {
@@ -171,13 +185,15 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     fundingScenarios: (v) => isList(v, (item) => hasFields(item, {
       id: isString, name: isString, conditionGroupId: isNullableString,
       instrumentType: isInstrument, currencyCode: isString,
-      supportRateMinBps: isNullableNumber, supportRateMaxBps: isNullableNumber,
-      grantAmountMinMinor: isNullableNumber, grantAmountMaxMinor: isNullableNumber,
-      projectCostMinMinor: isNullableNumber, projectCostMaxMinor: isNullableNumber,
+      supportRateMinBps: isRateBps, supportRateMaxBps: isRateBps,
+      grantAmountMinMinor: isNonnegativeMinor, grantAmountMaxMinor: isNonnegativeMinor,
+      projectCostMinMinor: isNonnegativeMinor, projectCostMaxMinor: isNonnegativeMinor,
       paymentMode: isNullableString, vatRule: isNullableString,
       advancePaymentAllowed: (x) => x === null || typeof x === "boolean",
       evidenceId: isNullableString,
-    })),
+    }) && boundsOrdered(item, "supportRateMinBps", "supportRateMaxBps")
+      && boundsOrdered(item, "grantAmountMinMinor", "grantAmountMaxMinor")
+      && boundsOrdered(item, "projectCostMinMinor", "projectCostMaxMinor")),
     requirements: (v) => isList(v, (item) => hasFields(item, {
       id: isString, type: isString, title: isString, description: isNullableString,
       necessity: isString, phase: isNullableString, evidenceId: isNullableString,

@@ -6,6 +6,10 @@ Termín s propojeným `evidenceId` nabízí odkaz na oficiální dokument a str�
 
 Regrese `tests/e2e/core-flow.spec.ts` ověřuje skutečnou D1/API/browser cestu, zachování UTC sekundy a odkaz na doklad stránky 2. Celé #401 zůstává otevřené: personalizovaná relevance/eligibility/finance, responsive a další stavy vyžadují samostatné reviewovatelné slice.
 
+## Hranice finančních hodnot detailu
+
+Klient při úspěšném HTTP 200 ověřuje vedle tvaru odpovědi také meze každého scénáře: sazby jsou celé basis points v rozsahu 0–10000, částky v minor units jsou nezáporná bezpečná celá čísla a případná dolní mez nesmí převyšovat horní. `null` znamená neznámou mez, nikoli nulu; platné 0 a 100 % zůstávají zachované. Neplatný či protichůdný scénář zneplatní celou odpověď a ukáže bezpečný chybový stav, nikoli vymyšlený finanční závěr. Jde o druhou hranici vůči chybnému API payloadu, nikoli náhradu DB CHECK a publikačního gate ani výpočet osobní podpory.
+
 ## Zachycení verze není kontrola zdroje
 
 Rychlý přehled uvádí `capturedAt` jako „Verze výzvy zachycena“ odděleně od „Poslední pozorování záznamu u zdroje“. Druhý údaj vychází jen z `sources[].lastSeenAt` (úspěšné pozorování zdrojového záznamu, i beze změny obsahu); pokud chybí všechny záznamy, ukazuje „Není doložena“, nikoli datum zachycení jako falešné pozorování. Pozorování není verifikace podmínek právě zobrazené verze ani živé potvrzení otevřeného příjmu. Jednotlivé zdroje dále zobrazují vlastní datum pozorování. Workspace vrací `versionReview.currentCapturedAt` odděleně; historicky pojmenovaný API klíč `sourceCheckedAt` znamená pouze pozorování a při chybějícím záznamu je `null`, bez fallbacku na `captured_at`. Reálný D1/API/browser test zahrnuje verzi bez `source_records` i verzi s pozdějším pozorováním po zachycení verze.
