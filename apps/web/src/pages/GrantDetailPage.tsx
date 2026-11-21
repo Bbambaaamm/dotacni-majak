@@ -182,6 +182,17 @@ export function changeEventLabel(type: string): string {
   }
 }
 
+export function changeFieldLabel(fieldPath: string | null): string | null {
+  switch (fieldPath) {
+    case null: return null;
+    case "status":
+    case "/status": return "Stav výzvy";
+    case "submission_close_at":
+    case "/submission_close_at": return "Ukončení příjmu žádostí";
+    default: return "Jiný údaj (přesné pole zde není ověřeno)";
+  }
+}
+
 export function changeSeverityLabel(severity: string): string {
   switch (severity) {
     case "CRITICAL": return "Kritická";
@@ -620,7 +631,7 @@ export function GrantDetailPage() {
                     {" · "}
                     <ChangeEventDate value={change.createdAt} />
                     {" · Závažnost: "}{changeSeverityLabel(change.severity)}
-                    {change.fieldPath ? <span> · Interní označení pole: <code>{change.fieldPath}</code></span> : null}
+                    {change.fieldPath !== null ? <span> · Dotčený údaj: {changeFieldLabel(change.fieldPath)}</span> : null}
                     <ChangeStatusTransition change={change} />
                   </li>
                 ))}
