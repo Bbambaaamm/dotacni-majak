@@ -833,6 +833,8 @@ test("unverified change date from real D1/API remains visible with caution on mo
   await expect(changes.locator("li")).toContainText("Jiná zaznamenaná změna");
   await expect(changes.locator("li")).not.toContainText("OTHER");
   await expect(changes.locator("li")).toContainText("Interní označení pole: /e2e/unverified-date");
+  expect(await changes.locator("li").evaluate((element) => getComputedStyle(element).display)).toBe("block");
+  expect(await changes.locator("li span").last().evaluate((element) => getComputedStyle(element).flexBasis)).toBe("auto");
   await expect(changes.locator("li")).toContainText("2026-02-30T12:00:00Z");
   await expect(changes.getByRole("note")).toContainText("Pořadí změn ani datum události nejsou ověřené");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);

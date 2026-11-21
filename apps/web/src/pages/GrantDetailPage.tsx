@@ -580,7 +580,7 @@ export function GrantDetailPage() {
                   Detail API vrací nejvýše 20 změn. Mohou existovat další změny; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
                 </p>
               ) : null}
-              <ul className="reason-list">
+              <ul className="reason-list change-event-list">
                 {detail.changes.map((change) => (
                   <li key={change.id}>
                     <strong>{changeEventLabel(change.changeType)}</strong>

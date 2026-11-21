@@ -21,3 +21,5 @@
 @media(max-width:800px){.filter-panel .result-filters{grid-template-columns:minmax(0,1fr)}.filter-chip{max-width:100%;overflow-wrap:anywhere}}
 .detail-page{grid-template-columns:minmax(0,1fr);min-width:0}.detail-page>*,.detail-layout>div{min-width:0}.detail-section{overflow-wrap:anywhere}
 .source-presence-caution{padding:14px 18px;border:2px solid #a95419;border-radius:12px;background:#fff5e9;color:#56300f;line-height:1.5}
+.detail-page .change-event-list li{display:block}
+.detail-page .change-event-list li span{flex:initial;color:inherit;font-weight:inherit}
