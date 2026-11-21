@@ -310,7 +310,8 @@ export function SearchPage() {
         instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined,
         new Set(data.results.map((grant) => grant.grantCallVersionId)),
         new Set(data.results.map((grant) => grant.grantCallId)),
-        seenCursors.current);
+        seenCursors.current,
+        data.expandedTerms);
       if (controller.signal.aborted) return;
       if (page.nextCursor) seenCursors.current.add(page.nextCursor);
       setData((current) => {

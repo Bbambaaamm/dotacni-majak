@@ -45,7 +45,7 @@ function isCaptureTimestamp(value: unknown): value is string {
 
 function isSearchResponse(value: unknown, intent: string): value is GrantSearchResponse {
   if (!isRecord(value) || value.intent !== intent || !Array.isArray(value.results)
-    || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
+    || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string" && term.trim().length > 0)
     || (value.indexState !== "READY" && value.indexState !== "EMPTY")
     || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
   // The initial empty-index API response includes explicit zero facets. Null
@@ -73,7 +73,9 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     if (value.indexState === "EMPTY" && ([...Object.values(status), ...Object.values(deadline)].some((count) => count !== 0)
       || facets.providers.length > 0 || facets.providersTruncated)) return false;
   }
+  const expandedTerms = value.expandedTerms as string[];
   return value.results.every((item: unknown) => isRecord(item)
+    && (item.matchKind !== "ONTOLOGY" || expandedTerms.length > 0)
     && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0
     && typeof item.grantCallId === "string" && item.grantCallId.length > 0
     && typeof item.title === "string" && item.title.trim().length > 0
@@ -172,6 +174,7 @@ export async function searchGrants(
   seenVersionIds?: ReadonlySet<string>,
   seenCallIds?: ReadonlySet<string>,
   seenCursors?: ReadonlySet<string>,
+  expectedExpandedTerms?: readonly string[],
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -199,6 +202,8 @@ export async function searchGrants(
   // The web client omits limit, so the API contract caps each page at 20.
   // Never render an oversized success response as a trustworthy page.
   if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body)
+    || (expectedExpandedTerms && (body.expandedTerms.length !== expectedExpandedTerms.length
+      || body.expandedTerms.some((term, index) => term !== expectedExpandedTerms[index])))
     || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))
     || (body.nextCursor !== null && seenCursors?.has(body.nextCursor))) {
