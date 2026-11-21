@@ -22,6 +22,28 @@ describe("search API client", () => {
     await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
   });
 
+  it("rejects contradictory index state and unrenderable result identities/status", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const valid = { intent: "alpha", expandedTerms: [], indexState: "READY", nextCursor: null,
+      facets: null, results: [result] };
+    for (const body of [
+      { ...valid, indexState: "EMPTY" },
+      { ...valid, indexState: "EMPTY", results: [], nextCursor: "more" },
+      ...[
+        { grantCallVersionId: "" }, { grantCallId: "" }, { title: "  " },
+        { providerName: "  " }, { status: "CANCELLED" }, { status: "UNVERIFIED" },
+      ].map((change) => ({ ...valid, results: [{ ...result, ...change }] })),
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...valid,
+      indexState: "EMPTY", results: [], nextCursor: null }), { status: 200 })));
+    expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
+  });
+
   it("accepts a complete response with source-specific result fields and facets", async () => {
     const body = { intent: "alpha", expandedTerms: ["sport"], indexState: "READY", nextCursor: "next",
       facets: { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },

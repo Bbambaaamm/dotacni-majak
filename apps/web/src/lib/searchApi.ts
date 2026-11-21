@@ -35,6 +35,8 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
     || (value.indexState !== "READY" && value.indexState !== "EMPTY")
     || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
+  // An empty index cannot contain search results or a continuation page.
+  if (value.indexState === "EMPTY" && (value.results.length > 0 || value.nextCursor !== null)) return false;
   if (value.facets !== null) {
     const facets = value.facets;
     if (!isRecord(facets) || !isRecord(facets.status) || !isRecord(facets.deadline)
@@ -47,9 +49,12 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
         && Number.isSafeInteger(provider.count) && (provider.count as number) >= 0)) return false;
   }
   return value.results.every((item: unknown) => isRecord(item)
-    && typeof item.grantCallVersionId === "string" && typeof item.grantCallId === "string"
-    && typeof item.title === "string" && typeof item.summary === "string"
-    && typeof item.status === "string" && typeof item.providerName === "string"
+    && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0
+    && typeof item.grantCallId === "string" && item.grantCallId.length > 0
+    && typeof item.title === "string" && item.title.trim().length > 0
+    && typeof item.summary === "string"
+    && (item.status === "OPEN" || item.status === "PLANNED" || item.status === "ANNOUNCED")
+    && typeof item.providerName === "string" && item.providerName.trim().length > 0
     && (item.submissionCloseAt === null || typeof item.submissionCloseAt === "string")
     && (item.officialDetailUrl === null || typeof item.officialDetailUrl === "string")
     && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));

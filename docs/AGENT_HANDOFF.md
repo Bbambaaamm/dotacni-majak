@@ -67,7 +67,7 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - po merge navazuj z čerstvého main; nepokračuj stacked historií přes squash bez vyčištění.
 
 ## Validace odpovědi vyhledávání
-Klient výsledků kontroluje úspěšnou odpověď Search API před vykreslením: záměr musí odpovídat požadavku, seznam výsledků, stránkovací kurzor a facets musí mít smluvený tvar. Neplatná či neúplná odpověď se zobrazí jako chyba s možností opakování; nesmí být vydávána za prázdný katalog nebo za konec stránkování.
+Klient výsledků kontroluje úspěšnou odpověď Search API před vykreslením: záměr musí odpovídat požadavku, seznam výsledků, stránkovací kurzor a facets musí mít smluvený tvar. Stav `EMPTY` nesmí obsahovat výsledky ani další stránku; karta musí mít neprázdnou identitu, název a poskytovatele a aktivní stav (`OPEN`, `PLANNED`, `ANNOUNCED`). Neplatná či neúplná odpověď se zobrazí jako chyba s možností opakování; nesmí být vydávána za prázdný katalog nebo za konec stránkování.
 
 ## Validace detailu výzvy
 Klient detailu ověřuje úspěšnou odpověď API před vykreslením: identita výzvy musí odpovídat požadavku, základní verze, poskytovatel, dostupnost, zdroje, podmínky, scénáře a doklady musí mít smluvený tvar. Chybějící či poškozený údaj se nesmí vykreslit jako ověřená podmínka nebo nulový počet dokladů; zobrazí se chyba s možností opakování. HTTP 404 zůstává odlišné od poškozené úspěšné odpovědi.
