@@ -162,6 +162,19 @@ const instrumentTypes = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER
 const isInstrument = (value: unknown) => instrumentTypes.includes(value as string);
 const isVersionNumber = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
 
+function hasConsistentVersions(value: GrantDetailResponse): boolean {
+  const current = value.versions.filter((version) => version.isCurrent);
+  return current.length === 1
+    && current[0].id === value.versionId
+    && current[0].versionNumber === value.versionNumber
+    && current[0].capturedAt === value.capturedAt
+    && current[0].status === value.status
+    && current[0].verificationStatus === value.verificationStatus
+    && current[0].submissionCloseAt === value.submissionCloseAt
+    && new Set(value.versions.map((version) => version.id)).size === value.versions.length
+    && new Set(value.versions.map((version) => version.versionNumber)).size === value.versions.length;
+}
+
 function isGrantDetailResponse(value: unknown, requestedId: string): value is GrantDetailResponse {
   return hasFields(value, {
     grantCallId: (v) => v === requestedId,
@@ -223,7 +236,8 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     && Array.isArray(value.requirements)
     && (value.requirements.length > 0) === (value.availability.requirements === "AVAILABLE")
     && Array.isArray(value.evidence)
-    && (value.evidence.length > 0) === (value.availability.evidence === "AVAILABLE");
+    && (value.evidence.length > 0) === (value.availability.evidence === "AVAILABLE")
+    && hasConsistentVersions(value as unknown as GrantDetailResponse);
 }
 
 export class GrantDetailApiError extends Error {

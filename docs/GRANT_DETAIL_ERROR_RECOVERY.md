@@ -28,3 +28,16 @@ seznam dokladů odpovídá `SOURCE_ONLY`, ne tvrzení o ověření. Unit regrese
 pokrývá obě strany všech tří rozporů; mobilní E2E mění pouze příznak jedné
 skutečné D1/API odpovědi, retry pak načte nezměněný skutečný API detail a
 kontroluje a11y/reflow. Nejde o ověření správnosti oficiálních podmínek.
+
+## Vazba aktuální verze na zobrazená tvrzení
+
+Detail API vrací horní souhrn zachycené verze a nejvýše 20 historických verzí.
+Klient odmítne HTTP 200, pokud v omezeném seznamu není právě jedna položka
+`isCurrent`, její ID/číslo/čas zachycení/stav/ověření/uzávěrka neodpovídají
+hornímu souhrnu nebo se v seznamu opakuje ID či číslo verze. Tím nelze
+zobrazit stav „aktuální“ vedle rozporné historie a nabídnout přípravu žádosti
+na základě nejednoznačné odpovědi; vznikne bezpečná chyba s možností retry.
+Historie zůstává omezená API a tento test neověřuje aktuální dostupnost
+výzvy u poskytovatele. Unit test pokrývá jednotlivé rozpory, mobilní browser
+regrese upraví jen odpověď skutečné D1/API výzvy a retry jde na nezměněnou
+D1/API odpověď včetně axe/reflow.
