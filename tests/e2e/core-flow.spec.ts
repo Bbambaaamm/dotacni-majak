@@ -136,16 +136,21 @@ test("unverifiable document retrieval date from real D1/API is cautioned on mobi
   const path = "/dotace/grant%3Ae2e%3Aunsafe-url";
   const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { evidence: Array<{ id: string; retrievedAt: string }> };
-  expect(detail.evidence.find((item) => item.id === "e2e-fe-uncertain")?.retrievedAt)
-    .toBe("2026-02-30T12:00:00Z");
+  const detail = await response.json() as { evidence: Array<{ id: string; retrievedAt: string; documentTitle: string | null; fieldPath: string; sourceUrl: string }> };
+  expect(detail.evidence.find((item) => item.id === "e2e-fe-uncertain"))
+    .toMatchObject({ retrievedAt: "2026-02-30T12:00:00Z", documentTitle: null,
+      fieldPath: "/summary", sourceUrl: "https://example.invalid/e2e/uncertain-source" });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(path);
   await expect(page.getByRole("heading", { level: 1, name: "E2E výzva — bezpečnost odkazu" })).toBeVisible();
   const evidence = page.getByRole("complementary", { name: "Oficiální zdroje" });
   await evidence.getByText("Konkrétní evidence (1)").click();
-  const row = evidence.locator("li").filter({ hasText: "E2E doklad s neověřitelným datem stažení" });
+  const row = evidence.locator("details li").filter({ hasText: "Doklad bez uvedeného názvu dokumentu" });
+  await expect(row.getByRole("link", { name: "Doklad bez uvedeného názvu dokumentu ↗" }))
+    .toHaveAttribute("href", "https://example.invalid/e2e/uncertain-source");
+  await expect(row).not.toContainText("/summary");
+  await expect(row).toContainText("str. 1");
   await expect(row).toContainText("Dokument stažen: 2026-02-30T12:00:00Z");
   await expect(row.getByRole("note")).toContainText("nepovažujte jej za doloženou aktuálnost");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);

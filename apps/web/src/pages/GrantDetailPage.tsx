@@ -182,6 +182,10 @@ export function changeEventLabel(type: string): string {
   }
 }
 
+export function evidenceDocumentLabel(title: string | null): string {
+  return title?.trim() ? title : "Doklad bez uvedeného názvu dokumentu";
+}
+
 export function changeFieldLabel(fieldPath: string | null): string | null {
   switch (fieldPath) {
     case null: return null;
@@ -732,7 +736,7 @@ export function GrantDetailPage() {
                 {detail.evidence.map((evidence) => (
                   <li key={evidence.id}>
                     <OfficialSourceLink url={evidence.sourceUrl}>
-                      {evidence.documentTitle ?? evidence.fieldPath} ↗
+                      {evidenceDocumentLabel(evidence.documentTitle)} ↗
                     </OfficialSourceLink>
                     {evidence.pageFrom ? ` · str. ${evidence.pageFrom}` : ""}
                     <br />

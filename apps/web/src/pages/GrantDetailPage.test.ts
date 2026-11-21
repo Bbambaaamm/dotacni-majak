@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeFieldLabel, changeSeverityLabel, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
+import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeFieldLabel, changeSeverityLabel, DetailMetadataDate, evidenceDocumentLabel, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
 import type { GrantChangeDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
@@ -100,6 +100,19 @@ describe("detail metadata dates", () => {
       expect(html).toContain(value);
       expect(html).toContain("nepovažujte jej za doloženou aktuálnost");
     }
+  });
+});
+
+describe("detail evidence document label", () => {
+  it("uses a known document title without changing source attribution", () => {
+    expect(evidenceDocumentLabel("Oficiální podmínky"))
+      .toBe("Oficiální podmínky");
+  });
+
+  it.each([null, "", "   "])("does not publish an internal path when the title is %s", (title) => {
+    const label = evidenceDocumentLabel(title);
+    expect(label).toBe("Doklad bez uvedeného názvu dokumentu");
+    expect(label).not.toContain("/summary");
   });
 });
 
