@@ -820,26 +820,35 @@ test("detail distinguishes omitted referenced evidence from unattached items at 
 test("unverified change date from real D1/API remains visible with caution on mobile", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Areactivated");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { changes: Array<{ id: string; changeType: string; severity: string; fieldPath: string; createdAt: string }> };
-  expect(detail.changes).toEqual([expect.objectContaining({
+  const detail = await response.json() as { changes: Array<{ id: string; changeType: string; severity: string; fieldPath: string; createdAt: string; oldValue: unknown; newValue: unknown }> };
+  expect(detail.changes).toHaveLength(2);
+  expect(detail.changes).toContainEqual(expect.objectContaining({
     id: "e2e-change-unverified-date", changeType: "OTHER", severity: "CRITICAL", fieldPath: "/e2e/unverified-date",
     createdAt: "2026-02-30T12:00:00Z",
-  })]);
+  }));
+  expect(detail.changes).toContainEqual(expect.objectContaining({
+    id: "e2e-change-status", changeType: "STATUS_CHANGED", fieldPath: "status",
+    oldValue: "CLOSED", newValue: "OPEN",
+  }));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Areactivated");
   await expect(page.getByRole("heading", { level: 1, name: "E2E reaktivovaná verze" })).toBeVisible();
-  const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (1)" }) });
-  await expect(changes.locator("li")).toContainText("Jiná zaznamenaná změna");
-  await expect(changes.locator("li")).toContainText("Závažnost: Kritická");
-  await expect(changes.locator("li")).not.toContainText("CRITICAL");
+  const changes = page.locator("section.detail-section").filter({ has: page.getByRole("heading", { name: "Poslední změny (2)" }) });
+  const unverified = changes.locator("li").filter({ hasText: "Jiná zaznamenaná změna" });
+  const transition = changes.locator("li").filter({ hasText: "Změna stavu výzvy" });
+  await expect(transition).toContainText("Dříve zaznamenáno: Příjem žádostí skončil");
+  await expect(transition).toContainText("nově zaznamenáno: Otevřeno v zachycené verzi");
+  await expect(transition).toContainText("nikoli potvrzení současného stavu");
+  await expect(unverified).toContainText("Závažnost: Kritická");
+  await expect(unverified).not.toContainText("CRITICAL");
   await expect(changes.getByText(/Závažnost je klasifikace zaznamenané změny/)).toContainText("nikoli potvrzení aktuálních podmínek nebo vaší způsobilosti");
-  await expect(changes.locator("li")).not.toContainText("OTHER");
-  await expect(changes.locator("li")).toContainText("Interní označení pole: /e2e/unverified-date");
-  expect(await changes.locator("li").evaluate((element) => getComputedStyle(element).display)).toBe("block");
-  expect(await changes.locator("li span").last().evaluate((element) => getComputedStyle(element).flexBasis)).toBe("auto");
-  await expect(changes.locator("li")).toContainText("2026-02-30T12:00:00Z");
-  await expect(changes.getByRole("note")).toContainText("Pořadí změn ani datum události nejsou ověřené");
+  await expect(unverified).not.toContainText("OTHER");
+  await expect(unverified).toContainText("Interní označení pole: /e2e/unverified-date");
+  expect(await unverified.evaluate((element) => getComputedStyle(element).display)).toBe("block");
+  expect(await unverified.locator("span").last().evaluate((element) => getComputedStyle(element).flexBasis)).toBe("auto");
+  await expect(unverified).toContainText("2026-02-30T12:00:00Z");
+  await expect(unverified.getByRole("note")).toContainText("Pořadí změn ani datum události nejsou ověřené");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

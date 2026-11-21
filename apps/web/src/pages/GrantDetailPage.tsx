@@ -9,6 +9,7 @@ import { grantDetailAction } from "../lib/grantDetailAction";
 import { fundingScenarioNotice } from "../lib/fundingScenarioNotice";
 import {
   fetchGrantDetail,
+  type GrantChangeDetail,
   type GrantDetailResponse,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
@@ -183,6 +184,17 @@ export function changeSeverityLabel(severity: string): string {
     case "EDITORIAL": return "Redakční";
     default: return "Závažnost není známa; ověřte změnu u poskytovatele";
   }
+}
+
+export function ChangeStatusTransition({ change }: { change: GrantChangeDetail }) {
+  if (change.changeType !== "STATUS_CHANGED" || change.fieldPath !== "status") return null;
+  const statuses = ["DRAFT", "ANNOUNCED", "PLANNED", "OPEN", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED"];
+  if (typeof change.oldValue !== "string" || typeof change.newValue !== "string"
+    || !statuses.includes(change.oldValue) || !statuses.includes(change.newValue)) {
+    return <p role="note">Předchozí a nový stav nelze z tohoto záznamu bezpečně vyložit; ověřte změnu u poskytovatele.</p>;
+  }
+  return <p>Dříve zaznamenáno: {statusLabel(change.oldValue)} → nově zaznamenáno: {statusLabel(change.newValue)}.
+    {" "}Jde o historický záznam změny, nikoli potvrzení současného stavu.</p>;
 }
 
 export function ChangeEventDate({ value }: { value: string }) {
@@ -599,6 +611,7 @@ export function GrantDetailPage() {
                     <ChangeEventDate value={change.createdAt} />
                     {" · Závažnost: "}{changeSeverityLabel(change.severity)}
                     {change.fieldPath ? <span> · Interní označení pole: <code>{change.fieldPath}</code></span> : null}
+                    <ChangeStatusTransition change={change} />
                   </li>
                 ))}
               </ul>
