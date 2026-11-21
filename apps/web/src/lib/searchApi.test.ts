@@ -130,6 +130,30 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).results).toHaveLength(1);
   });
 
+  it("keeps SQLite's 24:00:00Z source day inside an inclusive UTC window", async () => {
+    const result = { grantCallVersionId: "v24", grantCallId: "g24", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: "2027-05-01T24:00:00Z", providerName: "Obec",
+      officialDetailUrl: null, matchKind: "DIRECT" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    for (const submissionCloseAt of ["2027-05-01T24:00:00Z", "2027-05-01T24:00:00.001Z",
+      "2027-05-01T24:00:00+00:00", "2027-05-01T24:59:59+02:00"]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+        results: [{ ...result, submissionCloseAt }],
+      }), { status: 200 })));
+      expect((await searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+        "2027-05-01", undefined, "2027-05-01")).results).toHaveLength(1);
+    }
+    for (const submissionCloseAt of ["2027-05-01T24:00:00-02:00",
+      "2027-05-01T24:01:00+00:01"]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+        results: [{ ...result, submissionCloseAt }],
+      }), { status: 200 })));
+      await expect(searchGrants("alpha", undefined, undefined, undefined, undefined, undefined,
+        "2027-05-01", undefined, "2027-05-01")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    }
+  });
+
   it("rejects positive facet counts for an empty index rather than claiming it contains no calls", async () => {
     const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
       deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };

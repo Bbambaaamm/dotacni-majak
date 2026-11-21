@@ -312,6 +312,23 @@ INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported
 SELECT id,title,summary,'precision-boundary','','precision-boundary',status,submission_close_at,
   '2026-09-26T20:00:00Z' FROM grant_call_versions WHERE id LIKE 'gcv-e2e-precision-%';
 
+-- SQLite accepts 24:00:00Z as the preceding calendar date for bounded filters.
+INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
+  current_status,current_title,first_seen_at,first_published_at,created_at,updated_at)
+VALUES ('grant:e2e:endofday','e2e-programme-open','E2E-ENDOFDAY','e2e-endofday',NULL,
+  'OPEN','E2E end-of-day výzva','2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
+  '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z');
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  submission_close_at,official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+VALUES ('gcv-e2e-endofday','grant:e2e:endofday',1,'2026-09-26T20:00:00Z',
+  'E2E end-of-day výzva','endofday-boundary fixture','OPEN','2027-05-01T24:00:00Z',NULL,
+  'CZK','e2e-v1',printf('%064d',220),'VERIFIED','2026-09-26T20:00:00Z');
+UPDATE grant_calls SET current_version_id='gcv-e2e-endofday' WHERE id='grant:e2e:endofday';
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+VALUES ('gcv-e2e-endofday','E2E end-of-day výzva','endofday-boundary fixture',
+  'endofday-boundary','','endofday-boundary','OPEN','2027-05-01T24:00:00Z','2026-09-26T20:00:00Z');
+
 -- Canonical status boundaries for detail actions; no source-record disappearance is involved.
 INSERT INTO providers(id,name,provider_type,official_url)
 VALUES ('e2e-provider-no-url','E2E provider bez odkazu','NATIONAL',NULL);

@@ -76,11 +76,17 @@ function resultDateInWindow(value: string | null, closesFrom?: string, closesBy?
   const sourceDate = value.slice(0, 10);
   if (!Number.isFinite(Date.parse(`${sourceDate}T00:00:00Z`))
     || new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) return false;
-  // SQLite date(timestamp) applies an explicit offset before UTC date filtering.
+  // SQLite keeps hour 24 on the written day at zero offset, while a nonzero
+  // offset can move its UTC day. Date.parse instead normalizes or rejects it.
+  const hour24 = value.includes("T24:");
   const normalized = value.length > 10 && !/(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? `${value}Z` : value;
-  const timestamp = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : normalized);
+  const offset = normalized.match(/([+-]\d{2}:\d{2})$/)?.[1];
+  const comparable = hour24 ? normalized.replace("T24:", "T00:") : normalized;
+  const timestamp = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : comparable);
   if (!Number.isFinite(timestamp)) return false;
-  const date = new Date(timestamp).toISOString().slice(0, 10);
+  const date = hour24 && (!offset || offset === "+00:00" || offset === "-00:00")
+    ? sourceDate
+    : new Date(timestamp + (hour24 ? 86_400_000 : 0)).toISOString().slice(0, 10);
   return (!closesFrom || date >= closesFrom) && (!closesBy || date <= closesBy);
 }
 

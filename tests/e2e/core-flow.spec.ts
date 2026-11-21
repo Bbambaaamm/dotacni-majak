@@ -1355,6 +1355,20 @@ test("bounded real D1 search rejects an off-window response and mobile retry res
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("SQLite end-of-day source timestamp remains visible in bounded real D1/API search", async ({ page, request }) => {
+  const url = "/api/search?intent=endofday-boundary&closesFrom=2027-05-01&closesBy=2027-05-01";
+  const response = await request.get(url);
+  expect(response.status()).toBe(200);
+  const body = await response.json() as { results: Array<{ submissionCloseAt: string }> };
+  expect(body.results).toEqual([expect.objectContaining({ submissionCloseAt: "2027-05-01T24:00:00Z" })]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=endofday-boundary&closesFrom=2027-05-01&closesBy=2027-05-01");
+  await expect(page.getByRole("heading", { name: "E2E end-of-day výzva" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toContainText("2027-05-01 24:00:00 UTC");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("UTC date bounds keep sub-millisecond deadlines on their actual source day", async ({ request }) => {
   for (const sort of ["RELEVANCE", "DEADLINE", "DEADLINE_LATEST"]) {
     for (const [bounds, expected] of [
