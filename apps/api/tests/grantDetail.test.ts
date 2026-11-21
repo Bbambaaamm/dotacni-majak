@@ -81,8 +81,8 @@ describe("grant detail query", () => {
             status: "OPEN",
             verification_status: "PARTIALLY_VERIFIED",
             published_at: "2026-01-01T00:00:00Z",
-            submission_open_at: "2026-01-15T00:00:00Z",
-            submission_close_at: "2026-10-31T23:59:59Z",
+            submission_open_at: "2026-01-15",
+            submission_close_at: "2026-10-31T23:59:59+02:00",
             application_url: null,
             official_detail_url: "https://nsa.gov.cz/dotace/regiony-2026/",
             currency_code: "CZK",
@@ -131,7 +131,7 @@ describe("grant detail query", () => {
             captured_at: "2026-09-24T00:00:00Z",
             status: "OPEN",
             verification_status: "PARTIALLY_VERIFIED",
-            submission_close_at: "2026-10-31T23:59:59Z",
+            submission_close_at: "2026-10-31T23:59:59+02:00",
           }];
         }
         return [];
@@ -149,8 +149,9 @@ describe("grant detail query", () => {
     expect(detail?.deadlines).toEqual([
       expect.objectContaining({
         type: "APPLICATION_WINDOW",
-        startsAt: "2026-01-15T00:00:00Z",
-        endsAt: "2026-10-31T23:59:59Z",
+        startsAt: "2026-01-15",
+        endsAt: "2026-10-31T23:59:59+02:00",
+        timezone: null,
       }),
     ]);
     expect(detail?.availability).toEqual({

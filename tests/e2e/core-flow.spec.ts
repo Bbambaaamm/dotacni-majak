@@ -1400,16 +1400,32 @@ test("min-only support rate stays a lower bound in real API and mobile detail", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
-test("date-only deadline keeps its original precision in real API and mobile overview", async ({ page, request }) => {
+test("date-only and offset deadlines preserve source precision without inventing a timezone in real API and mobile detail", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aonly");
   expect(response.status()).toBe(200);
-  expect((await response.json() as { submissionCloseAt: string }).submissionCloseAt).toBe("2027-05-01");
+  const dateOnly = await response.json() as { submissionCloseAt: string; deadlines: Array<{ endsAt: string; timezone: string | null }> };
+  expect(dateOnly.submissionCloseAt).toBe("2027-05-01");
+  expect(dateOnly.deadlines).toEqual([expect.objectContaining({ endsAt: "2027-05-01", timezone: null })]);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dotace/grant%3Ae2e%3Adate%3Aonly");
   const overview = page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) });
   await expect(overview.locator("dd").filter({ hasText: "2027-05-01" })).toBeVisible();
   await expect(overview).not.toContainText("2027-05-01 00:00");
+  const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+  await expect(deadlines).toContainText("2027-05-01");
+  await expect(deadlines).not.toContainText("Zóna uvedená zdrojem");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  const offsetResponse = await request.get("/api/grants/grant%3Ae2e%3Adate%3Aoffset");
+  expect(offsetResponse.status()).toBe(200);
+  const offset = await offsetResponse.json() as { deadlines: Array<{ endsAt: string; timezone: string | null }> };
+  expect(offset.deadlines).toEqual([expect.objectContaining({ endsAt: "2027-05-01T16:30:45+02:00", timezone: null })]);
+  await page.goto("/dotace/grant%3Ae2e%3Adate%3Aoffset");
+  const offsetDeadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+  await expect(offsetDeadlines).toContainText("2027-05-01 16:30:45+02:00");
+  await expect(offsetDeadlines).not.toContainText("Zóna uvedená zdrojem");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
