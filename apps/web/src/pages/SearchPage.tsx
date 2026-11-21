@@ -487,17 +487,22 @@ export function SearchPage() {
             <div>
               <h2 id="results-title" tabIndex={-1}>Nalezené možnosti</h2>
               <p>
-                {filteredResults.length === data.results.length
-                  ? `${data.results.length} výsledků.`
-                  : `${filteredResults.length} z ${data.results.length} výsledků.`}{" "}
-                Toto jsou pouze dosud načtené výsledky, nikoli počet všech odpovídajících výzev.
-                Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč všemi odpovídajícími aktivními výzvami.
-                Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
-                Když jsou počty dostupné, nápověda poskytovatelů zahrnuje shody i mimo načtenou stránku. Můžete zadat i jiný přesný název.
-                Rozpočet projektu filtruje pouze výzvy s doloženým grantovým scénářem v CZK a oběma hranicemi nákladů; není to výše dotace, potřeba vlastní hotovosti ani potvrzení osobní způsobilosti. Neznámé hranice z filtru vypadnou, nikoli jako zamítnutí žadatele.
-                Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
-                vyhodnocují odděleně a nejsou zde doplňovány odhadem.
+                Načtené výsledky: {data.results.length}. Další mohou být dostupné.
+                Relevance není posouzením způsobilosti ani výše podpory.
+                Stav a uvedený termín pocházejí ze zachycené verze: před podáním ověřte aktuální příjem žádostí a uzávěrku v oficiálních podmínkách.
               </p>
+              <details className="detail-section">
+                <summary>Jak fungují filtry, počty a řazení?</summary>
+                <p>
+                  Počet načtených výsledků není počet všech odpovídajících výzev.
+                  Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč všemi odpovídajícími aktivními výzvami.
+                  Filtry data zahrnují zvolené kalendářní dny (UTC); neznámý termín v nich není zahrnut. Nezaručují, že výzva stále přijímá žádosti.
+                  Když jsou počty dostupné, nápověda poskytovatelů zahrnuje shody i mimo načtenou stránku. Můžete zadat i jiný přesný název.
+                  Rozpočet projektu filtruje pouze výzvy s doloženým grantovým scénářem v CZK a oběma hranicemi nákladů; není to výše dotace, potřeba vlastní hotovosti ani potvrzení osobní způsobilosti. Neznámé hranice z filtru vypadnou, nikoli jako zamítnutí žadatele.
+                  Řazení podle uvedeného termínu platí pro všechny odpovídající výzvy před stránkováním; neznámé termíny zůstávají na konci. Způsobilost a financování se
+                  vyhodnocují odděleně a nejsou zde doplňovány odhadem.
+                </p>
+              </details>
             </div>
             <a
               className="button button--secondary button-link"
@@ -580,7 +585,7 @@ export function SearchPage() {
                 onChange={(event) => changeDeadline(event.target.value as "ALL" | "KNOWN" | "UNKNOWN")}>
                 <option value="ALL">Všechny termíny</option>
                 <option value="KNOWN">Termín uveden{data.facets ? ` (${data.facets.deadline.KNOWN})` : ""}</option>
-                <option value="UNKNOWN">Termín neuveden (UNKNOWN){data.facets ? ` (${data.facets.deadline.UNKNOWN})` : ""}</option>
+                <option value="UNKNOWN">Termín neuveden{data.facets ? ` (${data.facets.deadline.UNKNOWN})` : ""}</option>
               </select>
             </label>
             <form onSubmit={(event) => { event.preventDefault(); changeClosesBy(closesByDraft); }}>

@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("real search keeps decision cautions visible and filter mechanics accessible", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(api.status()).toBe(200);
+  const response = await api.json() as { results: unknown[] };
+  expect(response.results.length).toBeGreaterThan(0);
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/hledat?intent=digitalizace%20obce");
+    const heading = page.getByRole("heading", { name: "Nalezené možnosti" });
+    await expect(heading).toBeVisible();
+    const section = page.getByRole("region", { name: "Nalezené možnosti" });
+    await expect(section.getByText(`Načtené výsledky: ${response.results.length}.`, { exact: false })).toBeVisible();
+    await expect(section.getByText("Relevance není posouzením způsobilosti ani výše podpory.", { exact: false })).toBeVisible();
+    await expect(section.getByText("před podáním ověřte aktuální příjem žádostí", { exact: false })).toBeVisible();
+    const explanation = section.locator("details.detail-section");
+    await expect(explanation).not.toHaveAttribute("open");
+    await expect(explanation.getByText("Počet načtených výsledků není počet všech odpovídajících výzev.", { exact: false })).toBeHidden();
+    await explanation.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(explanation).toHaveAttribute("open");
+    await expect(explanation.getByText("Počet načtených výsledků není počet všech odpovídajících výzev.", { exact: false })).toBeVisible();
+    await expect(page.locator(".grant-card")).toHaveCount(response.results.length);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("mobile search rejects unsupported ontology claim then retries real D1/API results", async ({ page, request }) => {
   const path = "/hledat?intent=digitalizace%20obce";
   const response = await request.get("/api/search?intent=digitalizace%20obce");
@@ -1095,7 +1123,7 @@ test("unavailable facets show no counts, allow manual filters, and preserve firs
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
   await expect(page.getByText("Počty pro filtry nejsou dostupné", { exact: false })).toBeVisible();
   await expect(page.getByLabel("Stav výzvy").locator('option[value="OPEN"]')).toHaveText("Otevřeno v zachycené verzi");
-  await expect(page.getByLabel("Termín podání").locator('option[value="UNKNOWN"]')).toHaveText("Termín neuveden (UNKNOWN)");
+  await expect(page.getByLabel("Termín podání").locator('option[value="UNKNOWN"]')).toHaveText("Termín neuveden");
   await expect(page.locator("#search-providers option")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: Manual provider" })).toBeVisible();
 });
@@ -1591,7 +1619,9 @@ test("global status finds a later-page planned result and rejects a changed curs
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
   await expect(page.locator(".grant-card")).toHaveCount(1);
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
+  const filterExplanation = page.getByRole("region", { name: "Nalezené možnosti" }).locator("details.detail-section");
+  await filterExplanation.locator("summary").click();
+  await expect(filterExplanation.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
   await page.goto("/hledat?intent=digitalizace%20obce");
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
@@ -2052,7 +2082,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
 
   await expect(page).toHaveURL(/\/hledat\?intent=digitalizace\+obce/);
   await expect(page.getByRole("heading", { name: "Nalezené možnosti" })).toBeVisible();
-  await expect(page.locator(".section-heading").getByText("2 výsledků.")).toBeVisible();
+  await expect(page.locator(".section-heading").getByText("Načtené výsledky: 2.", { exact: false })).toBeVisible();
 
   await expect(
     page.getByText(
@@ -2067,7 +2097,7 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   await expect(
     page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" }),
   ).toHaveCount(0);
-  await expect(page.locator(".section-heading").getByText("1 výsledků.")).toBeVisible();
+  await expect(page.locator(".section-heading").getByText("Načtené výsledky: 1.", { exact: false })).toBeVisible();
 
   await page.getByLabel("Přesný název poskytovatele").fill("E2E test provider A");
   await page.getByRole("button", { name: "Použít poskytovatele" }).click();
@@ -2656,7 +2686,9 @@ test("mobile result filters, deadline order and chips use the real API without i
   await expect(page.getByLabel("Stav výzvy")).toBeHidden();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
-  await expect(page.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
+  const filterExplanation = page.getByRole("region", { name: "Nalezené možnosti" }).locator("details.detail-section");
+  await filterExplanation.locator("summary").click();
+  await expect(filterExplanation.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
