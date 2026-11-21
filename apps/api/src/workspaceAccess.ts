@@ -126,7 +126,7 @@ export async function readWorkspace(projectId: string, token: string | null, wor
     env.DB.prepare(`SELECT id,title,source,necessity,status,blocking,priority,reference_id,reason_code
       FROM workspace_tasks WHERE workspace_id=? ORDER BY priority,id`).bind(workspaceId).all<Task>(),
     env.DB.prepare(`SELECT sr.canonical_url, sr.last_seen_at FROM source_records sr
-      WHERE sr.grant_call_id=? ORDER BY sr.last_seen_at DESC LIMIT 1`)
+      WHERE sr.grant_call_id=? ORDER BY julianday(sr.last_seen_at) DESC, sr.last_seen_at DESC LIMIT 1`)
       .bind(workspace.grant_call_id).all<{canonical_url: string; last_seen_at: string}>(),
     env.DB.prepare(`SELECT id,field_path FROM field_evidence WHERE entity_id=?
       AND field_path IN ('/submission_close_at','/status') ORDER BY created_at DESC LIMIT 10`)
@@ -185,7 +185,8 @@ export async function readWorkspace(projectId: string, token: string | null, wor
     versionReview: { required: changed, diff, baselineCapturedAt: base.captured_at, currentCapturedAt: current.captured_at,
       sourceUrl: safeSourceUrl(current.official_detail_url) ?? safeSourceUrl(sourceRows.results?.[0]?.canonical_url),
       // A missing source observation is unknown, not the capture time of a version.
-      sourceCheckedAt: sourceRows.results?.[0]?.last_seen_at ?? null,
+      sourceCheckedAt: Number.isFinite(Date.parse(sourceRows.results?.[0]?.last_seen_at ?? ""))
+        ? sourceRows.results![0].last_seen_at : null,
       alerts: ((alerts.results ?? []) as Array<{grant_call_version_id: string; created_at: string}>).map((a) => ({ versionId: a.grant_call_version_id, createdAt: a.created_at })) },
   };
 }

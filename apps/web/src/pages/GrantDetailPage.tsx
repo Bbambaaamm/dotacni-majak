@@ -147,11 +147,10 @@ function fundingSummary(scenario: GrantFundingScenarioDetail): string {
 
 function lastSeenLabel(detail: GrantDetailResponse): string {
   const latest = detail.sources
-    .map((source) => source.lastSeenAt)
-    .filter(Boolean)
-    .sort()
-    .at(-1);
-  return latest ? formatDate(latest) : "Není doložena";
+    .map((source) => ({ value: source.lastSeenAt, instant: Date.parse(source.lastSeenAt) }))
+    .filter((observation) => Number.isFinite(observation.instant))
+    .sort((a, b) => b.instant - a.instant)[0];
+  return latest ? formatDate(latest.value) : "Není doložena";
 }
 
 export function GrantDetailPage() {
