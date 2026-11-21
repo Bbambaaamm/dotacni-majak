@@ -12,7 +12,7 @@ import {
   type GrantDetailResponse,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
-import { buildReturnSearchUrl } from "../lib/intent";
+import { buildReturnSearchUrl, readReturnResult, readSearchUrlState } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
@@ -276,6 +276,8 @@ export function GrantDetailPage() {
     );
   }
 
+  const searchContext = readSearchUrlState(window.location.search);
+  const fromResult = Boolean(searchContext.intent && readReturnResult(window.location.search) === detail.versionId);
   const projectHref = `/projekty?intent=${encodeURIComponent(detail.title)}&grantCallId=${encodeURIComponent(detail.grantCallId)}`;
   const versionSource = safeOfficialUrl(detail.officialDetailUrl);
   const recordSource = detail.sources.map((source) => safeOfficialUrl(source.canonicalUrl)).find(Boolean);
@@ -347,6 +349,15 @@ export function GrantDetailPage() {
 
       <div className="detail-layout">
         <div>
+          <section className="detail-section" aria-labelledby="detail-why-title">
+            <h2 id="detail-why-title">Proč ji vidíte</h2>
+            {fromResult ? (
+              <p>Odkaz obsahuje kontext hledání záměru „{searchContext.intent}“. Samotný odkaz ani tento detail nepotvrzují konkrétní tematickou shodu. Vysvětlení výsledku najdete u jeho karty ve <a href={backToSearchHref}>výsledcích hledání</a>.</p>
+            ) : (
+              <p>Tento detail neobsahuje individuální vysvětlení tematické shody. <a href="/hledat">Vyhledejte svůj záměr</a> a zkontrolujte důvod na kartě výsledku.</p>
+            )}
+            <p className="fine-print">Tematická relevance není posouzení způsobilosti žadatele. Známé podmínky můžete ověřit u svého projektu; chybějící údaje zůstávají UNKNOWN.</p>
+          </section>
           <section className="detail-section">
             <h2>Rychlý přehled</h2>
             <dl className="facts">
