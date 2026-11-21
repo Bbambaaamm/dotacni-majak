@@ -93,6 +93,31 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].supportRateMaxBps).toBe(10000);
   });
 
+  it("rejects invalid provenance page ranges without inventing a source page", async () => {
+    const evidence = detail.evidence[0];
+    for (const pages of [
+      { pageFrom: 0 }, { pageFrom: -1 }, { pageFrom: 1.5 },
+      { pageFrom: Number.MAX_SAFE_INTEGER + 1 }, { pageTo: 0 },
+      { pageTo: -1 }, { pageTo: 2.5 },
+      { pageFrom: 4, pageTo: 3 },
+    ]) {
+      respond({ ...detail, evidence: [{ ...evidence, ...pages }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    for (const pages of [
+      { pageFrom: null, pageTo: null },
+      { pageFrom: 1, pageTo: null },
+      { pageFrom: null, pageTo: 2 },
+      { pageFrom: 2, pageTo: 2 },
+      { pageFrom: 2, pageTo: 3 },
+    ]) {
+      respond({ ...detail, evidence: [{ ...evidence, ...pages }] });
+      expect((await fetchGrantDetail("grant:one")).evidence[0]).toMatchObject(pages);
+    }
+  });
+
   it("rejects contradictory availability rather than implying complete requirements or evidence", async () => {
     const invalid = [
       { ...detail, availability: { ...detail.availability, funding: "UNKNOWN" } },
