@@ -170,6 +170,8 @@ function hasUniqueIds(value: unknown): boolean {
 }
 
 const instrumentTypes = ["GRANT", "LOAN", "GUARANTEE", "EQUITY", "MIXED", "OTHER"];
+const verificationStatuses = ["AUTO_EXTRACTED", "PARTIALLY_VERIFIED", "VERIFIED", "NEEDS_REVIEW"];
+const isVerificationStatus = (value: unknown) => typeof value === "string" && verificationStatuses.includes(value);
 const isInstrument = (value: unknown) => instrumentTypes.includes(value as string);
 const isVersionNumber = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
 
@@ -191,7 +193,7 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     grantCallId: (v) => v === requestedId,
     canonicalCode: isNullableString, canonicalSlug: isString,
     versionId: isString, versionNumber: isVersionNumber, capturedAt: isString,
-    title: isString, summary: isString, status: isString, verificationStatus: isString,
+    title: isString, summary: isString, status: isString, verificationStatus: isVerificationStatus,
     publishedAt: isNullableString, submissionOpenAt: isNullableString,
     submissionCloseAt: isNullableString, applicationUrl: isNullableString,
     officialDetailUrl: isNullableString, currencyCode: isNullableString,
@@ -226,7 +228,7 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     })),
     evidence: (v) => isList(v, (item) => hasFields(item, {
       id: isString, fieldPath: isString, pageFrom: isPageNumber, pageTo: isPageNumber,
-      evidenceText: isNullableString, verificationStatus: isString,
+      evidenceText: isNullableString, verificationStatus: isVerificationStatus,
       documentTitle: isNullableString, sourceUrl: isString, retrievedAt: isString,
     }) && isPageRange(item)),
     changes: (v) => isList(v, (item) => hasFields(item, {
@@ -235,7 +237,7 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
     })),
     versions: (v) => isList(v, (item) => hasFields(item, {
       id: isString, versionNumber: isVersionNumber, capturedAt: isString,
-      status: isString, verificationStatus: isString,
+      status: isString, verificationStatus: isVerificationStatus,
       submissionCloseAt: isNullableString, isCurrent: (x) => typeof x === "boolean",
     })),
     availability: (v) => hasFields(v, {

@@ -1933,6 +1933,37 @@ test("mobile detail rejects duplicate evidence identity and retries real D1/API"
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("detail exposes document retrieval and field verification from real D1/API without implying a fresh source check", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { evidence: Array<{
+    id: string; sourceUrl: string; retrievedAt: string; verificationStatus: string;
+  }> };
+  const evidence = detail.evidence.find((item) => item.id === "e2e-fe-title");
+  expect(evidence).toMatchObject({
+    sourceUrl: "https://example.invalid/e2e/open-source",
+    retrievedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED",
+  });
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/dotace/grant%3Ae2e%3Aopen");
+    await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    const provenance = page.locator(".evidence-card details");
+    await provenance.locator("summary").click();
+    await expect(provenance).toContainText("Datum stažení dokumentu není datum opětovného ověření podmínek výzvy.");
+    const items = provenance.locator("li");
+    await expect(items).toHaveCount(detail.evidence.length);
+    for (const item of await items.all()) {
+      await expect(item).toContainText("Dokument stažen: 26. září 2026");
+      await expect(item).toContainText("Ověření doloženého údaje: Ověřeno");
+      await expect(item.getByRole("link")).toHaveAttribute("href", evidence!.sourceUrl);
+    }
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("missing detail is not presented as a transient outage", async ({ page }) => {
   await page.route("**/api/grants/grant%3Ae2e%3Aopen", (route) => route.fulfill({
     status: 404, contentType: "application/json", body: JSON.stringify({ error: "NOT_FOUND" }),
