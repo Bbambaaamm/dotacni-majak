@@ -30,6 +30,34 @@ test("real search keeps decision cautions visible and filter mechanics accessibl
   }
 });
 
+test("mobile search rejects reordered provider counts and retries actual D1/API", async ({ page, request }) => {
+  const path = "/hledat?intent=digitalizace%20obce";
+  const api = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(api.status()).toBe(200);
+  const actual = await api.json() as { facets: { providers: Array<{ name: string; count: number }> } | null };
+  expect(actual.facets?.providers.length).toBeGreaterThanOrEqual(2);
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const fresh = await route.fetch();
+    const body = await fresh.json() as typeof actual;
+    expect(body.facets?.providers.length).toBeGreaterThanOrEqual(2);
+    await route.fulfill({ response: fresh, json: { ...body, facets: {
+      ...body.facets, providers: [...body.facets!.providers].reverse(),
+    } } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.locator(".grant-card")).toHaveCount(2);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("mobile search rejects unsupported ontology claim then retries real D1/API results", async ({ page, request }) => {
   const path = "/hledat?intent=digitalizace%20obce";
   const response = await request.get("/api/search?intent=digitalizace%20obce");
