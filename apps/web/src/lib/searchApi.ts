@@ -221,6 +221,7 @@ export async function searchGrants(
   // The web client omits limit, so the API contract caps each page at 20.
   // Never render an oversized success response as a trustworthy page.
   if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body)
+    || (cursor && body.facets !== null)
     || (expectedExpandedTerms && (body.expandedTerms.length !== expectedExpandedTerms.length
       || body.expandedTerms.some((term, index) => term !== expectedExpandedTerms[index])))
     || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)

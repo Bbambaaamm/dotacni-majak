@@ -113,6 +113,40 @@ test("mobile continuation rejects changed ontology explanation and retries real 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("mobile continuation rejects injected facet counts and retries real D1/API page", async ({ page, request }) => {
+  const path = "/hledat?intent=strankovani";
+  const first = await request.get("/api/search?intent=strankovani");
+  expect(first.status()).toBe(200);
+  const initial = await first.json() as { facets: unknown; nextCursor: string | null };
+  expect(initial.facets).not.toBeNull();
+  expect(initial.nextCursor).toBeTruthy();
+  const next = await request.get(`/api/search?intent=strankovani&cursor=${encodeURIComponent(initial.nextCursor!)}`);
+  expect(next.status()).toBe(200);
+  const continuation = await next.json() as { facets: unknown; results: unknown[] };
+  expect(continuation.facets).toBeNull();
+  expect(continuation.results.length).toBe(5);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  let corrupt = true;
+  await page.route("**/api/search?*cursor=*", async (route) => {
+    if (!corrupt) return route.continue();
+    const fresh = await route.fetch();
+    const body = await fresh.json() as typeof continuation;
+    expect(body.facets).toBeNull();
+    await route.fulfill({ response: fresh, json: { ...body, facets: initial.facets } });
+  });
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(page.getByRole("alert")).toContainText("Dosud načtené výsledky zůstávají zobrazené");
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit načíst další znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(25);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("search cards show current indexed version provenance and freshness limits from real D1/API", async ({ page, request }) => {
   for (const sort of ["RELEVANCE", "DEADLINE"] as const) {
     const query = new URLSearchParams({ intent: "digitalizace obce", status: "OPEN", sort });
