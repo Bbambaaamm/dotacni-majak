@@ -58,6 +58,37 @@ test("mobile detail rejects oversized evidence and retries actual D1/API provena
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("mobile detail shows unfamiliar source payment mode without calling it undocumented, then safely retries malformed data", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Aopen";
+  const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { fundingScenarios: Array<{ paymentMode: string | null }> };
+  expect(valid.fundingScenarios.some((item) => item.paymentMode === "REIMBURSEMENT")).toBe(true);
+  let paymentMode: unknown = "CASH";
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (paymentMode === null) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    await route.fulfill({ response, json: { ...body, fundingScenarios: body.fundingScenarios.map((item, index) =>
+      index === 0 ? { ...item, paymentMode } : item) } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByText("Jiný režim uvedený u scénáře: CASH. Ověřte způsob platby u poskytovatele.")).toBeVisible();
+  paymentMode = 7;
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Finance" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
+  paymentMode = null;
+  await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  await expect(page.getByText("Proplacení po úhradě nákladů")).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("unknown requirement necessity in a 200 detail fails closed then retries real D1 requirement", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
