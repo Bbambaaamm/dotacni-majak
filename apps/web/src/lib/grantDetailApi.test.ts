@@ -68,6 +68,31 @@ describe("grant detail API boundary", () => {
     await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "INVALID_GRANT_DETAIL_RESPONSE" });
   });
 
+  it("rejects impossible finance bounds instead of displaying misleading amounts or rates", async () => {
+    const scenario = detail.fundingScenarios[0];
+    const invalid = [
+      { supportRateMinBps: -1 }, { supportRateMaxBps: 10001 },
+      { supportRateMaxBps: 1.5 }, { supportRateMinBps: 9001 },
+      { grantAmountMinMinor: -1 }, { grantAmountMaxMinor: 1.5 },
+      { grantAmountMaxMinor: Number.MAX_SAFE_INTEGER + 1 },
+      { grantAmountMinMinor: 200, grantAmountMaxMinor: 100 },
+      { projectCostMinMinor: -1 }, { projectCostMaxMinor: 1.5 },
+      { projectCostMinMinor: 200, projectCostMaxMinor: 100 },
+    ];
+    for (const change of invalid) {
+      respond({ ...detail, fundingScenarios: [{ ...scenario, ...change }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond({ ...detail, fundingScenarios: [{ ...scenario,
+      supportRateMinBps: 0, supportRateMaxBps: 10000,
+      grantAmountMinMinor: 0, grantAmountMaxMinor: Number.MAX_SAFE_INTEGER,
+      projectCostMinMinor: 0, projectCostMaxMinor: Number.MAX_SAFE_INTEGER,
+    }] });
+    expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].supportRateMaxBps).toBe(10000);
+  });
+
   it("preserves the API error status and rejects malformed error envelopes safely", async () => {
     respond({ error: "GRANT_NOT_FOUND" }, 404);
     await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "GRANT_NOT_FOUND", status: 404 });
