@@ -63,6 +63,26 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));
 }
 
+function facetsCoverResults(response: GrantSearchResponse): boolean {
+  if (response.facets === null) return true; // Counts above the facet cap are unavailable, not zero.
+  const statuses = new Map<string, number>();
+  const deadlines = new Map<"KNOWN" | "UNKNOWN", number>();
+  const providers = new Map<string, number>();
+  for (const result of response.results) {
+    statuses.set(result.status, (statuses.get(result.status) ?? 0) + 1);
+    const deadline = result.submissionCloseAt === null ? "UNKNOWN" : "KNOWN";
+    deadlines.set(deadline, (deadlines.get(deadline) ?? 0) + 1);
+    providers.set(result.providerName, (providers.get(result.providerName) ?? 0) + 1);
+  }
+  const facets = response.facets;
+  if ([...statuses].some(([status, count]) => facets.status[status as keyof typeof facets.status] < count)
+    || [...deadlines].some(([deadline, count]) => facets.deadline[deadline] < count)) return false;
+  return [...providers].every(([name, count]) => {
+    const provider = facets.providers.find((item) => item.name === name);
+    return provider ? provider.count >= count : facets.providersTruncated;
+  });
+}
+
 export class SearchApiError extends Error {
   constructor(
     public readonly code: string,
@@ -110,7 +130,8 @@ export async function searchGrants(
       response.status,
     );
   }
-  if (!isSearchResponse(body, intent) || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
+  if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
+    || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));
