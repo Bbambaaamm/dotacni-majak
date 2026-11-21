@@ -296,7 +296,8 @@ export function SearchPage() {
         statusFilter === "ALL" ? undefined : statusFilter,
         deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
         instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined,
-        new Set(data.results.map((grant) => grant.grantCallVersionId)));
+        new Set(data.results.map((grant) => grant.grantCallVersionId)),
+        new Set(data.results.map((grant) => grant.grantCallId)));
       if (controller.signal.aborted) return;
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;

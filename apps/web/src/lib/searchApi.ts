@@ -85,6 +85,7 @@ export async function searchGrants(
   instrument?: "GRANT" | "LOAN" | "GUARANTEE" | "EQUITY" | "MIXED" | "OTHER",
   projectBudgetCzk?: string,
   seenVersionIds?: ReadonlySet<string>,
+  seenCallIds?: ReadonlySet<string>,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -113,8 +114,10 @@ export async function searchGrants(
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));
-  if (pageIds.size !== body.results.length
-    || body.results.some((item) => seenVersionIds?.has(item.grantCallVersionId))) {
+  const callIds = new Set(body.results.map((item) => item.grantCallId));
+  if (pageIds.size !== body.results.length || callIds.size !== body.results.length
+    || body.results.some((item) => seenVersionIds?.has(item.grantCallVersionId)
+      || seenCallIds?.has(item.grantCallId))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   return body;
