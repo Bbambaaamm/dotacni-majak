@@ -217,7 +217,13 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
       requirements: (x) => x === "AVAILABLE" || x === "UNKNOWN",
       evidence: (x) => x === "AVAILABLE" || x === "SOURCE_ONLY",
     }),
-  });
+  }) && isRecord(value.availability)
+    && Array.isArray(value.fundingScenarios)
+    && (value.fundingScenarios.length > 0) === (value.availability.funding === "AVAILABLE")
+    && Array.isArray(value.requirements)
+    && (value.requirements.length > 0) === (value.availability.requirements === "AVAILABLE")
+    && Array.isArray(value.evidence)
+    && (value.evidence.length > 0) === (value.availability.evidence === "AVAILABLE");
 }
 
 export class GrantDetailApiError extends Error {

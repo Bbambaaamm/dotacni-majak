@@ -16,3 +16,15 @@ nespustí paralelní request. Po další chybě zůstává focus na retry, po ú
 přejde na titulek načtené výzvy; pokud uživatel během čekání přejde na jiný
 prvek, focus se mu nepřesune. Mobilní E2E kontroluje také reflow a axe.
 Tento slice nedokazuje osobní způsobilost ani aktuálnost oficiálního zdroje.
+
+## Konzistence příznaků dostupnosti
+
+Detail API odvozuje `availability.funding`, `availability.requirements` a
+`availability.evidence` od neprázdnosti příslušných seznamů pro zachycenou
+verzi. Klient HTTP 200 s opačným příznakem odmítne jako neplatný celek,
+nezobrazí požadavky ani CTA přípravy a dovolí bezpečný retry. `UNKNOWN`
+znamená chybějící normalizované položky, nikoli nesplnění podmínek; prázdný
+seznam dokladů odpovídá `SOURCE_ONLY`, ne tvrzení o ověření. Unit regrese
+pokrývá obě strany všech tří rozporů; mobilní E2E mění pouze příznak jedné
+skutečné D1/API odpovědi, retry pak načte nezměněný skutečný API detail a
+kontroluje a11y/reflow. Nejde o ověření správnosti oficiálních podmínek.
