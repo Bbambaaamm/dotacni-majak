@@ -54,6 +54,7 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - provenance u kritických tvrzení,
 - disappearance != cancellation,
 - parser failure nesmí provést destructive changes,
+- na první stránce `indexState=EMPTY` znamená prázdný index jen s explicitními nulovými facet counts; `facets=null` znamená nedostupné počty, nikoli důkaz prázdného indexu. Na pokračovací stránce jsou facety běžně `null`, ale `EMPTY` s cursorem není platný výsledek,
 - žádný auto-pay,
 - každý klíčový screen má „Co mám udělat teď?“.
 

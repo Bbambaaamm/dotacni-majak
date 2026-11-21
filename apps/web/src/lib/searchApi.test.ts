@@ -40,7 +40,9 @@ describe("search API client", () => {
       await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
     }
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...valid,
-      indexState: "EMPTY", results: [], nextCursor: null }), { status: 200 })));
+      indexState: "EMPTY", results: [], nextCursor: null,
+      facets: { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false } }), { status: 200 })));
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
   });
 
@@ -161,6 +163,7 @@ describe("search API client", () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "EMPTY", nextCursor: null, facets: zero };
     for (const facets of [
+      null, // The initial empty-index API contract always returns explicit zero counts.
       { ...zero, status: { ...zero.status, OPEN: 1 } },
       { ...zero, deadline: { ...zero.deadline, UNKNOWN: 1 } },
       { ...zero, providers: [{ name: "Obec", count: 1 }] },
@@ -268,7 +271,9 @@ describe("search API client", () => {
 
   it("rejects an empty index on continuation rather than treating old cards as current", async () => {
     const body = { intent: "alpha", results: [], expandedTerms: [],
-      indexState: "EMPTY", nextCursor: null, facets: null };
+      indexState: "EMPTY", nextCursor: null,
+      facets: { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false } };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
     expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
     await expect(searchGrants("alpha", undefined, "cursor")).rejects.toMatchObject({
