@@ -200,6 +200,26 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).facets?.providers).toEqual([]);
   });
 
+  it("rejects an oversized page on initial search and continuation, while accepting the 20-card boundary", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const cards = Array.from({ length: 21 }, (_, i) => ({ ...result,
+      grantCallVersionId: `v${i}`, grantCallId: `g${i}` }));
+    const body = { intent: "alpha", results: cards, expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets: null };
+    for (const cursor of [undefined, "page-2"]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+      await expect(searchGrants("alpha", undefined, cursor)).rejects.toMatchObject({
+        code: "INVALID_SEARCH_RESPONSE", status: 200,
+      });
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+        ...body, results: cards.slice(0, 20), nextCursor: cursor ? null : "page-2",
+      }), { status: 200 })));
+      expect((await searchGrants("alpha", undefined, cursor)).results).toHaveLength(20);
+    }
+  });
+
   it("rejects repeated version identities within and across pages without advancing pagination", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,

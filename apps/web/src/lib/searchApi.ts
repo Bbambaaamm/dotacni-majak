@@ -178,7 +178,9 @@ export async function searchGrants(
       response.status,
     );
   }
-  if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
+  // The web client omits limit, so the API contract caps each page at 20.
+  // Never render an oversized success response as a trustworthy page.
+  if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body)
     || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))
     || (body.nextCursor !== null && seenCursors?.has(body.nextCursor))) {
