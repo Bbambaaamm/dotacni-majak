@@ -70,6 +70,24 @@ describe("search API client", () => {
     }
   });
 
+  it("rejects positive facet counts for an empty index rather than claiming it contains no calls", async () => {
+    const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [], providersTruncated: false };
+    const body = { intent: "alpha", results: [], expandedTerms: [],
+      indexState: "EMPTY", nextCursor: null, facets: zero };
+    for (const facets of [
+      { ...zero, status: { ...zero.status, OPEN: 1 } },
+      { ...zero, deadline: { ...zero.deadline, UNKNOWN: 1 } },
+      { ...zero, providers: [{ name: "Obec", count: 1 }] },
+      { ...zero, providersTruncated: true },
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    expect((await searchGrants("alpha")).indexState).toBe("EMPTY");
+  });
+
   it("rejects duplicate, empty, or nonpositive provider facets before rendering filters", async () => {
     const facets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
       deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [{ name: "Obec", count: 2 }],
