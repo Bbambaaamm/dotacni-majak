@@ -6,6 +6,8 @@ Vyhledávání, detail i modelová karta na úvodní stránce zobrazují `OPEN` 
 
 Primární sticky akce pro neotevřené stavy vede na oficiální detail výzvy, pokud jej API poskytne; jinak vede zpět na hledání dalších výzev. Stav zdrojového záznamu `MISSING_CANDIDATE`/`CONFIRMED_MISSING` nijak nemění kanonický stav výzvy a nikdy sám neimplikuje zrušení. Testy používají skutečnou lokální D1, API a mobilní Chromium pro hranice stavů; source-presence OPEN je samostatná negativní kontrola.
 
+Detail pro kanonické `DRAFT` a `ARCHIVED` zobrazuje srozumitelné štítky „Návrh výzvy (příjem není potvrzen)“ a „Archivní záznam výzvy (příjem není potvrzen)“ místo interních kódů. Ani jeden stav nevytváří možnost aktivní žádosti; změna je pouze prezentační. Mobilní E2E ověřuje ARCHIVED nad skutečnou D1/API odpovědí.
+
 ## Kontext způsobilosti na veřejném detailu
 
 Veřejný detail nemá vlastnickou capability ani údaje konkrétního projektu, proto nikdy neprezentuje osobní verdikt způsobilosti. Výslovně odděluje tematickou shodu a zveřejněné požadavky od vyhodnocení známých pravidel aktuální verze proti projektu. Chybějící údaj je UNKNOWN, nikoli FAIL. Pouze u kanonicky `OPEN` výzvy odkazuje do existujícího anonymního projektového toku (`/projekty` s názvem a identitou výzvy, bez capability v URL); až tam chráněné API s owner capability načítá skutečný stav pravidel. Pokud pravidla chybí, projekt to přiznává. Ostatní stavy místo přípravy žádosti vyzývají k ověření aktuálního stavu u poskytovatele. E2E test ověřuje skutečnou D1/API cestu přes projekt a mobilní hranice stavů; nejde o potvrzení správnosti pravidel poskytovatele.
