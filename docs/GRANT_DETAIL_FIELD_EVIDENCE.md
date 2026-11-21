@@ -1,5 +1,16 @@
 # Doklady u financování a požadavků (#401)
 
+## Typovaná identita dokladu
+
+Detail API vybírá doklady jen pro dvojici `(GRANT_CALL_VERSION, current_version_id)`
+nebo `(GRANT_CALL, grant_call_id)`. Samotná shoda textového `entity_id` nestačí:
+doklad jiné entity či superseded verze se nesmí vydávat za doklad aktuální
+výzvy ani zvyšovat počet doložených údajů. Odkazy u termínů, scénářů a
+požadavků s chybějícím dokladem se dál označují jako nedostupné/nezaložené;
+nejde o nové ověření jejich věcné správnosti. Unit SQL kontrakt a syntetický
+D1 → API → mobilní browser test včetně axe/reflow kontrolují obě kolize a
+zachování legitimních dokladů.
+
 Historická změna stavu se na detailu vysvětlí pro oba doložené zápisy pole `status` a `/status`; kanonický pointer `/status` už není skryt za pouhým obecným označením změny. Jiné cesty, neznámé hodnoty stavů ani jiný typ změny se jako přechod stavu nevykládají. Výklad zůstává historický, nikoli potvrzení dnešní otevřenosti nebo způsobilosti. Unit test chrání obě varianty i nesouvisející cesty; syntetický D1 → Detail API → mobilní Chromium test čte `/status` a kontroluje historické upozornění, a11y a reflow. Nejde o živé ověření výzvy.
 
 Detail klient přijímá stav výzvy (i stav každé zobrazené historické verze) jen v kanonické osmici D1: `DRAFT`, `ANNOUNCED`, `PLANNED`, `OPEN`, `PAUSED`, `CLOSED`, `CANCELLED`, `ARCHIVED`. Neznámý stav v HTTP 200 se nesmí vykreslit jako přijatý stav výzvy; odpověď se celá skryje s retry. Prázdná kolekce známých požadavků nadále znamená UNKNOWN, nikoli zamítnutí způsobilosti; zachycené OPEN není garance dnešní otevřenosti. Unit regrese pokrývá obě hranice a všech osm povolených stavů, mobilní E2E syntetický D1/API detail, pozměněnou odpověď a retry k API s axe/reflow. Nejde o ověření živé výzvy.

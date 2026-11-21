@@ -134,6 +134,28 @@ test("search cards show current indexed version provenance and freshness limits 
   }
 });
 
+test("detail excludes colliding foreign evidence identities from real D1/API on mobile", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { evidence: Array<{ id: string }> };
+  expect(detail.evidence.map((item) => item.id)).toEqual(expect.arrayContaining([
+    "e2e-fe-title", "e2e-fe-summary", "e2e-fe-deadline", "e2e-fe-funding",
+  ]));
+  expect(detail.evidence.map((item) => item.id)).not.toContain("e2e-fe-collision-call");
+  expect(detail.evidence.map((item) => item.id)).not.toContain("e2e-fe-collision-version");
+  expect(detail.evidence).toHaveLength(5);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Aopen");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  const evidence = page.getByRole("complementary", { name: "Oficiální zdroje" });
+  await evidence.getByText("Konkrétní evidence (5)").click();
+  await expect(evidence.locator("details li")).toHaveCount(5);
+  await expect(page.getByRole("link", { name: /Doklad termínu.*str\. 2/ })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("detail marks only malformed source deadline from real D1/API at mobile width", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aunsafe-url";
   const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");
