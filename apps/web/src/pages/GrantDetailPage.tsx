@@ -21,8 +21,12 @@ import { verificationLabel } from "../lib/verificationLabel";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
-function statusLabel(status: string): string {
+export function statusLabel(status: string): string {
   switch (status) {
+    case "DRAFT":
+      return "Návrh výzvy (příjem není potvrzen)";
+    case "ARCHIVED":
+      return "Archivní záznam výzvy (příjem není potvrzen)";
     case "OPEN":
       return OPEN_STATUS_LABEL;
     case "PLANNED":

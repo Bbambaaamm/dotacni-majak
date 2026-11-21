@@ -3,8 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import { ChangeEventDate, DetailMetadataDate, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel } from "./GrantDetailPage";
 import type { GrantFundingScenarioDetail } from "../lib/grantDetailApi";
+
+describe("detail status labels", () => {
+  it("renders accepted draft and archived statuses without implying an open application", () => {
+    for (const status of ["DRAFT", "ARCHIVED"]) {
+      expect(statusLabel(status)).not.toContain(status);
+      expect(statusLabel(status)).toContain("příjem není potvrzen");
+    }
+  });
+});
 
 describe("detail grant amount bounds", () => {
   const scenario: GrantFundingScenarioDetail = {

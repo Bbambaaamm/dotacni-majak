@@ -2896,6 +2896,10 @@ test("canonical paused/closed/cancelled and pre-open detail never offer an activ
     await expect(page.locator(".next-action")).toContainText("poskytovatele");
     await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
     if (status === "ARCHIVED") {
+      const label = "Archivní záznam výzvy (příjem není potvrzen)";
+      await expect(page.locator(".detail-hero")).toContainText(label);
+      await expect(page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) }).locator("dd").filter({ hasText: label })).toBeVisible();
+      await expect(page.locator(".detail-hero")).not.toContainText("Otevřeno v zachycené verzi");
       expect(detail.officialDetailUrl).toBeNull();
       await expect(page.locator(".next-action").getByRole("link", { name: "Hledat další výzvy" }))
         .toHaveAttribute("href", "/hledat");
