@@ -770,6 +770,24 @@ test("grant detail reports source presence without changing OPEN status", async 
   }
 });
 
+test("malformed source observation is cautioned through real Detail API and mobile browser", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A20");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { sources: Array<{ lastSeenAt: string }> };
+  expect(detail.sources.map((source) => source.lastSeenAt)).toEqual(["2026-02-30T12:00:00Z"]);
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A20");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E stránkování 20" })).toBeVisible();
+  const observed = page.locator(".detail-section .facts").first().locator("div")
+    .filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first();
+  await expect(observed).toContainText("Není doložena");
+  await expect(observed.getByRole("note")).toContainText("zobrazené datum nemusí být nejnovější");
+  const source = page.getByRole("complementary", { name: "Oficiální zdroje" });
+  await expect(source.getByRole("note")).toContainText("Formát data pozorování není ověřen");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("source observation uses the latest instant across offsets in detail and workspace", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A23");

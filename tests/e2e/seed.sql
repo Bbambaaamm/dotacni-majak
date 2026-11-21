@@ -250,6 +250,8 @@ UPDATE source_records SET last_seen_at='2026-10-01T23:30:00-10:00'
 WHERE id='e2e-sr-page-23';
 UPDATE source_records SET last_seen_at='2026-10-02T00:30:00+14:00'
 WHERE id='e2e-sr-page-23-seen';
+UPDATE source_records SET last_seen_at='2026-02-30T12:00:00Z'
+WHERE id='e2e-sr-page-20';
 DELETE FROM source_records WHERE id='e2e-sr-page-24';
 
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)

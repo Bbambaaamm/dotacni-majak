@@ -85,6 +85,9 @@ Detail API vrací nejvýše 20 zdrojových záznamů, 20 změn a 20 verzí. Při
 ## Termíny v detailu výzvy
 Rychlý přehled i jednotlivé termíny zachovávají přesnost a časovou zónu zdroje. Pokud neprázdný zdrojový údaj není rozpoznatelným datem/časem, zobrazí se beze změny s výslovnou výzvou k ověření u oficiálního zdroje; chybějící (`null`) údaj zůstává neznámý a nedostává varování o poškozeném formátu. Syntetický termín v E2E D1 fixture ověřuje tuto hranici přes skutečné Detail API a mobilní prohlížeč.
 
+## Poslední pozorování zdrojového záznamu
+Rychlý přehled vybírá nejnovější rozpoznatelné pozorování podle okamžiku, ale chybně formátovaná data nepovyšuje na doloženou aktuálnost. Pokud některý z omezeného seznamu zdrojových záznamů obsahuje neověřitelné datum (včetně kalendářně nemožného dne), zobrazí upozornění u souhrnu i příslušného záznamu; souhrnný datum pak nemusí být skutečně nejnovější. Nepřítomnost validního pozorování není důkaz zrušení výzvy. Syntetický zdroj `grant:e2e:page:20` ověřuje skutečné Detail API/D1 a mobilní prohlížeč.
+
 ## Akce z detailu výzvy
 OPEN je zachycený stav, nikoli potvrzení živého příjmu nebo osobní způsobilosti. Horní i mobilní sticky akce používají stejné „Přidat k projektu“ pro GRANT i negrantový nástroj; až projekt může vyhodnotit známé podmínky. Nepoužívat zde „Chci tuto dotaci“ ani z negrantového nástroje dovozovat dotaci. Neotevřené stavy vedou na ověření u poskytovatele nebo zpět k hledání. Syntetická OPEN úvěrová verze v D1 fixture ověřuje skutečné API a mobilní prohlížeč, bez tvrzení o reálné výzvě.
 
