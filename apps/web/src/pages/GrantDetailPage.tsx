@@ -552,7 +552,7 @@ export function GrantDetailPage() {
               <summary>Historie verzí ({detail.versions.length}{detail.versions.length === 20 ? " zobrazených" : ""})</summary>
               {detail.versions.length === 20 ? (
                 <p className="fine-print" role="status">
-                  Detail API vrací nejvýše 20 verzí. Mohou existovat starší verze; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
+                  Detail API vrací nejvýše 20 verzí: aktuální verzi a nejnovější další verze. Další verze mohou existovat; tento seznam není zaručeně úplný. Aktuální podmínky ověřte v oficiálním zdroji.
                 </p>
               ) : null}
               <ul>

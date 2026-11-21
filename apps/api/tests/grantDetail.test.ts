@@ -123,6 +123,8 @@ describe("grant detail query", () => {
         if (mode === "all" && query.includes("FROM field_evidence")) return [];
         if (mode === "all" && query.includes("FROM change_events")) return [];
         if (mode === "all" && query.includes("FROM grant_call_versions")) {
+          expect(query).toContain("CASE WHEN id = ? THEN 0 ELSE 1 END");
+          expect(values).toEqual(["grant:nsa:16-2026", "version:nsa:16-2026:v1"]);
           return [{
             id: "version:nsa:16-2026:v1",
             version_number: 1,

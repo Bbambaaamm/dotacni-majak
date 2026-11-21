@@ -113,6 +113,36 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).availability.requirements).toBe("UNKNOWN");
   });
 
+  it("rejects a version history that contradicts the displayed current version", async () => {
+    const current = detail.versions[0];
+    const invalid = [
+      { versions: [] },
+      { versions: [{ ...current, id: "other" }] },
+      { versions: [{ ...current, isCurrent: false }] },
+      { versions: [{ ...current, versionNumber: 2 }] },
+      { versions: [{ ...current, capturedAt: "2025-01-01T00:00:00Z" }] },
+      { versions: [{ ...current, status: "CANCELLED" }] },
+      { versions: [{ ...current, verificationStatus: "NEEDS_REVIEW" }] },
+      { versions: [{ ...current, submissionCloseAt: "2026-12-31" }] },
+      { versions: [current, { ...current, id: "other", versionNumber: 2, isCurrent: true }] },
+      { versions: [current, { ...current, isCurrent: false }] },
+      { versions: [current, { ...current, id: "other", isCurrent: false }] },
+    ];
+    for (const change of invalid) {
+      respond({ ...detail, ...change });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond({ ...detail, versions: [current, { ...current, id: "v0", versionNumber: 0, isCurrent: false }] });
+    await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "INVALID_GRANT_DETAIL_RESPONSE" });
+    respond({ ...detail, versionNumber: 2, versions: [
+      { ...current, versionNumber: 2 },
+      { ...current, id: "v0", versionNumber: 1, isCurrent: false },
+    ] });
+    expect((await fetchGrantDetail("grant:one")).versions).toHaveLength(2);
+  });
+
   it("preserves the API error status and rejects malformed error envelopes safely", async () => {
     respond({ error: "GRANT_NOT_FOUND" }, 404);
     await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({ code: "GRANT_NOT_FOUND", status: 404 });
