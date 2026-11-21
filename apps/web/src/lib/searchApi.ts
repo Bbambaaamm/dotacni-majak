@@ -35,8 +35,10 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     || !Array.isArray(value.expandedTerms) || !value.expandedTerms.every((term) => typeof term === "string")
     || (value.indexState !== "READY" && value.indexState !== "EMPTY")
     || !(value.nextCursor === null || (typeof value.nextCursor === "string" && value.nextCursor.length > 0))) return false;
-  // An empty index cannot contain search results or a continuation page.
-  if (value.indexState === "EMPTY" && (value.results.length > 0 || value.nextCursor !== null)) return false;
+  // The initial empty-index API response includes explicit zero facets. Null
+  // facets mean counts were unavailable, not proof that the index has no calls.
+  if (value.indexState === "EMPTY" && (value.results.length > 0 || value.nextCursor !== null
+    || value.facets === null)) return false;
   // A page cannot be empty while promising more results: the UI would hide
   // pagination on the first page or loop forever on a continuation.
   if (value.results.length === 0 && value.nextCursor !== null) return false;

@@ -956,6 +956,33 @@ test("contradictory real D1 facet count fails closed then retries unmodified API
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("empty-index claim without zero-count facets fails closed on real D1/API and mobile retry restores results", async ({ page, request }) => {
+  const actual = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { results: unknown[]; facets: unknown };
+  expect(valid.results.length).toBeGreaterThan(0);
+  expect(valid.facets).not.toBeNull();
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    expect(response.ok()).toBe(true);
+    await route.fulfill({ response, json: { ...body, indexState: "EMPTY", results: [],
+      nextCursor: null, facets: null } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.getByText("Lokální index je prázdný")).toHaveCount(0);
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("empty-index claim with positive real D1 facets fails closed and retry restores results", async ({ page, request }) => {
   const actual = await request.get("/api/search?intent=digitalizace%20obce");
   expect(actual.status()).toBe(200);
