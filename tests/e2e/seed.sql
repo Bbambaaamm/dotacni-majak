@@ -107,7 +107,7 @@ INSERT INTO source_documents(
    'E2E oficiální podmínky','https://example.invalid/e2e/open-source',
    '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z'),
   ('e2e-doc-uncertain','grant:e2e:unsafe-url','e2e-source-open','CALL_DOCUMENT',
-   'E2E doklad s neověřitelným datem stažení','https://example.invalid/e2e/uncertain-source',
+   NULL,'https://example.invalid/e2e/uncertain-source',
    '2026-09-20T08:00:00Z','2026-09-26T20:00:00Z');
 
 INSERT INTO document_versions(
