@@ -271,6 +271,26 @@ describe("search API client", () => {
     expect((await searchGrants("alpha", undefined, "cursor")).nextCursor).toBeNull();
   });
 
+  it("rejects a multi-page cursor cycle but permits retry with a new cursor", async () => {
+    const result = { grantCallVersionId: "v3", grantCallId: "g3", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      matchKind: "DIRECT" };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: "cursor-a", facets: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    const seenCursors = new Set(["cursor-a", "cursor-b"]);
+    await expect(searchGrants("alpha", undefined, "cursor-b", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["v1", "v2"]),
+      new Set(["g1", "g2"]), seenCursors)).rejects.toMatchObject({
+      code: "INVALID_SEARCH_RESPONSE", status: 200,
+    });
+    body.nextCursor = "cursor-c";
+    expect((await searchGrants("alpha", undefined, "cursor-b", undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined, new Set(["v1", "v2"]),
+      new Set(["g1", "g2"]), seenCursors)).nextCursor).toBe("cursor-c");
+    expect(seenCursors).toEqual(new Set(["cursor-a", "cursor-b"]));
+  });
+
   it("accepts a complete response with source-specific result fields and facets", async () => {
     const body = { intent: "alpha", expandedTerms: ["sport"], indexState: "READY", nextCursor: "next",
       facets: { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
