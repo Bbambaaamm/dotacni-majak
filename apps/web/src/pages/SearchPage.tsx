@@ -441,6 +441,12 @@ export function SearchPage() {
           }}>
             Zkusit vyhledávání znovu
           </button>
+          {activeFilters.length > 0 || sortOrder !== "RELEVANCE" ? (
+            <a className="button button--secondary button-link"
+              href={`/hledat?intent=${encodeURIComponent(intent)}`}>
+              Zrušit filtry a zkusit hledání znovu
+            </a>
+          ) : null}
           <a className="button button--secondary button-link" href="/">
             Upravit záměr
           </a>
