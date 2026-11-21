@@ -106,7 +106,7 @@ export async function searchGrants(
       response.status,
     );
   }
-  if (!isSearchResponse(body, intent) || (cursor && body.nextCursor === cursor)) {
+  if (!isSearchResponse(body, intent) || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));
