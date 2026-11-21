@@ -221,6 +221,11 @@ SELECT 'gcv-e2e-page-' || i,'grant:e2e:page:' || i,1,'2026-09-26T20:00:00Z',
 UPDATE grant_calls SET current_version_id = 'gcv-e2e-page-' || substr(id, length('grant:e2e:page:') + 1)
 WHERE id LIKE 'grant:e2e:page:%';
 
+-- OPEN non-grant sentinel: the project CTA must not promise a grant or eligibility.
+UPDATE grant_call_versions SET funding_instrument_type='LOAN' WHERE id='gcv-e2e-page-24';
+INSERT INTO funding_scenarios(id,grant_call_version_id,name,instrument_type,currency_code)
+VALUES ('e2e-funding-open-loan','gcv-e2e-page-24','E2E otevřený úvěr','LOAN','CZK');
+
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)
 INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,grant_call_id,
   first_seen_at,last_seen_at,presence_state,missing_run_count,content_hash)
