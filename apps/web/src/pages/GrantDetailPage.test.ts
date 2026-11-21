@@ -2,7 +2,26 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ChangeEventDate, DetailMetadataDate, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+import { formatMinorMoney } from "../lib/sharedProject";
+import { ChangeEventDate, DetailMetadataDate, formatMinor, SourceDeadline, SourceObservation } from "./GrantDetailPage";
+
+describe("detail currency minor units", () => {
+  it.each([
+    [1234, "JPY"],
+    [1234, "KWD"],
+    [1234, "CZK"],
+  ])("displays %s minor units of %s using the currency exponent", (minor, currency) => {
+    expect(formatMinor(minor, currency)).toBe(formatMinorMoney(minor, currency));
+  });
+
+  it("does not present unsafe amounts as verified major-unit money", () => {
+    expect(formatMinor(Number.MAX_SAFE_INTEGER + 1, "CZK"))
+      .toBe("Částku nelze bezpečně zobrazit; ověřte ji u poskytovatele.");
+    expect(formatMinor(1234, "not-a-currency"))
+      .toBe("Částku nelze bezpečně zobrazit; ověřte ji u poskytovatele.");
+    expect(formatMinor(null, "CZK")).toBe("Není uvedeno");
+  });
+});
 
 describe("detail source deadline", () => {
   it.each([
