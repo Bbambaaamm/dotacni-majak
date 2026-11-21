@@ -172,6 +172,19 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).sources).toEqual([]);
   });
 
+  it("preserves source-defined payment modes while rejecting non-string finance data", async () => {
+    for (const paymentMode of [false, 0, { mode: "CASH" }]) {
+      respond({ ...detail, fundingScenarios: [{ ...detail.fundingScenarios[0], paymentMode }] });
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    for (const paymentMode of [null, "UNKNOWN", "ADVANCE", "REIMBURSEMENT", "MIXED", "CASH"]) {
+      respond({ ...detail, fundingScenarios: [{ ...detail.fundingScenarios[0], paymentMode }] });
+      expect((await fetchGrantDetail("grant:one")).fundingScenarios[0].paymentMode).toBe(paymentMode);
+    }
+  });
+
   it("rejects unknown requirement necessity instead of demoting it to recommended", async () => {
     for (const necessity of ["MANDATORY", "", "UNKNOWN", null]) {
       respond({ ...detail, requirements: [{ ...detail.requirements[0], necessity }] });

@@ -110,7 +110,11 @@ function paymentModeLabel(mode: string | null): string {
     case "ADVANCE": return "Zálohová platba";
     case "REIMBURSEMENT": return "Proplacení po úhradě nákladů";
     case "MIXED": return "Kombinovaný režim";
-    default: return "Není doložen";
+    case "UNKNOWN":
+    case null: return "Není doložen";
+    default: return mode.trim()
+      ? `Jiný režim uvedený u scénáře: ${mode}. Ověřte způsob platby u poskytovatele.`
+      : "Režim platby je uveden bez hodnoty; ověřte jej u poskytovatele.";
   }
 }
 
