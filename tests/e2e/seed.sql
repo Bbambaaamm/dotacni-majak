@@ -165,6 +165,12 @@ INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at,timez
 VALUES ('e2e-deadline-open','gcv-e2e-open','APPLICATION_CLOSE',
         '2027-12-31T23:59:59Z','UTC','Přesný konec příjmu žádostí','e2e-fe-deadline');
 
+-- Source text intentionally retained as-is: date-only and malformed values must not
+-- be silently treated as verified application deadlines by the detail UI.
+INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,starts_at,ends_at,description)
+VALUES ('e2e-deadline-uncertain','gcv-e2e-unsafe-url','DOCUMENT_COMPLETION',
+        '2027-06-01','datum-nejasne','Syntetický neověřený termín');
+
 INSERT INTO grant_requirements(id,grant_call_version_id,requirement_type,title,necessity,evidence_id)
 VALUES
   ('e2e-req-budget','gcv-e2e-open','DOCUMENT','Připravit rozpočet projektu','REQUIRED','e2e-fe-summary'),

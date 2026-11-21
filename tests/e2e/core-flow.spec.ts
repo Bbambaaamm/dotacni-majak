@@ -2,6 +2,32 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("detail marks only malformed source deadline from real D1/API at mobile width", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Aunsafe-url";
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    submissionCloseAt: string | null;
+    deadlines: Array<{ id: string; startsAt: string | null; endsAt: string | null }>;
+  };
+  expect(detail.submissionCloseAt).toBeNull();
+  expect(detail.deadlines.find((item) => item.id === "e2e-deadline-uncertain"))
+    .toMatchObject({ startsAt: "2027-06-01", endsAt: "datum-nejasne" });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  const quickFacts = page.getByRole("heading", { name: "Rychlý přehled" }).locator("..");
+  await expect(quickFacts.getByText("Není uvedeno")).toHaveCount(2);
+  await expect(quickFacts.getByRole("note")).toHaveCount(0);
+  const deadline = page.getByRole("region", { name: "Termíny podle zdroje" })
+    .locator("li").filter({ hasText: "Syntetický neověřený termín" });
+  await expect(deadline).toContainText("datum-nejasne");
+  await expect(deadline.getByRole("note")).toContainText("Formát termínu není ověřen");
+  await expect(deadline.getByRole("note")).toHaveCount(1);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("unknown call status in a 200 detail fails closed then retries real D1 status", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
