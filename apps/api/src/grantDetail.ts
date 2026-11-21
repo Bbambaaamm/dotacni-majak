@@ -453,7 +453,9 @@ export async function getGrantDetail(
       type: "APPLICATION_WINDOW",
       startsAt: base.submission_open_at,
       endsAt: base.submission_close_at,
-      timezone: "UTC",
+      // Version timestamps retain their own precision/offset; the version has
+      // no independent source timezone to attribute to this synthetic row.
+      timezone: null,
       description: null,
       evidenceId: null,
     });
