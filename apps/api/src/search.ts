@@ -174,11 +174,16 @@ function parseDate(value: string | null, code: "INVALID_CLOSES_BY" | "INVALID_CL
 // Only well-formed source calendar dates can participate in a bounded UTC interval.
 const BOUNDED_DATE = `(d.submission_close_at GLOB '????-??-??' OR d.submission_close_at GLOB '????-??-??T??:??:??*')
   AND strftime('%Y-%m-%d', substr(d.submission_close_at, 1, 10) || 'T00:00:00Z', '+0 days') = substr(d.submission_close_at, 1, 10)`;
+// Older SQLite builds normalize 24:00:00Z to the next day (or reject it),
+// while newer builds retain the written calendar day. Keep bounded queries
+// consistent with the source-day policy on all supported runtimes.
+const BOUNDED_CALENDAR_DAY = `CASE WHEN d.submission_close_at GLOB '????-??-??T24:00:00[Zz]'
+  THEN substr(d.submission_close_at, 1, 10) ELSE date(d.submission_close_at) END`;
 function dateFilters(closesFrom: string | null, closesBy: string | null): string {
   if (!closesFrom && !closesBy) return "";
   return `AND ${BOUNDED_DATE}
-    ${closesFrom ? "AND date(d.submission_close_at) >= ?" : ""}
-    ${closesBy ? "AND date(d.submission_close_at) <= ?" : ""}`;
+    ${closesFrom ? `AND ${BOUNDED_CALENDAR_DAY} >= ?` : ""}
+    ${closesBy ? `AND ${BOUNDED_CALENDAR_DAY} <= ?` : ""}`;
 }
 
 function parseSort(value: string | null): SearchSort {

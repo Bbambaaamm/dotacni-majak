@@ -70,16 +70,44 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
     && (item.matchKind === "DIRECT" || item.matchKind === "ONTOLOGY"));
 }
 
+function resultDateInWindow(value: string | null, closesFrom?: string, closesBy?: string): boolean {
+  if (!closesFrom && !closesBy) return true;
+  if (value === null) return false;
+  // SQLite accepts surrounding and pre-timezone whitespace in bounded dates;
+  // compare a normalized copy, never rewrite the source text shown to users.
+  const dateText = value.trim().replace(/\s+(?=[Zz]|[+-]\d{2}:\d{2}$)/, "");
+  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})?)?$/.test(dateText)) return false;
+  const sourceDate = dateText.slice(0, 10);
+  if (!Number.isFinite(Date.parse(`${sourceDate}T00:00:00Z`))
+    || new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) return false;
+  // SQLite keeps hour 24 on the written day at zero offset, while a nonzero
+  // offset can move its UTC day. Date.parse instead normalizes or rejects it.
+  const hour24 = dateText.includes("T24:");
+  const normalized = dateText.length > 10 && !/(?:[Zz]|[+-]\d{2}:\d{2})$/.test(dateText)
+    ? `${dateText}Z` : dateText.replace(/z$/, "Z");
+  const offset = normalized.match(/([+-]\d{2}:\d{2})$/)?.[1];
+  const comparable = hour24 ? normalized.replace("T24:", "T00:") : normalized;
+  const timestamp = Date.parse(dateText.length === 10 ? `${dateText}T00:00:00Z` : comparable);
+  if (!Number.isFinite(timestamp)) return false;
+  const date = hour24 && (!offset || offset === "+00:00" || offset === "-00:00")
+    ? sourceDate
+    : new Date(timestamp + (hour24 ? 86_400_000 : 0)).toISOString().slice(0, 10);
+  return (!closesFrom || date >= closesFrom) && (!closesBy || date <= closesBy);
+}
+
 function resultsMatchFilters(
   response: GrantSearchResponse,
   status?: "OPEN" | "PLANNED" | "ANNOUNCED",
   deadline?: "KNOWN" | "UNKNOWN",
   provider?: string,
+  closesFrom?: string,
+  closesBy?: string,
 ): boolean {
   return response.results.every((result) =>
     (!status || result.status === status)
     && (!deadline || (result.submissionCloseAt === null ? "UNKNOWN" : "KNOWN") === deadline)
-    && (!provider || result.providerName === provider));
+    && (!provider || result.providerName === provider)
+    && resultDateInWindow(result.submissionCloseAt, closesFrom, closesBy));
 }
 
 function facetsCoverResults(response: GrantSearchResponse): boolean {
@@ -150,7 +178,7 @@ export async function searchGrants(
     );
   }
   if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
-    || !resultsMatchFilters(body, status, deadline, provider)
+    || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
     || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
