@@ -2760,7 +2760,8 @@ test("failed filtered search offers a clean intent-only retry against real D1 on
   await expect(reset).toBeVisible();
   await reset.focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(`/hledat?intent=${encodeURIComponent(intent)}`);
+  await expect(page).toHaveURL((url) => url.pathname === "/hledat"
+    && [...url.searchParams.entries()].length === 1 && url.searchParams.get("intent") === intent);
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Zrušit filtry a zkusit hledání znovu" })).toHaveCount(0);
@@ -2768,7 +2769,8 @@ test("failed filtered search offers a clean intent-only retry against real D1 on
   await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
   await expect(page.locator(".grant-card")).toHaveCount(0);
   await page.getByRole("link", { name: "Zrušit filtry a zkusit hledání znovu" }).click();
-  await expect(page).toHaveURL(`/hledat?intent=${encodeURIComponent(intent)}`);
+  await expect(page).toHaveURL((url) => url.pathname === "/hledat"
+    && [...url.searchParams.entries()].length === 1 && url.searchParams.get("intent") === intent);
   await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
