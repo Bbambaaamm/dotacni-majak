@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Čitelnost rozhodnutí na mobilu i desktopu (#400, dílčí slice)
+
+Před kartami zůstává viditelný počet dosud načtených výsledků (nikoli celkový počet shod), upozornění, že relevance není způsobilost ani výše podpory, a výzva ověřit aktuální příjem a uzávěrku u oficiálního zdroje. Sekundární technická pravidla globálních filtrů, počtů, rozpočtu a řazení jsou dostupná přes nativní klávesnicově ovladatelný `<details>`; nejsou odstraněna ani vydávána za posouzení žadatele. Volba termínu bez údaje se uživateli jmenuje „Termín neuveden“, zatímco API/URL dál používají kanonickou hodnotu `UNKNOWN`. Reálné D1/API/Chromium E2E ověřuje na mobilu i desktopu viditelná varování, skryté/rozbalitelné vysvětlení, keyboard, axe a reflow; dosavadní testy globálního filtrování zůstávají zachovány.
+
 ## Neověřitelný formát zdrojového termínu (#400, dílčí slice)
 
 Na výsledkové kartě zůstává nenulový zdrojový text termínu beze změny, i když nejde o kalendářně platný den či parsovatelný timestamp s časovým pásmem. Bezprostředně u takové hodnoty je textové upozornění, že formát nelze automaticky ověřit a uzávěrku je nutné potvrdit v oficiálních podmínkách. Platný zdrojový datum-only údaj se nezaměňuje za chybu; `null` zůstává „Není uvedeno“ (UNKNOWN), nikoli neplatným datem. Upozornění není úsudkem o způsobilosti ani změnou kontraktu API: `KNOWN` stále znamená pouze nenulový údaj a kalendářní filtry na serveru dál neparsovatelné hodnoty vyřazují. Unit regresní test pokrývá platný den, timestamp s offsetem, chybné datum a libovolný text; browser E2E ověřuje skutečné D1/API fixture s validními, chybnými a nulovými termíny na desktopu i mobilu včetně axe a reflow.
