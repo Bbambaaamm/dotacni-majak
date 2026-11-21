@@ -487,7 +487,7 @@ SELECT 'e2e-change-history-' || printf('%02d',i),'grant:e2e:history',
 INSERT INTO change_events(id,grant_call_id,from_version_id,to_version_id,change_type,
   severity,field_path,created_at)
 VALUES ('e2e-change-unverified-date','grant:e2e:reactivated',
-  'gcv-e2e-reactivated-21','gcv-e2e-reactivated-22','OTHER','INFORMATIONAL',
+  'gcv-e2e-reactivated-21','gcv-e2e-reactivated-22','OTHER','CRITICAL',
   '/e2e/unverified-date','2026-02-30T12:00:00Z');
 
 -- Isolated zero-decimal currency: the UI must not divide JPY minor units by 100.
