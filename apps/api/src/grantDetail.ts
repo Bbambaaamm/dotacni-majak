@@ -295,7 +295,7 @@ export async function getGrantDetail(
         p.official_url AS provider_official_url
       FROM grant_calls g
       JOIN grant_call_versions v
-        ON v.id = g.current_version_id
+        ON v.id = g.current_version_id AND v.grant_call_id = g.id
       JOIN programmes pr
         ON pr.id = g.programme_id
       JOIN providers p
