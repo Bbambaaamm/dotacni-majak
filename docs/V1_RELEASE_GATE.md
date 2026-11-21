@@ -19,6 +19,7 @@ Před v1.0 musí být pro konkrétní release commit doloženo:
 - accessibility automation green,
 - production build/dry-run green,
 - dependency/security scan bez neakceptovaných critical findings,
+- CodeQL SAST scan acceptable (žádná nová findings v scope, nebo všechny findings recenzované a accepted v SARIF baseline),
 - UsageBudgetManager pod definovanou bezpečnostní hranicí nebo s otestovanou degradací.
 
 ## Manuální / review gatey
@@ -64,6 +65,39 @@ Nelze vydat v1.0 s:
 - automatickým placeným upgrade,
 - veřejným citlivým project/applicant payloadem,
 - nevyřešenou critical dependency vulnerability bez explicitního risk acceptance.
+
+## CodeQL SAST gate
+
+Workflow `.github/workflows/codeql.yml` spouští GitHub CodeQL na push/PR do `main`
+i týdně na `ubuntu-latest`, analyzuje `javascript-typescript` + `python` a
+používá `security-extended` query suite podle `.github/codeql-config.yml`.
+
+**Baseline policy:**
+- Konfigurační soubor `.github/codeql-config.yml` definuje scope (aplikace, source
+  SDK, ingestion pipeline, konektory, doméní balíčky) a exclusions (transients,
+  worktrees, golden fixtures, E2E data, generované soubory, scripts, release data,
+  migrace, data, research). Exclusio je pro generovaná/transient/test data, ne pro
+  maskování neopravených findings v reálném kódu.
+- `query-ignore` je zatím prázdný — žádná před-seed suppression bez recenzovaných
+  findings. Každý query suppression musí přijít PRem s justifikací (false positive,
+  accepted risk s expirací, detector limitace) a odkazem na tuto konfiguraci.
+- Po prvním úspěšném CodeQL run na main se vytvoří SARIF baseline známých accepted
+  findings. Až po ní se workflow hejguje jen na nová findings; starší accepted
+  findings jsou surfaced jako informational. Předtím selže na libovolné finding v
+  scope (fail-closed).
+
+**Fail-closed:** workflow nemá `continue-on-error: true`. Jakékoli finding v scope
+(před baseline) failuje PR. CodeQL action infrastrukturní selhání též failuje closed
+— degradace na "skip security scan" není bezpečná.
+
+**Secrets/PII:** workflow neexponuje secrets, ne loguje tokeny, ne loguje výsledky
+s PII. Výsledky jsou SARIF uploadnuty do GitHub security tab. Config a workflow jsou
+testovány na absence secret references v ne-komentářových řádcích přes
+`tests/python/test_sast_workflow_contract.py`.
+
+**Residual risk:** CodeQL zachycí statické patterns, nikoliv runtime abuse, business
+logic vulns, za-running napadení. Manual `security_threat_review` (v1 gate manual item)
+zůstává.
 
 ## Data quality gate
 
