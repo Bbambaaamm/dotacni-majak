@@ -1,5 +1,9 @@
 # Výsledky vyhledávání — globální stav, dostupnost termínu, datum uzávěrky a přesný poskytovatel (#400)
 
+## Jednoznačný seznam poskytovatelů (#400, dílčí slice)
+
+Klient odmítá i HTTP 200 s duplicitním jménem poskytovatele, prázdným nebo okrajově oříznutým jménem, nulovým počtem či více než 20 položkami. Serverový facet je seskupen přesně podle názvu a vrací pouze kladné počty; duplicitní volby by nabízely stejný filtr s různým počtem, a neplatné jméno by nešlo bezpečně odeslat. `providers: []` je platný prázdný seznam; chybějící záznam ve zkráceném seznamu ani `facets: null` nejsou nula. Při rozporu klient skryje odpověď a nabídne opakování proti skutečnému API, neodvozuje způsobilost ani nezaručuje snapshot indexu. Unit regresní test pokrývá neplatné a platné hranice.
+
 ## Soulad facetů s výsledky (#400, dílčí slice)
 
 Klient nepovažuje úspěšný HTTP 200 za důvěryhodný, pokud dostupný facet udává pro stav, dostupnost termínu nebo uvedeného poskytovatele méně shod než právě vrácené karty. V takovém případě nezobrazí rozporné počty ani výsledky a nabídne opakování; na další stránce zachová dosud načtené karty a cursor. Chybějící poskytovatel v úplném seznamu je rovněž rozpor; při `providersTruncated: true` může legitimně chybět. `facets: null` je nedostupný počet (nikoli nula) a zůstává platný. Kontrola se vztahuje jen na počet karet v aktuální odpovědi, neodvozuje celkový počet výzev ani snapshot při změně indexu mezi požadavky. Unit regresní testy pokrývají rozpory i platné neúplné facety; full-stack běh ověřuje skutečné D1/API a browser proti nezměněné odpovědi.
