@@ -153,6 +153,7 @@ export async function searchGrants(
   projectBudgetCzk?: string,
   seenVersionIds?: ReadonlySet<string>,
   seenCallIds?: ReadonlySet<string>,
+  seenCursors?: ReadonlySet<string>,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -179,7 +180,8 @@ export async function searchGrants(
   }
   if (!isSearchResponse(body, intent) || !facetsCoverResults(body)
     || !resultsMatchFilters(body, status, deadline, provider, closesFrom, closesBy)
-    || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))) {
+    || (cursor && (body.nextCursor === cursor || body.indexState === "EMPTY"))
+    || (body.nextCursor !== null && seenCursors?.has(body.nextCursor))) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));

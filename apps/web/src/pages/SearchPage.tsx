@@ -54,6 +54,7 @@ export function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const moreController = useRef<AbortController | null>(null);
+  const seenCursors = useRef(new Set<string>());
   const filterPanel = useRef<HTMLDetailsElement | null>(null);
   const retryButton = useRef<HTMLButtonElement | null>(null);
   const loadMoreButton = useRef<HTMLButtonElement | null>(null);
@@ -260,6 +261,7 @@ export function SearchPage() {
 
     const controller = new AbortController();
     moreController.current?.abort();
+    seenCursors.current.clear();
     setData(null);
     setLoading(true);
     setError(null);
@@ -271,6 +273,7 @@ export function SearchPage() {
       instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined)
       .then((result) => {
         if (controller.signal.aborted) return;
+        if (result.nextCursor) seenCursors.current.add(result.nextCursor);
         setData(result);
         setLoading(false);
       })
@@ -297,8 +300,10 @@ export function SearchPage() {
         deadlineFilter === "ALL" ? undefined : deadlineFilter, providerFilter || undefined, closesBy || undefined, sortOrder, closesFrom || undefined,
         instrumentFilter === "ALL" ? undefined : instrumentFilter, projectBudgetCzk || undefined,
         new Set(data.results.map((grant) => grant.grantCallVersionId)),
-        new Set(data.results.map((grant) => grant.grantCallId)));
+        new Set(data.results.map((grant) => grant.grantCallId)),
+        seenCursors.current);
       if (controller.signal.aborted) return;
+      if (page.nextCursor) seenCursors.current.add(page.nextCursor);
       setData((current) => {
         if (!current || current.nextCursor !== cursor) return current;
         return { ...current, nextCursor: page.nextCursor,
