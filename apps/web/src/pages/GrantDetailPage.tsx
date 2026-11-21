@@ -15,6 +15,7 @@ import {
 import { buildSearchUrl, readSearchUrlState } from "../lib/intent";
 import { grantCallIdFromWebPath } from "../lib/routes";
 import { safeOfficialUrl } from "../lib/safeOfficialUrl";
+import { sourceCalendarDate } from "../lib/sourceCalendarDate";
 import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
@@ -50,17 +51,6 @@ function verificationLabel(status: string): string {
     default:
       return status;
   }
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return "Není uvedeno";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("cs-CZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(parsed);
 }
 
 function deadlineLabel(type: string): string {
@@ -150,7 +140,7 @@ function lastSeenLabel(detail: GrantDetailResponse): string {
     .map((source) => ({ value: source.lastSeenAt, instant: Date.parse(source.lastSeenAt) }))
     .filter((observation) => Number.isFinite(observation.instant))
     .sort((a, b) => b.instant - a.instant)[0];
-  return latest ? formatDate(latest.value) : "Není doložena";
+  return latest ? sourceCalendarDate(latest.value) : "Není doložena";
 }
 
 export function GrantDetailPage() {
@@ -353,7 +343,7 @@ export function GrantDetailPage() {
               </div>
               <div>
                 <dt>Verze výzvy zachycena</dt>
-                <dd>{formatDate(detail.capturedAt)}</dd>
+                <dd>{sourceCalendarDate(detail.capturedAt)}</dd>
               </div>
               <div>
                 <dt>Poslední pozorování záznamu u zdroje</dt>
@@ -539,7 +529,7 @@ export function GrantDetailPage() {
                   <li key={change.id}>
                     <strong>{change.changeType}</strong>
                     {" · "}
-                    {formatDate(change.createdAt)}
+                    {sourceCalendarDate(change.createdAt)}
                     {change.fieldPath ? ` · ${change.fieldPath}` : ""}
                   </li>
                 ))}
@@ -560,7 +550,7 @@ export function GrantDetailPage() {
                   <li key={version.id}>
                     Verze {version.versionNumber}
                     {" · "}
-                    {formatDate(version.capturedAt)}
+                    {sourceCalendarDate(version.capturedAt)}
                     {" · "}
                     {statusLabel(version.status)}
                     {version.isCurrent ? " · aktuální" : ""}
@@ -592,7 +582,7 @@ export function GrantDetailPage() {
                     <br />
                     <strong>{sourcePresenceLabel(source.presenceState)}</strong>
                     <br />
-                    <small>Pozorováno {formatDate(source.lastSeenAt)}</small>
+                    <small>Pozorováno {sourceCalendarDate(source.lastSeenAt)}</small>
                   </li>
                 ))}
               </ul>
