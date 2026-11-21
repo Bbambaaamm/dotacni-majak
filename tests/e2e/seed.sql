@@ -234,6 +234,11 @@ INSERT INTO source_records(id,source_id,external_id,canonical_url,record_type,gr
 VALUES ('e2e-sr-page-23-seen','e2e-source-planned','E2E-PAGE-23-B',
   'https://example.invalid/e2e/page/23-b','GRANT_CALL','grant:e2e:page:23',
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z','SEEN',0,printf('%064d',123));
+-- Lexical order reverses chronological order across these source timezone offsets.
+UPDATE source_records SET last_seen_at='2026-10-01T23:30:00-10:00'
+WHERE id='e2e-sr-page-23';
+UPDATE source_records SET last_seen_at='2026-10-02T00:30:00+14:00'
+WHERE id='e2e-sr-page-23-seen';
 DELETE FROM source_records WHERE id='e2e-sr-page-24';
 
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 25)

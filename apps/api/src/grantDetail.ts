@@ -329,7 +329,7 @@ export async function getGrantDetail(
         FROM source_records sr
         JOIN source_registry s ON s.id = sr.source_id
         WHERE sr.grant_call_id = ?
-        ORDER BY sr.last_seen_at DESC, s.code ASC
+        ORDER BY julianday(sr.last_seen_at) DESC, sr.last_seen_at DESC, s.code ASC
         LIMIT 20
       `,
       grantCallId,

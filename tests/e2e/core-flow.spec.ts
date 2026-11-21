@@ -493,6 +493,41 @@ test("grant detail reports source presence without changing OPEN status", async 
   }
 });
 
+test("source observation uses the latest instant across offsets in detail and workspace", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A23");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { status: string; sources: Array<{ lastSeenAt: string }> };
+  expect(detail.status).toBe("OPEN");
+  expect(detail.sources.map((source) => source.lastSeenAt)).toEqual([
+    "2026-10-01T23:30:00-10:00",
+    "2026-10-02T00:30:00+14:00",
+  ]);
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A23");
+  await expect(page.getByRole("heading", { level: 1, name: "E2E stránkování 23" })).toBeVisible();
+  const observed = page.locator(".detail-section .facts").first().locator("div")
+    .filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first();
+  await expect(observed).toContainText("2. října 2026");
+  await expect(page.locator(".source-presence-caution")).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.getByRole("link", { name: "Přidat k projektu" }).click();
+  await page.getByRole("button", { name: "Vytvořit projekt" }).click();
+  await expect(page.getByRole("heading", { name: "Příprava žádosti · Dotáhne" })).toBeVisible();
+  const owner = await page.evaluate(() => JSON.parse(sessionStorage.getItem("dotacni-majak:active-project") || "null") as {
+    projectId: string; ownerCapability: string;
+  });
+  const base = `/api/projects/${owner.projectId}/workspaces`;
+  const headers = { authorization: `Bearer ${owner.ownerCapability}` };
+  const list = await page.request.get(base, { headers });
+  expect(list.status()).toBe(200);
+  const [{ id }] = (await list.json()).workspaces as Array<{ id: string }>;
+  const workspace = await page.request.get(`${base}/${id}`, { headers });
+  expect(workspace.status()).toBe(200);
+  expect((await workspace.json()).versionReview.sourceCheckedAt).toBe("2026-10-01T23:30:00-10:00");
+});
+
 test("mobile instrument selector filters real API and D1 before pagination", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=digitalizace%20obce");
