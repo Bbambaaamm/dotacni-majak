@@ -119,6 +119,9 @@ describe("bounded streaming request bodies", () => {
       ...(body === undefined ? {} : { body }),
     }));
     await expect(parse()).resolves.toBe(30);
+    await expect(parseShareOptions(new Request("https://example.test", {
+      method: "POST", headers: { "content-length": "0" },
+    }))).resolves.toBe(30);
     await expect(parse("{}")).resolves.toBe(30);
     for (const body of ["null", "", "   \n\t"]) {
       await expect(parse(body)).rejects.toMatchObject({

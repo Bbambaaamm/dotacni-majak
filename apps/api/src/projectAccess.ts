@@ -343,7 +343,8 @@ export async function revokeOwnerCapability(
 }
 
 export async function parseShareOptions(request: Request): Promise<number> {
-  if (!request.headers.get("content-length") && request.body === null) {
+  const declaredLength = request.headers.get("content-length");
+  if (request.body === null && (declaredLength === null || /^0+$/.test(declaredLength))) {
     return DEFAULT_SHARE_DAYS;
   }
   const body = await boundedJsonBody(request, BODY_LIMIT_BYTES.share);
