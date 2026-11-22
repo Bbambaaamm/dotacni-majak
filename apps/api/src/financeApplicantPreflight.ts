@@ -54,7 +54,7 @@ export async function preflightFinanceApplicantValues(
     return result("ERROR", "INVALID_PREFLIGHT_INPUT");
   let rows;
   try { rows = await db.batch([
-    db.prepare("SELECT id, created_at FROM applicant_profiles WHERE id = ? AND user_id = ? LIMIT 1").bind(profileId, principal),
+    db.prepare("SELECT id, created_at, ico, municipality_code FROM applicant_profiles WHERE id = ? AND user_id = ? LIMIT 1").bind(profileId, principal),
     db.prepare(`SELECT av.id, a.attribute_key, a.scope, a.data_type, a.active, av.value_type,
         substr(av.value_json, 1, 4097) AS value_json,
         length(CAST(av.value_json AS BLOB)) AS value_length,
@@ -81,7 +81,7 @@ export async function preflightFinanceApplicantValues(
   if (!Array.isArray(rows) || rows.length !== 2
     || rows.some((row) => !row?.success || !Array.isArray(row.results)))
     return result("ERROR", "SNAPSHOT_READ_FAILED");
-  const profiles = rows[0].results as { id: string; created_at: string }[];
+  const profiles = rows[0].results as { id: string; created_at: string; ico: string | null; municipality_code: string | null }[];
   if (profiles.length !== 1) return result("NEEDS_INFORMATION", "PROFILE_NOT_OWNED");
   const profileCreated = instant(profiles[0].created_at);
   const values = rows[1].results as ValueRow[];
@@ -90,6 +90,13 @@ export async function preflightFinanceApplicantValues(
   for (const row of values) {
     if (!row.id || !row.attribute_key?.startsWith("applicant.") || row.scope !== "APPLICANT"
       || row.active !== 1 || !validValue(row)) return result("NEEDS_INFORMATION", "UNSUPPORTED_ATTRIBUTE_VALUE");
+    // A sparse official assertion must not contradict the owner's canonical identity.
+    // This only checks internal consistency; it does not authenticate document contents.
+    const profileField = row.attribute_key === "applicant.ico" ? profiles[0].ico
+      : row.attribute_key === "applicant.municipality.code" ? profiles[0].municipality_code : null;
+    if (profileField !== null && (row.attribute_key === "applicant.ico"
+      || row.attribute_key === "applicant.municipality.code") && JSON.parse(row.value_json) !== profileField)
+      return result("NEEDS_INFORMATION", "PROFILE_ATTRIBUTE_CONFLICT");
     if (row.verification_status !== "VERIFIED" || !officialKinds.has(row.source_kind)
       || !row.evidence_id || row.trusted !== 1)
       return result("NEEDS_INFORMATION", "UNVERIFIED_OFFICIAL_ATTRIBUTE_EVIDENCE");

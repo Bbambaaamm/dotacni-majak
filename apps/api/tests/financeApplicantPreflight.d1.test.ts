@@ -87,6 +87,25 @@ describe("finance applicant preflight on canonical D1", () => {
     expect(await read(db, "owner-b")).toMatchObject({ status: "NEEDS_INFORMATION", reason: "PROFILE_NOT_OWNED" });
   });
 
+  it("withholds all IDs when a verified sparse identity contradicts the owned profile", async () => {
+    const db = await setup();
+    // The sparse value can be inserted or re-verified independently of the profile columns.
+    await db.prepare("UPDATE applicant_profiles SET ico='87654321' WHERE id='profile-a'").run();
+    await db.prepare("UPDATE applicant_attribute_values SET verification_status='VERIFIED', verified_at='2026-01-03T00:00:00Z' WHERE id='value-a'").run();
+    expect(await read(db)).toEqual({ status: "NEEDS_INFORMATION", reason: "PROFILE_ATTRIBUTE_CONFLICT",
+      profileId: null, attributeValueIds: [], evidenceIds: [] });
+    await db.prepare("UPDATE applicant_profiles SET ico='12345678' WHERE id='profile-a'").run();
+    await db.prepare("UPDATE applicant_attribute_values SET verification_status='VERIFIED', verified_at='2026-01-03T00:00:00Z' WHERE id='value-a'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+    await db.prepare("UPDATE applicant_profiles SET municipality_code='123456' WHERE id='profile-a'").run();
+    await db.prepare("UPDATE applicant_attribute_values SET attribute_definition_id='attr-applicant-municipality-code', value_type='GEO_ID', value_json='\"654321\"', verification_status='VERIFIED', verified_at='2026-01-03T00:00:00Z' WHERE id='value-a'").run();
+    await db.prepare("UPDATE field_evidence SET field_path='applicant.municipality.code' WHERE id='ev'").run();
+    expect(await read(db)).toEqual({ status: "NEEDS_INFORMATION", reason: "PROFILE_ATTRIBUTE_CONFLICT",
+      profileId: null, attributeValueIds: [], evidenceIds: [] });
+    await db.prepare("UPDATE applicant_attribute_values SET value_json='\"123456\"' WHERE id='value-a'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+  });
+
   it("fails closed on wrong evidence entity, path, verification, document and source", async () => {
     const db = await setup();
     for (const [table, column, bad, good] of [

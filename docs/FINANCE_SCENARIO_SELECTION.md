@@ -23,7 +23,12 @@ document. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` 
 `CZSO_POPULATION` registry codes (see `data/sources`); OTHER_OFFICIAL requires
 an official registry authority but has no more specific identity binding.
 Missing or inconsistent profile creation, source first-seen, observation, evidence,
-document retrieval or verification timestamps fail closed. `asOf` is an upper consistency bound; there is
+document retrieval or verification timestamps fail closed. When the owned profile has a
+non-null IČO or municipality code, the corresponding sparse official value must agree
+with it in the same D1 snapshot; conflicting values withhold all IDs and return
+`NEEDS_INFORMATION / PROFILE_ATTRIBUTE_CONFLICT`. Null profile fields remain unknown,
+not a claimed match. This consistency check does not authenticate source text.
+`asOf` is an upper consistency bound; there is
 no hard-coded maximum age or proven freshness policy. On success the result is
 `STRUCTURE_ONLY` with profile, value, and evidence IDs only. Failed checks release
 no value or evidence IDs. It never returns applicant values, a semantic `VERIFIED`
