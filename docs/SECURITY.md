@@ -50,6 +50,12 @@ Source authority registry, RAW SHA-256, quality gate, provenance, last-known-goo
 ### Resource abuse
 Request/body/file limits, concurrency/rate budgets, bounded search fan-out, UsageBudgetManager a caching.
 
+`POST /projects` přijímá pouze známá top-level JSON pole; neznámé pole nebo
+explicitně chybný typ volitelných polí vrací HTTP 400 před přístupem k D1.
+Chybová odpověď obsahuje jen stabilní kód, nikoli obsah požadavku. Vynechané
+nebo `null` volitelné hodnoty zachovávají výchozí hodnoty popsané v
+`docs/PROJECT_ACCESS_API.md`.
+
 `GET`/`HEAD /search` přijímá nejvýše 16 384 znaků v zakódovaném query stringu (bez `?`); delší dotaz vrací HTTP 400 `QUERY_TOO_LONG` před čtením D1. Každý známý parametr vyhledávání může být uveden nejvýše jednou, včetně `intent`, `limit` a `cursor`; opakování vrací HTTP 400 i při totožných hodnotách (`INVALID_INTENT`, `INVALID_LIMIT`, resp. `INVALID_CURSOR`). Chybové odpovědi obsahují pouze kód, nikoli text dotazu. Limit omezuje zpracování na úrovni API, ale nezastupuje limit celé URL na proxy/platformě, rate limiting ani ochranu proti mnoha samostatným požadavkům. Neznámé parametry pod touto hranicí zůstávají ignorovány.
 
 ## Release gates
