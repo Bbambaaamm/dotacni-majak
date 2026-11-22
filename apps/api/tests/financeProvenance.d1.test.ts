@@ -45,6 +45,32 @@ async function setup() {
 const read = (db: any) => verifyFinanceRuleProvenance(db, "call");
 
 describe("finance provenance on canonical D1", () => {
+  it("fails closed when a D1 snapshot read throws or returns an incomplete batch", async () => {
+    const db = await setup();
+    const normal = await read(db);
+    expect(normal.status).toBe("STRUCTURE_ONLY");
+    for (const brokenBatch of [
+      async () => { throw new Error("D1 unavailable"); },
+      async (statements: any[]) => (await db.batch(statements)).slice(0, 4),
+      async () => null,
+      async (statements: any[]) => {
+        const rows = await db.batch(statements);
+        return rows.map((row: any, index: number) => index === 4 ? { ...row, results: undefined } : row);
+      },
+      async (statements: any[]) => {
+        const rows = await db.batch(statements);
+        return rows.map((row: any, index: number) => index === 3 ? { ...row, success: false } : row);
+      },
+    ]) {
+      const brokenDb = { prepare: db.prepare.bind(db), batch: brokenBatch };
+      await expect(verifyFinanceRuleProvenance(brokenDb, "call")).resolves.toEqual({
+        status: "ERROR", reason: "SNAPSHOT_READ_FAILED", versionId: null,
+        ruleSetId: null, scenarioIds: [], conditionEvidenceIds: {},
+      });
+    }
+    expect(await read(db)).toEqual(normal);
+  });
+
   it("proves current-version membership and exact official rule/scenario evidence without applicant values", async () => {
     const db = await setup();
     expect(await read(db)).toEqual({ status: "STRUCTURE_ONLY", reason: "VERSION_BOUND_EVIDENCE_REFERENCES_ONLY",

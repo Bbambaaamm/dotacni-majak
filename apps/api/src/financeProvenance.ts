@@ -57,7 +57,8 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
     WHERE grant_call_version_id = (${versionIdSql}) ORDER BY id LIMIT 1`;
   // All five reads are bound to the same current-version subquery in one D1 batch
   // (one consistent SQLite snapshot); never trust a caller-provided version/ID.
-  const rows = await db.batch([
+  let rows;
+  try { rows = await db.batch([
     db.prepare(versionSql).bind(grantCallId),
     db.prepare(`SELECT id, completeness_status, verification_status FROM eligibility_rule_sets
       WHERE grant_call_version_id = (${versionIdSql}) ORDER BY id LIMIT 2`).bind(grantCallId),
@@ -92,8 +93,10 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
         THEN 1 ELSE 0 END AS trusted
       FROM funding_scenarios fs WHERE fs.grant_call_version_id = (${versionIdSql})
       ORDER BY fs.id LIMIT 65`).bind(grantCallId, grantCallId),
-  ]);
-  if (rows.some((row) => !row.success)) return result("ERROR", "SNAPSHOT_READ_FAILED");
+  ]); } catch { return result("ERROR", "SNAPSHOT_READ_FAILED"); }
+  if (!Array.isArray(rows) || rows.length !== 5
+    || rows.some((row) => !row?.success || !Array.isArray(row.results)))
+    return result("ERROR", "SNAPSHOT_READ_FAILED");
   const version = (rows[0].results ?? []) as Version[];
   if (version.length !== 1) return result("NEEDS_INFORMATION", "NO_CURRENT_VERSION");
   const versionId = version[0].id;

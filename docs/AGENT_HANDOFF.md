@@ -116,6 +116,9 @@ Pro OPEN s prázdným seznamem zdrojů, samými chybějícími nebo smíšenými
 ## Finanční částky v detailu
 Detail výzvy zobrazuje celočíselné `amount_minor` podle počtu desetinných míst měny (např. JPY 0, CZK 2, KWD 3), nikoli vždy dělené 100. Používá stejný formátovací kontrakt jako sdílený projekt. Neplatnou měnu nebo nebezpečně velké číslo nevydává za částku v hlavních jednotkách; chybějící částka zůstává „Není uvedeno“. Izolovaná syntetická JPY verze v E2E fixture dokládá cestu D1 → Detail API → mobilní prohlížeč; nejde o skutečnou nabídku podpory ani o výpočet individuální spoluúčasti. Dílčí úprava neuzavírá #401.
 
+## Finance — D1 provenance preflight (#304, partial)
+`verifyFinanceRuleProvenance` vrací při selhání nebo neúplné odpovědi jediné D1 dávky `ERROR / SNAPSHOT_READ_FAILED` bez ID scénářů či dokladů. Selhání čtení není neexistující verze ani důkaz platnosti podmínek. Úspěšný výsledek je stále pouze `STRUCTURE_ONLY`: nedokládá význam oficiálního textu, aktuálnost ani vazbu hodnot žadatele; neautorizuje personalizovanou částku nebo veřejné finance API.
+
 ## Finance/detail — partial #401 slice
 
 Detail čte dolní i horní mez dotace z již existujícího `grantAmountMinMinor` / `grantAmountMaxMinor`. U scénáře s pouze dolní mezí výslovně říká, že horní mez není uvedena; nejde o individuální příslib ani vypočtenou potřebu vlastních zdrojů. Non-grant scénáře nadále nezobrazují grantové částky. Ověření zahrnuje unit test a syntetickou D1 → skutečné Detail API → mobilní Chromium cestu s kontrolou accessibility. Celkové #401 a release gate zůstávají otevřené.
