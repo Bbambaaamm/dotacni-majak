@@ -24,7 +24,7 @@ type Scenario = { id: string; condition_group_id: string | null; trusted: number
 const scalarTypes = new Set(["STRING", "ENUM", "GEO_ID", "INTEGER", "NUMBER", "BOOLEAN", "MONEY_MINOR", "PERCENT_BPS"]);
 const operators = new Set(["EQ", "NEQ", "IN", "NOT_IN", "LT", "LTE", "GT", "GTE", "EXISTS", "NOT_EXISTS"]);
 function validOperand(value: unknown, type: string): boolean {
-  if (["STRING", "ENUM", "GEO_ID"].includes(type)) return typeof value === "string";
+  if (["STRING", "ENUM", "GEO_ID"].includes(type)) return typeof value === "string" && value.trim().length > 0;
   if (["INTEGER", "MONEY_MINOR", "PERCENT_BPS"].includes(type)) return typeof value === "number" && Number.isSafeInteger(value);
   if (type === "NUMBER") return typeof value === "number" && Number.isFinite(value);
   return type === "BOOLEAN" && typeof value === "boolean";
