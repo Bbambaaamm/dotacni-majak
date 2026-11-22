@@ -69,6 +69,8 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - po merge navazuj z čerstvého main; nepokračuj stacked historií přes squash bez vyčištění.
 
 ## Validace odpovědi vyhledávání
+
+U `DEADLINE` a `DEADLINE_LATEST` klient před připojením cursor stránky kontroluje pozorovatelné pořadí termínů uvnitř stránky i vůči poslední dřívější kartě. SQL používá `julianday(submission_close_at)` a řadí `NULL` na konec v obou směrech. Klient porovnává jen jednoznačné kalendářní datum nebo běžný čas s volitelným offsetem; u chybných či jinak zapsaných zdrojových údajů a rozdílů do 10 ms pořadí nevyvozuje. Rozporná stránka se odmítne s možností retry a dřívější karty zůstanou. Syntetický lokální D1/API/Chromium test ověřuje obě řazení přes cursor; nejde o úplnou validaci SQLite datových formátů ani o uzavření #400.
 Klient výsledků kontroluje úspěšnou odpověď Search API před vykreslením: záměr musí odpovídat požadavku, seznam výsledků, stránkovací kurzor a facets musí mít smluvený tvar. Stav `EMPTY` nesmí obsahovat výsledky ani další stránku; karta musí mít neprázdnou identitu, název a poskytovatele a aktivní stav (`OPEN`, `PLANNED`, `ANNOUNCED`). Neplatná či neúplná odpověď se zobrazí jako chyba s možností opakování; nesmí být vydávána za prázdný katalog nebo za konec stránkování.
 
 Karta smí vysvětlovat shodu přes širší význam (`ONTOLOGY`) jen tehdy, když úspěšná odpověď Search API obsahuje alespoň jeden neprázdný rozšířený pojem. Další stránka musí vracet stejné rozšířené pojmy jako první (jinak by připojené karty neměly odpovídající vysvětlení). Při rozporu klient nezobrazí nové karty a umožní bezpečné opakování; tematická shoda není způsobilost.

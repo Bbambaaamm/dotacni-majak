@@ -2749,6 +2749,32 @@ test("global date ordering moves a later-page deadline first and paginates missi
   expect(await invalid.json()).toEqual({ error: "INVALID_SORT" });
 });
 
+test("both date sorts keep real D1 cursor pages usable in Chromium", async ({ page, request }) => {
+  for (const sort of ["DEADLINE", "DEADLINE_LATEST"] as const) {
+    const firstResponse = await request.get(`/api/search?intent=strankovani&sort=${sort}`);
+    expect(firstResponse.status()).toBe(200);
+    const first = await firstResponse.json() as { results: Array<{ grantCallVersionId: string; submissionCloseAt: string | null }>; nextCursor: string | null };
+    expect(first.results).toHaveLength(20);
+    expect(first.results[0]).toMatchObject({ grantCallVersionId: "gcv-e2e-page-25",
+      submissionCloseAt: "2027-05-01T00:00:00Z" });
+    expect(first.nextCursor).toBeTruthy();
+    const nextResponse = await request.get(`/api/search?intent=strankovani&sort=${sort}&cursor=${encodeURIComponent(first.nextCursor!)}`);
+    expect(nextResponse.status()).toBe(200);
+    const next = await nextResponse.json() as { results: Array<{ submissionCloseAt: string | null }>; nextCursor: string | null };
+    expect(next.results).toHaveLength(5);
+    expect(next.results.every((result) => result.submissionCloseAt === null)).toBe(true);
+    expect(next.nextCursor).toBeNull();
+
+    await page.goto(`/hledat?intent=strankovani&sort=${sort}`);
+    await expect(page.locator(".grant-card")).toHaveCount(20);
+    await expect(page.locator(".grant-card h3").first()).toHaveText("E2E pozdější plánovaná výzva");
+    await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+    await expect(page.locator(".grant-card")).toHaveCount(25);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
+  }
+});
+
 test("date ordering retains direct and ontology match labels across null-date cursor boundaries", async ({ request }) => {
   for (const sort of ["DEADLINE", "DEADLINE_LATEST"]) {
     let cursor: string | null = null;

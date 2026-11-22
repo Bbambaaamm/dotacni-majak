@@ -133,6 +133,44 @@ function resultDateInWindow(value: string | null, closesFrom?: string, closesBy?
   return (!closesFrom || date >= closesFrom) && (!closesBy || date <= closesBy);
 }
 
+// Recognize only a small, unambiguous subset of SQLite date strings. SQLite's
+// julianday rounds fractional seconds and accepts other forms (including 24:00);
+// those forms cannot safely establish an ordering in the browser.
+function comparableCloseTime(value: string | null): number | null | undefined {
+  if (value === null) return null;
+  const match = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:([Zz])|([+-])(\d{2}):(\d{2}))?)?$/.exec(value);
+  if (!match || Number(match[1].slice(0, 4)) < 100) return undefined;
+  const day = Date.parse(`${match[1]}T00:00:00Z`);
+  if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== match[1]) return undefined;
+  if (match[2] === undefined) return day;
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4]);
+  const offsetHour = match[8] === undefined ? 0 : Number(match[8]);
+  const offsetMinute = match[9] === undefined ? 0 : Number(match[9]);
+  if (hour > 23 || minute > 59 || second > 59 || offsetHour > 14
+    || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return undefined;
+  const fraction = match[5] ? Number(`0.${match[5]}`) * 1000 : 0;
+  const offset = match[7] ? (match[7] === "+" ? 1 : -1) * (offsetHour * 60 + offsetMinute) : 0;
+  return day + ((hour * 60 + minute - offset) * 60 + second) * 1000 + fraction;
+}
+
+function resultsInDateOrder(results: readonly GrantSearchResult[],
+  sort: "DEADLINE" | "DEADLINE_LATEST", previous?: GrantSearchResult): boolean {
+  const sequence = previous ? [previous, ...results] : results;
+  for (let index = 1; index < sequence.length; index += 1) {
+    const left = comparableCloseTime(sequence[index - 1].submissionCloseAt);
+    const right = comparableCloseTime(sequence[index].submissionCloseAt);
+    if (left === undefined || right === undefined) continue;
+    if (left === null) {
+      if (right !== null) return false; // SQL null sorts last in both directions.
+    } else if (right !== null && (sort === "DEADLINE" ? left - right > 10 : right - left > 10)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function resultsMatchFilters(
   response: GrantSearchResponse,
   status?: "OPEN" | "PLANNED" | "ANNOUNCED",
@@ -213,6 +251,7 @@ export async function searchGrants(
   seenCursors?: ReadonlySet<string>,
   expectedExpandedTerms?: readonly string[],
   previousMatchKind?: SearchMatchKind,
+  previousResult?: GrantSearchResult,
 ): Promise<GrantSearchResponse> {
   const params = new URLSearchParams({ intent });
   if (cursor) params.set("cursor", cursor);
@@ -253,6 +292,10 @@ export async function searchGrants(
   if ((!sort || sort === "RELEVANCE") && body.results.some((item, index) =>
     item.matchKind === "DIRECT" && (previousMatchKind === "ONTOLOGY"
       || body.results.slice(0, index).some((prior) => prior.matchKind === "ONTOLOGY")))) {
+    throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
+  }
+  if ((sort === "DEADLINE" || sort === "DEADLINE_LATEST")
+    && !resultsInDateOrder(body.results, sort, previousResult)) {
     throw new SearchApiError("INVALID_SEARCH_RESPONSE", response.status);
   }
   const pageIds = new Set(body.results.map((item) => item.grantCallVersionId));
