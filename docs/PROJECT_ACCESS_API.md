@@ -88,8 +88,16 @@ account-binding/recovery flow.
   pomalu dávkovaný stream vrací `408 REQUEST_TIMEOUT` bez vstupních dat a před
   jakoukoliv mutací DB. Pozdní čtení se zruší bez čekání na producenta.
   Deadline se záměrně nevztahuje na již zahájenou DB mutaci: timeout odpověď
-  by jinak mohla skrýt úspěšně dokončený zápis. Následující slice #550 musí
-  řešit souběžnost, runtime deadline a měřitelnost bez falešné jistoty.
+  by jinak mohla skrýt úspěšně dokončený zápis. Slice #550 zavádí níže uvedený
+  limit souběžnosti; runtime deadline a měřitelnost zůstávají samostatnou prací.
+- API Worker nyní přijme nejvýše 16 současně zpracovávaných běžných požadavků
+  **v jednom izolátu**. Sedmnáctý a další dostanou `503` s JSON
+  `{"error":"API_OVERLOADED"}`, `Retry-After: 1` (sekunda) a
+  `Cache-Control: no-store`; tělo ani DB se u odmítnutého požadavku nezpracují. Slot se uvolní
+  po dokončení odpovědi nebo chybě. `GET`/`HEAD /health` a `/ready` tento limit
+  obcházejí, aby šlo ověřit stav i při zaplnění; `/ready` stále kontroluje D1.
+  Limit není sdílený mezi izoláty ani instancemi, není globálním rate limitem
+  nebo ochranou proti distribuované zátěži a nestanovuje deadline DB operace.
 - Owner token projektu A nemůže spravovat projekt B.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní

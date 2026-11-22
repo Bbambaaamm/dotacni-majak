@@ -68,7 +68,34 @@ async function workspaceBody(request: Request): Promise<Record<string, unknown>>
   return body as Record<string, unknown>;
 }
 
+// Module scope is one Worker isolate, not a shared or distributed limit.
+export const MAX_IN_FLIGHT_REQUESTS = 16;
+let inFlightRequests = 0;
+
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
+  const pathname = new URL(request.url).pathname;
+  // Probes remain available while ordinary requests fill the isolate.
+  if ((request.method === "GET" || request.method === "HEAD")
+    && (pathname === "/health" || pathname === "/ready")) {
+    return routeRequest(request, env);
+  }
+
+  if (inFlightRequests >= MAX_IN_FLIGHT_REQUESTS) {
+    return json({ error: "API_OVERLOADED" }, {
+      status: 503,
+      headers: { "retry-after": "1" },
+    });
+  }
+
+  inFlightRequests += 1;
+  try {
+    return await routeRequest(request, env);
+  } finally {
+    inFlightRequests -= 1;
+  }
+}
+
+async function routeRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   try {
