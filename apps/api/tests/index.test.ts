@@ -184,6 +184,46 @@ describe("api worker", () => {
     expect(await response.json()).toEqual({ error: "INVALID_INSTRUMENT" });
   });
 
+  it("rejects repeated search intent, limit and cursor before D1, even when values agree", async () => {
+    for (const [query, error] of [
+      ["intent=one&intent=two", "INVALID_INTENT"],
+      ["intent=one&intent=one", "INVALID_INTENT"],
+      ["intent=test&limit=1&limit=2", "INVALID_LIMIT"],
+      ["intent=test&limit=1&limit=1", "INVALID_LIMIT"],
+      ["intent=test&cursor=one&cursor=two", "INVALID_CURSOR"],
+      ["intent=test&cursor=one&cursor=one", "INVALID_CURSOR"],
+    ]) {
+      const response = await handleRequest(new Request(`https://example.test/search?${query}`),
+        env(null, () => { throw new Error("D1 reached"); }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error });
+    }
+  });
+
+  it("bounds GET and HEAD search query strings before D1 without echoing input", async () => {
+    const oversized = `intent=test&${"unknown=x&".repeat(2000)}`;
+    expect(oversized.length).toBeGreaterThan(16 * 1024);
+    for (const method of ["GET", "HEAD"]) {
+      const response = await handleRequest(new Request(`https://example.test/search?${oversized}`, { method }),
+        env(null, () => { throw new Error("D1 reached"); }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "QUERY_TOO_LONG" });
+    }
+  });
+
+  it("accepts a large encoded search query within the 16 KiB cap", async () => {
+    const intent = "ž".repeat(500);
+    const base = new URL(`https://example.test/search?intent=${encodeURIComponent(intent)}&unused=`);
+    base.searchParams.set("unused", "x".repeat(16 * 1024 - 1 - (base.search.length - 1)));
+    expect(base.search.length - 1).toBe(16 * 1024 - 1);
+    const response = await handleRequest(new Request(base), env(null, (query, _values, mode) => {
+      if (mode === "first" && query.includes("SELECT EXISTS (")) return { count: 0 };
+      throw new Error("Unexpected D1 query");
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ intent, results: [], indexState: "EMPTY" });
+  });
+
   it("fails closed when search D1 is unavailable", async () => {
     const response = await handleRequest(new Request("https://example.test/search?intent=test"),
       env(null, () => { throw new Error("D1 unavailable"); }));

@@ -50,6 +50,8 @@ Source authority registry, RAW SHA-256, quality gate, provenance, last-known-goo
 ### Resource abuse
 Request/body/file limits, concurrency/rate budgets, bounded search fan-out, UsageBudgetManager a caching.
 
+`GET`/`HEAD /search` přijímá nejvýše 16 384 znaků v zakódovaném query stringu (bez `?`); delší dotaz vrací HTTP 400 `QUERY_TOO_LONG` před čtením D1. Každý známý parametr vyhledávání může být uveden nejvýše jednou, včetně `intent`, `limit` a `cursor`; opakování vrací HTTP 400 i při totožných hodnotách (`INVALID_INTENT`, `INVALID_LIMIT`, resp. `INVALID_CURSOR`). Chybové odpovědi obsahují pouze kód, nikoli text dotazu. Limit omezuje zpracování na úrovni API, ale nezastupuje limit celé URL na proxy/platformě, rate limiting ani ochranu proti mnoha samostatným požadavkům. Neznámé parametry pod touto hranicí zůstávají ignorovány.
+
 ## Release gates
 MVP: secure HTTP, RAW integrity, validation, dependency scanning, least-privilege CI.
 Beta: authorization tests, CSP/headers, parser hardening, abuse tests, share/privacy review.
