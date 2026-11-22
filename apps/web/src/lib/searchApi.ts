@@ -94,8 +94,8 @@ function isSearchResponse(value: unknown, intent: string): value is GrantSearchR
   const expandedTerms = value.expandedTerms as string[];
   return value.results.every((item: unknown) => isRecord(item)
     && (item.matchKind !== "ONTOLOGY" || expandedTerms.length > 0)
-    && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.length > 0
-    && typeof item.grantCallId === "string" && item.grantCallId.length > 0
+    && typeof item.grantCallVersionId === "string" && item.grantCallVersionId.trim().length > 0
+    && typeof item.grantCallId === "string" && item.grantCallId.trim().length > 0
     && typeof item.title === "string" && item.title.trim().length > 0
     && typeof item.summary === "string"
     && (item.status === "OPEN" || item.status === "PLANNED" || item.status === "ANNOUNCED")

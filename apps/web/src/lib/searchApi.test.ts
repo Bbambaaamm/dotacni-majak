@@ -39,7 +39,8 @@ describe("search API client", () => {
       { ...valid, indexState: "EMPTY" },
       { ...valid, indexState: "EMPTY", results: [], nextCursor: "more" },
       ...[
-        { grantCallVersionId: "" }, { grantCallId: "" }, { title: "  " },
+        { grantCallVersionId: "" }, { grantCallVersionId: "  " },
+        { grantCallId: "" }, { grantCallId: "\t" }, { title: "  " },
         { providerName: "  " }, { status: "CANCELLED" }, { status: "UNVERIFIED" },
       ].map((change) => ({ ...valid, results: [{ ...result, ...change }] })),
     ]) {
