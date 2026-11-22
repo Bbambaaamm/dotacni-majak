@@ -2043,6 +2043,38 @@ test("a terminal first page cannot hide real D1 matches counted by facets", asyn
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
 });
 
+test("mobile status filter rejects a terminal page hiding matches and retries real D1/API", async ({ page, request }) => {
+  const url = "/api/search?intent=strankovani&status=PLANNED";
+  const actual = await request.get(url);
+  expect(actual.status()).toBe(200);
+  const body = await actual.json() as { results: unknown[]; nextCursor: string | null;
+    facets: { deadline: { KNOWN: number; UNKNOWN: number };
+      providers: Array<{ name: string; count: number }> } | null };
+  expect(body.results).toHaveLength(1);
+  expect(body.nextCursor).toBeNull();
+  expect(body.facets?.deadline.KNOWN).toBe(1);
+  expect(body.facets?.providers).toHaveLength(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const corruptPage = async (route: import("@playwright/test").Route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const real = await response.json() as typeof body;
+    await route.fulfill({ response, json: { ...real, facets: { ...real.facets!,
+      deadline: { ...real.facets!.deadline, KNOWN: 2 },
+      providers: real.facets!.providers.map((item) => ({ ...item, count: 2 })),
+    } } });
+  };
+  await page.route("**/api/search?*", corruptPage);
+  await page.goto("/hledat?intent=strankovani&status=PLANNED");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  await page.unroute("**/api/search?*", corruptPage);
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+});
+
 test("oversized continuation from real D1/API keeps old cards and retries the original cursor", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");

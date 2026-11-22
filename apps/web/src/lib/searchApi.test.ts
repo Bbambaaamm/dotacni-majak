@@ -166,6 +166,34 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).nextCursor).toBe("more");
   });
 
+  it("checks the comparable facet total on terminal pages with one selected filter", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const facets = { status: { OPEN: 1, PLANNED: 1, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 2 }, providers: [{ name: "Obec", count: 2 }],
+      providersTruncated: false };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    await expect(searchGrants("alpha", undefined, undefined, "OPEN"))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    await expect(searchGrants("alpha", undefined, undefined, undefined, "UNKNOWN"))
+      .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+
+    // Each facet omits its own filter, so neither total describes both filters.
+    const bothFacets = { ...facets, deadline: { KNOWN: 0, UNKNOWN: 1 },
+      providers: [{ name: "Obec", count: 1 }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      facets: bothFacets }), { status: 200 })));
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).results).toEqual([result]);
+
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      facets: null }), { status: 200 })));
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN")).results).toEqual([result]);
+    expect((await searchGrants("alpha", undefined, undefined, undefined, "UNKNOWN")).results).toEqual([result]);
+  });
+
   it("checks complete provider counts against the comparable unfiltered facet population", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
@@ -331,17 +359,17 @@ describe("search API client", () => {
       vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
         ...body, facets: { ...facets, providers },
       }), { status: 200 })));
-      await expect(searchGrants("alpha", undefined, undefined, "OPEN")).rejects.toMatchObject({
+      await expect(searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).rejects.toMatchObject({
         code: "INVALID_SEARCH_RESPONSE", status: 200,
       });
     }
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
-    expect((await searchGrants("alpha", undefined, undefined, "OPEN")).facets?.providers).toEqual(facets.providers);
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).facets?.providers).toEqual(facets.providers);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       ...body, facets: { ...facets, status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
         deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [] },
     }), { status: 200 })));
-    expect((await searchGrants("alpha", undefined, undefined, "OPEN")).facets?.providers).toEqual([]);
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).facets?.providers).toEqual([]);
   });
 
   it("rejects provider facets outside API count-descending, SQLite name-ascending order", async () => {
@@ -358,10 +386,10 @@ describe("search API client", () => {
       vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
         facets: { ...body.facets, providers: changed },
       }), { status: 200 })));
-      await expect(searchGrants("alpha", undefined, undefined, "OPEN")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      await expect(searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
     }
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
-    expect((await searchGrants("alpha", undefined, undefined, "OPEN")).facets?.providers).toEqual(providers);
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).facets?.providers).toEqual(providers);
   });
 
   it("rejects an oversized page on initial search and continuation, while accepting the 20-card boundary", async () => {
