@@ -91,10 +91,18 @@ export function SearchPage() {
   useEffect(() => {
     const mobile = window.matchMedia("(max-width: 800px)");
     const update = () => {
+      const panel = filterPanel.current;
+      // CSS can hide the close button before this media-change event runs,
+      // moving focus to body. Restore a visible target in either case.
+      const active = document.activeElement;
+      if (!mobile.matches && panel?.open && mobileFiltersOpen.current &&
+          (panel.contains(active) || active === document.body)) {
+        panel.querySelector("summary")?.focus();
+      }
       mobileFiltersOpen.current = false;
       setMobileDialogOpen(false);
       setIsMobile(mobile.matches);
-      if (filterPanel.current) filterPanel.current.open = !mobile.matches;
+      if (panel) panel.open = !mobile.matches;
     };
     mobile.addEventListener("change", update);
     return () => mobile.removeEventListener("change", update);

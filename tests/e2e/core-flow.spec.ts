@@ -186,11 +186,23 @@ test("mobile filters form a keyboard-contained sheet over real D1 search", async
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.setViewportSize({ width: 800, height: 844 });
+  await trigger.click();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  const closeOnResize = dialog.getByRole("button", { name: "Zavřít filtry" });
+  await closeOnResize.focus();
+  await expect(closeOnResize).toBeFocused();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
   await page.setViewportSize({ width: 801, height: 844 });
   await expect(page.locator(".filter-panel")).toHaveAttribute("open");
   await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
   await expect(page.getByRole("button", { name: "Zavřít filtry" })).toBeHidden();
   expect(await page.locator(".results-list").evaluate((node) => (node as HTMLElement).inert)).toBe(false);
+  await expect.poll(() => page.evaluate(() => ({
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }))).toEqual({ position: "static", overflow: "visible" });
   await page.setViewportSize({ width: 800, height: 844 });
   await expect(page.locator(".filter-panel")).not.toHaveAttribute("open");
   await trigger.click();
