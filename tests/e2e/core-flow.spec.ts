@@ -2776,6 +2776,10 @@ test("both date sorts keep real D1 cursor pages usable in Chromium", async ({ pa
 });
 
 test("real D1 dates order by UTC instant in both directions, with nulls last across cursors and browser cards", async ({ page, request }) => {
+  const earlySource = "2027-05-01T23:00:00+04:00";
+  const lateSource = "2027-05-01T20:30:00Z";
+  expect(earlySource > lateSource).toBe(true); // Lexical sort would choose the wrong first row.
+  expect(Date.parse(earlySource)).toBeLessThan(Date.parse(lateSource));
   const expected = [
     { sort: "DEADLINE", ids: ["gcv-e2e-chronology-1", "gcv-e2e-chronology-2", "gcv-e2e-chronology-3"],
       titles: ["E2E chronologie dříve", "E2E chronologie později", "E2E chronologie bez termínu"] },
@@ -2796,7 +2800,8 @@ test("real D1 dates order by UTC instant in both directions, with nulls last acr
     } while (cursor);
     expect(seen.map((row) => row.grantCallVersionId)).toEqual(ids);
     expect(seen[2].submissionCloseAt).toBeNull();
-    expect(seen[0].submissionCloseAt).not.toBe(seen[1].submissionCloseAt);
+    expect(seen.find((row) => row.grantCallVersionId === "gcv-e2e-chronology-1")?.submissionCloseAt).toBe(earlySource);
+    expect(seen.find((row) => row.grantCallVersionId === "gcv-e2e-chronology-2")?.submissionCloseAt).toBe(lateSource);
 
     await page.goto(`/hledat?intent=chronotestfixture&sort=${sort}`);
     await expect(page.locator(".grant-card h3")).toHaveText(titles);

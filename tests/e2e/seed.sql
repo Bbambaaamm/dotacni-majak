@@ -575,8 +575,8 @@ FROM grant_search_documents WHERE grant_call_version_id='gcv-e2e-open';
 -- Isolated chronology fixture: lexical timestamp order disagrees with UTC order.
 -- The third result has no documented closing date and must always sort last.
 WITH rows(ordinal, title, close_at) AS (
-  VALUES (1, 'E2E chronologie dříve', '2027-05-01T20:30:00Z'),
-         (2, 'E2E chronologie později', '2027-05-01T23:00:00+02:00'),
+  VALUES (1, 'E2E chronologie dříve', '2027-05-01T23:00:00+04:00'),
+         (2, 'E2E chronologie později', '2027-05-01T20:30:00Z'),
          (3, 'E2E chronologie bez termínu', NULL)
 )
 INSERT INTO grant_calls(id,programme_id,canonical_code,canonical_slug,current_version_id,
@@ -586,8 +586,8 @@ SELECT 'grant:e2e:chronology:' || ordinal,'e2e-programme-open','E2E-CHRONOLOGY-'
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z',
   '2026-09-26T20:00:00Z','2026-09-26T20:00:00Z' FROM rows;
 WITH rows(ordinal, title, close_at) AS (
-  VALUES (1, 'E2E chronologie dříve', '2027-05-01T20:30:00Z'),
-         (2, 'E2E chronologie později', '2027-05-01T23:00:00+02:00'),
+  VALUES (1, 'E2E chronologie dříve', '2027-05-01T23:00:00+04:00'),
+         (2, 'E2E chronologie později', '2027-05-01T20:30:00Z'),
          (3, 'E2E chronologie bez termínu', NULL)
 )
 INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
@@ -599,8 +599,8 @@ SELECT 'gcv-e2e-chronology-' || ordinal,'grant:e2e:chronology:' || ordinal,1,
 UPDATE grant_calls SET current_version_id = 'gcv-e2e-chronology-' || substr(id, length('grant:e2e:chronology:') + 1)
 WHERE id LIKE 'grant:e2e:chronology:%';
 WITH rows(ordinal, title, close_at) AS (
-  VALUES (1, 'E2E chronologie dříve', '2027-05-01T20:30:00Z'),
-         (2, 'E2E chronologie později', '2027-05-01T23:00:00+02:00'),
+  VALUES (1, 'E2E chronologie dříve', '2027-05-01T23:00:00+04:00'),
+         (2, 'E2E chronologie později', '2027-05-01T20:30:00Z'),
          (3, 'E2E chronologie bez termínu', NULL)
 )
 INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
