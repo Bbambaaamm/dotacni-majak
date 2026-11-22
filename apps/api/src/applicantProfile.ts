@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { readBoundedBody } from "./boundedBody";
 import {
   ApiInputError,
   hashOwnerToken,
@@ -145,14 +146,8 @@ export async function ownerUserId(
 export async function parseApplicantProfileInput(
   request: Request,
 ): Promise<ApplicantProfileInput> {
-  const declared = request.headers.get("content-length");
-  if (declared && Number(declared) > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
+  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
   if (!text.trim()) {
     throw new ApiInputError("EMPTY_BODY");
   }

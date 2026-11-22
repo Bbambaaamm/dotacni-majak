@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { readBoundedBody } from "./boundedBody";
 import {
   ApiInputError,
   bearerToken,
@@ -58,9 +59,8 @@ function projectOwnerPath(pathname: string): { projectId: string; action: "rotat
 }
 
 async function workspaceBody(request: Request): Promise<Record<string, unknown>> {
-  if (Number(request.headers.get("content-length")) > 4096) throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > 4096) throw new ApiInputError("REQUEST_TOO_LARGE", 413);
+  const text = await readBoundedBody(request, 4096,
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
   let body: unknown;
   try { body = JSON.parse(text); } catch { throw new ApiInputError("INVALID_JSON"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiInputError("INVALID_WORKSPACE_INPUT");

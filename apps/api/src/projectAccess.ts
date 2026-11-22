@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { hashShareToken } from "./share";
+import { readBoundedBody } from "./boundedBody";
 
 const OWNER_TOKEN_DOMAIN = "dotacni-majak-project-owner-v1\0";
 const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
@@ -351,14 +352,8 @@ export async function parseShareOptions(request: Request): Promise<number> {
 }
 
 async function boundedJsonBody(request: Request): Promise<unknown> {
-  const declared = request.headers.get("content-length");
-  if (declared && Number(declared) > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
+  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
   if (!text.trim()) return null;
   try {
     return JSON.parse(text);

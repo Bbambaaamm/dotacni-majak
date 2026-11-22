@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { readBoundedBody } from "./boundedBody";
 import { ApiInputError, hashOwnerToken } from "./projectAccess";
 
 const PROJECT_ID_RE = /^prj_[a-f0-9]{32}$/;
@@ -161,14 +162,8 @@ export async function deleteProjectWatch(
 }
 
 export async function parseWatchEnabled(request: Request): Promise<boolean> {
-  const declared = request.headers.get("content-length");
-  if (declared && Number(declared) > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    throw new ApiInputError("REQUEST_TOO_LARGE", 413);
-  }
+  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
   let body: unknown;
   try {
     body = JSON.parse(text);
