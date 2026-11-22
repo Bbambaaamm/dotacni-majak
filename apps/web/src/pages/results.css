@@ -14,11 +14,12 @@
 .filter-panel{margin-bottom:16px;border:1px solid #dce4ea;border-radius:14px;background:#f8fafb}
 .filter-panel summary{padding:14px 16px;color:#0b2d48;font-weight:800;cursor:pointer}
 .filter-panel summary:focus-visible,.filter-chip:focus-visible,.filter-reset:focus-visible{outline:3px solid #087f8c;outline-offset:2px}
+.filter-panel__close{display:none}
 .filter-panel .result-filters{margin:0;border:0;border-top:1px solid #dce4ea;border-radius:0;background:transparent}
 .active-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center}
 .filter-chip,.filter-reset{border:1px solid #087f8c;border-radius:999px;background:#fff;color:#0b2d48;padding:8px 12px;font:inherit;cursor:pointer}
 .filter-reset{border-color:transparent;background:transparent;text-decoration:underline}
-@media(max-width:800px){.filter-panel .result-filters{grid-template-columns:minmax(0,1fr)}.filter-chip{max-width:100%;overflow-wrap:anywhere}}
+@media(max-width:800px){.filter-panel .result-filters{grid-template-columns:minmax(0,1fr)}.filter-chip{max-width:100%;overflow-wrap:anywhere}.filter-panel-shell:has(.filter-panel[open]){position:fixed;z-index:1000;inset:auto 0 0;box-sizing:border-box;width:100%;max-height:90vh;max-height:90dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:16px 16px 0 0;background:#fff;box-shadow:0 0 0 100vmax rgb(11 45 72 / 65%)}.filter-panel-shell:has(.filter-panel[open]) .filter-panel{margin:0;border-radius:16px 16px 0 0}.filter-panel__close{display:block;margin:0 16px 12px auto;padding:10px 14px;border:1px solid #087f8c;border-radius:10px;background:#fff;color:#0b2d48;font:inherit;font-weight:700;cursor:pointer}.filter-panel__close:focus-visible{outline:3px solid #087f8c;outline-offset:2px}}
 .detail-page{grid-template-columns:minmax(0,1fr);min-width:0}.detail-page>*,.detail-layout>div{min-width:0}.detail-section{overflow-wrap:anywhere}
 .source-presence-caution{padding:14px 18px;border:2px solid #a95419;border-radius:12px;background:#fff5e9;color:#56300f;line-height:1.5}
 .detail-page .change-event-list li{display:block}

@@ -69,6 +69,16 @@ export function SearchPage() {
   const pendingRetryFocus = useRef(false);
   const retryLoadingButton = useRef<HTMLButtonElement | null>(null);
   const mobileFiltersOpen = useRef(false);
+  const [mobileDialogOpen, setMobileDialogOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 800px)").matches);
+  const closeMobileFilters = useCallback(() => {
+    mobileFiltersOpen.current = false;
+    setMobileDialogOpen(false);
+    if (filterPanel.current) {
+      filterPanel.current.open = false;
+      filterPanel.current.querySelector("summary")?.focus();
+    }
+  }, []);
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
     // A filter change unmounts the panel before its asynchronous toggle event
     // necessarily fires. Keep the actual DOM state for the replacement panel.
@@ -82,11 +92,41 @@ export function SearchPage() {
     const desktop = window.matchMedia("(min-width: 801px)");
     const update = () => {
       mobileFiltersOpen.current = false;
+      setMobileDialogOpen(false);
+      setIsMobile(!desktop.matches);
       if (filterPanel.current) filterPanel.current.open = desktop.matches;
     };
     desktop.addEventListener("change", update);
     return () => desktop.removeEventListener("change", update);
   }, []);
+  useLayoutEffect(() => {
+    const panel = filterPanel.current;
+    if (!isMobile || !mobileDialogOpen || !panel?.open) return;
+    const changed: Array<{ element: HTMLElement; inert: boolean }> = [];
+    for (let child: HTMLElement = panel; child !== document.body && child.parentElement; child = child.parentElement) {
+      for (const sibling of child.parentElement.children) {
+        if (sibling instanceof HTMLElement && sibling !== child) {
+          changed.push({ element: sibling, inert: sibling.inert });
+          sibling.inert = true;
+        }
+      }
+    }
+    const focusInside = (event: FocusEvent) => {
+      if (!panel.contains(event.target as Node)) panel.querySelector<HTMLButtonElement>(".filter-panel__close")?.focus();
+    };
+    document.addEventListener("focusin", focusInside);
+    if (!panel.contains(document.activeElement) || document.activeElement === panel.querySelector("summary")) {
+      const focusKey = pendingFilterFocus.current;
+      const target = (focusKey ? panel.querySelector<HTMLElement>(`[data-filter-focus="${focusKey}"]`) : null)
+        ?? panel.querySelector<HTMLButtonElement>(".filter-panel__close");
+      target?.focus();
+      if (focusKey) pendingFilterFocus.current = null;
+    }
+    return () => {
+      document.removeEventListener("focusin", focusInside);
+      for (const { element, inert } of changed) element.inert = inert;
+    };
+  }, [isMobile, mobileDialogOpen, loading, data]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialSearch.status);
   const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>(initialSearch.instrument);
   const [projectBudgetCzk, setProjectBudgetCzk] = useState(initialSearch.projectBudgetCzk);
@@ -513,6 +553,10 @@ export function SearchPage() {
             </a>
           </div>
 
+          <div className="filter-panel-shell"
+            role={isMobile && mobileDialogOpen ? "dialog" : undefined}
+            aria-modal={isMobile && mobileDialogOpen ? true : undefined}
+            aria-labelledby={isMobile && mobileDialogOpen ? "filter-panel-title" : undefined}>
           <details className="filter-panel" ref={attachFilterPanel}
             onToggle={(event) => {
               // A detached panel can dispatch a delayed toggle after a new search
@@ -520,17 +564,32 @@ export function SearchPage() {
               if (event.currentTarget !== filterPanel.current) return;
               if (!window.matchMedia("(min-width: 801px)").matches) {
                 mobileFiltersOpen.current = event.currentTarget.open;
+                setMobileDialogOpen(event.currentTarget.open);
+                if (!event.currentTarget.open) event.currentTarget.querySelector("summary")?.focus();
               }
             }}
             onKeyDown={(event) => {
+              if (event.key === "Tab" && isMobile && mobileDialogOpen) {
+                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+                  "summary, button:not([disabled]), select:not([disabled]), input:not([disabled])",
+                )).filter((control) => control.getClientRects().length > 0);
+                const first = controls[0];
+                const last = controls[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                  event.preventDefault();
+                  last?.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                  event.preventDefault();
+                  first?.focus();
+                }
+              }
               if (event.key !== "Escape" || !filterPanel.current?.open ||
                   window.matchMedia("(min-width: 801px)").matches) return;
               event.preventDefault();
-              mobileFiltersOpen.current = false;
-              filterPanel.current.open = false;
-              filterPanel.current.querySelector("summary")?.focus();
+              closeMobileFilters();
             }}>
-            <summary data-filter-focus="summary">Upravit filtry a řazení</summary>
+            <summary id="filter-panel-title" data-filter-focus="summary">Upravit filtry a řazení</summary>
+            <button className="filter-panel__close" type="button" onClick={closeMobileFilters}>Zavřít filtry</button>
             <div className="result-filters" aria-label="Filtrovat výsledky">
             {data.facets === null ? <p className="fine-print" role="status">Počty pro filtry nejsou dostupné, protože hledání má příliš mnoho shod. Filtry můžete dál používat.</p> : null}
             <label>
@@ -615,6 +674,7 @@ export function SearchPage() {
             <p className="fine-print">Termín bez uvedeného data není považován za prošlý ani za otevřený.</p>
             </div>
           </details>
+          </div>
           {activeFilters.length > 0 ? (
             <div className="active-filters" aria-label="Aktivní filtry">
               {activeFilters.map((filter) => (
