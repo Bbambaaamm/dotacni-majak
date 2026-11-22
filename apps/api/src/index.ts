@@ -92,7 +92,12 @@ function observeOverload(lane: AdmissionLane, occupancy: number, cap: number): v
   state.rejectedSinceLast = Math.min(Number.MAX_SAFE_INTEGER, state.rejectedSinceLast + 1);
   try {
     const now = Date.now();
-    if (!Number.isFinite(now) || (state.lastAttemptAt !== null && now - state.lastAttemptAt < OVERLOAD_LOG_INTERVAL_MS)) return;
+    if (!Number.isFinite(now)) return;
+    if (state.lastAttemptAt !== null && now < state.lastAttemptAt) {
+      state.lastAttemptAt = now;
+      return;
+    }
+    if (state.lastAttemptAt !== null && now - state.lastAttemptAt < OVERLOAD_LOG_INTERVAL_MS) return;
     const rejectedSinceLast = state.rejectedSinceLast;
     state.lastAttemptAt = now;
     console.warn({ event: "api_admission_overload", lane, occupancy, cap, rejectedSinceLast });

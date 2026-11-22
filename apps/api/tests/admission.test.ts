@@ -73,11 +73,15 @@ describe("per-isolate API admission", () => {
       expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
       expect(log).toHaveBeenCalledTimes(2);
 
-      clock.mockReturnValue(160_000);
+      clock.mockReturnValue(149_999);
       expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(2);
+      clock.mockReturnValue(150_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log.mock.calls[2]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1004 }]);
+      clock.mockReturnValue(160_000);
       expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
       expect(log).toHaveBeenCalledTimes(3);
-      expect(log.mock.calls[2]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1003 }]);
 
       clock.mockReturnValue(190_000);
       expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
