@@ -391,7 +391,8 @@ export function SearchPage() {
         new Set(data.results.map((grant) => grant.grantCallId)),
         seenCursors.current,
         data.expandedTerms,
-        data.results[data.results.length - 1]?.matchKind);
+        data.results[data.results.length - 1]?.matchKind,
+        data.results[data.results.length - 1]);
       if (controller.signal.aborted) return;
       if (page.nextCursor) seenCursors.current.add(page.nextCursor);
       setData((current) => {

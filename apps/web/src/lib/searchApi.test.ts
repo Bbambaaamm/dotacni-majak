@@ -7,6 +7,53 @@ afterEach(() => {
 });
 
 describe("search API client", () => {
+  it("rejects observable deadline inversions within and across cursor pages", async () => {
+    const base = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: "2027-05-01", providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED" as const, matchKind: "DIRECT" as const };
+    const item = (id: number, date: string | null) => ({ ...base, grantCallVersionId: `v${id}`,
+      grantCallId: `g${id}`, submissionCloseAt: date });
+    const body = (results: ReturnType<typeof item>[]) => ({ intent: "alpha", results,
+      expandedTerms: [], indexState: "READY", nextCursor: null, facets: null });
+    const response = (results: ReturnType<typeof item>[]) => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body(results)), { status: 200 })));
+    };
+    const run = (sort: "DEADLINE" | "DEADLINE_LATEST", previous?: ReturnType<typeof item>) =>
+      searchGrants("alpha", undefined, previous ? "page-2" : undefined, undefined, undefined,
+        undefined, undefined, sort, undefined, undefined, undefined, undefined, undefined,
+        undefined, undefined, undefined, previous);
+    for (const sort of ["DEADLINE", "DEADLINE_LATEST"] as const) {
+      const early = item(1, "2027-05-01");
+      const late = item(2, "2027-06-01");
+      const reversed = sort === "DEADLINE" ? [late, early] : [early, late];
+      response(reversed);
+      await expect(run(sort)).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      response([reversed[1]]);
+      await expect(run(sort, reversed[0])).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      response([item(3, null), early]);
+      await expect(run(sort)).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      response([early]);
+      await expect(run(sort, item(3, null))).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      const offsetEarly = item(4, "2027-05-01T16:30:45+02:00");
+      const utcLate = item(5, "2027-05-01T15:30:45Z");
+      response(sort === "DEADLINE" ? [utcLate, offsetEarly] : [offsetEarly, utcLate]);
+      await expect(run(sort)).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+      response(sort === "DEADLINE" ? [early, late, item(3, null)] : [late, early, item(3, null)]);
+      expect((await run(sort)).results).toHaveLength(3);
+      response([item(3, null)]);
+      expect((await run(sort, sort === "DEADLINE" ? late : early)).results).toHaveLength(1);
+    }
+    // SQLite accepts these source forms; near ties and malformed strings are not proof of an inversion.
+    for (const dates of [
+      ["2027-05-01T23:59:59.9995Z", "2027-05-02T00:00:00.0001Z"],
+      ["2027-05-01T24:00:00Z", "2027-05-02"],
+      ["source date pending", "2027-05-01"],
+      ["2027-05-01T16:30:45+02:00", "2027-05-01T14:30:45Z"],
+    ]) {
+      response([item(1, dates[1]), item(2, dates[0])]);
+      expect((await run("DEADLINE")).results).toHaveLength(2);
+    }
+  });
   it("fails closed on malformed successful responses instead of showing false results", async () => {
     const valid = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets: null };
