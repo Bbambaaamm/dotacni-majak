@@ -127,5 +127,8 @@ Když není aktivní filtr poskytovatele a seznam poskytovatelů není zkrácen�
 ## Search results pagination integrity (#400)
 První stránka bez filtru stavu/termínu nebo jen s jedním z těchto filtrů nesmí zobrazit zdánlivě kompletní výsledky, pokud API vrátí `nextCursor: null`, ale srovnatelný součet facetů ukazuje více shod než načtených karet. Jen při filtru stavu je srovnatelný součet termínů, jen při filtru termínu součet stavů; při obou filtrech není srovnatelný ani jeden. Klient rozpornou odpověď odmítne a nabídne opakování; nedostupné počty (`facets: null`) nejsou důkazem chybějících výsledků. Regrese používá skutečný lokální D1/API tok se záměrně poškozenou odpovědí v prohlížeči.
 
+## První stránka s falešným pokračováním — dílčí #400
+Pokud první stránka vrací kurzor další stránky, ale srovnatelný součet facetů již odpovídá všem zobrazeným kartám, klient tuto rozpornou odpověď odmítá a nabízí opakování. Bez filtru stavu/termínu je srovnatelný součet stavů, jen se stavem součet termínů, jen s termínem součet stavů. Při obou filtrech nebo nedostupných počtech nelze tento závěr odvodit. Mobilní regrese používá lokální D1 a skutečné Search API, záměrně upraví jen odpověď v prohlížeči a ověřuje návrat k nezměněné API odpovědi. Nejde o živou kontrolu oficiálních zdrojů ani uzavření #400.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

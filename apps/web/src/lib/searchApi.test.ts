@@ -166,6 +166,31 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).nextCursor).toBe("more");
   });
 
+  it("rejects a continuation cursor when comparable first-page facets count no remaining matches", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const facets = { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }],
+      providersTruncated: false };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: "more", facets };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    for (const filters of [
+      { status: undefined, deadline: undefined },
+      { status: "OPEN" as const, deadline: undefined },
+      { status: undefined, deadline: "UNKNOWN" as const },
+    ]) {
+      await expect(searchGrants("alpha", undefined, undefined, filters.status, filters.deadline))
+        .rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE", status: 200 });
+    }
+    // With both filters, neither facet counts the intersection; unavailable
+    // facets likewise provide no evidence that pagination is complete.
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN", "UNKNOWN")).nextCursor).toBe("more");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: null }), { status: 200 })));
+    expect((await searchGrants("alpha")).nextCursor).toBe("more");
+  });
+
   it("checks the comparable facet total on terminal pages with one selected filter", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
@@ -523,8 +548,8 @@ describe("search API client", () => {
 
   it("accepts a complete response with source-specific result fields and facets", async () => {
     const body = { intent: "alpha", expandedTerms: ["sport"], indexState: "READY", nextCursor: "next",
-      facets: { status: { OPEN: 1, PLANNED: 0, ANNOUNCED: 0 },
-        deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }], providersTruncated: false },
+      facets: { status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 2 }, providers: [{ name: "Obec", count: 2 }], providersTruncated: false },
       results: [{ grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
         status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
         capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" }] };
