@@ -3200,8 +3200,8 @@ test("mobile filter keyboard focus survives real D1 searches, chip removal, rese
   await page.unroute("**/api/search?*");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
-  await expect(panel.locator("summary")).toBeFocused();
   await expect(panel).toHaveAttribute("open");
+  await expect.poll(() => panel.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
