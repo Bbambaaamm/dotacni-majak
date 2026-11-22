@@ -139,8 +139,10 @@ describe("search API client", () => {
       providersTruncated: false };
     const body = { intent: "alpha", results: [result], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets };
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
-    await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    for (const invalid of [facets, { ...facets, deadline: { ...facets.deadline, OTHER: 1 } }]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: invalid }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    }
     // A selected status changes the population behind the deadline facet.
     expect((await searchGrants("alpha", undefined, undefined, "OPEN")).results).toEqual([result]);
     // Unavailable counts remain unknown, never interpreted as zero.

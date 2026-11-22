@@ -154,8 +154,8 @@ function facetsCoverResults(response: GrantSearchResponse,
   // Without either filter, both facets count the same matched calls. A mismatch
   // must not become two contradictory filter totals in the results UI.
   if (!status && !deadline &&
-    Object.values(response.facets.status).reduce((sum, count) => sum + count, 0) !==
-    Object.values(response.facets.deadline).reduce((sum, count) => sum + count, 0)) return false;
+    response.facets.status.OPEN + response.facets.status.PLANNED + response.facets.status.ANNOUNCED !==
+    response.facets.deadline.KNOWN + response.facets.deadline.UNKNOWN) return false;
   const statuses = new Map<string, number>();
   const deadlines = new Map<"KNOWN" | "UNKNOWN", number>();
   const providers = new Map<string, number>();
