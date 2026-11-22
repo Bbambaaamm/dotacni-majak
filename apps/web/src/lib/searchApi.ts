@@ -148,8 +148,14 @@ function resultsMatchFilters(
     && resultDateInWindow(result.submissionCloseAt, closesFrom, closesBy));
 }
 
-function facetsCoverResults(response: GrantSearchResponse): boolean {
+function facetsCoverResults(response: GrantSearchResponse,
+  status?: "OPEN" | "PLANNED" | "ANNOUNCED", deadline?: "KNOWN" | "UNKNOWN"): boolean {
   if (response.facets === null) return true; // Counts above the facet cap are unavailable, not zero.
+  // Without either filter, both facets count the same matched calls. A mismatch
+  // must not become two contradictory filter totals in the results UI.
+  if (!status && !deadline &&
+    Object.values(response.facets.status).reduce((sum, count) => sum + count, 0) !==
+    Object.values(response.facets.deadline).reduce((sum, count) => sum + count, 0)) return false;
   const statuses = new Map<string, number>();
   const deadlines = new Map<"KNOWN" | "UNKNOWN", number>();
   const providers = new Map<string, number>();
@@ -220,7 +226,7 @@ export async function searchGrants(
   }
   // The web client omits limit, so the API contract caps each page at 20.
   // Never render an oversized success response as a trustworthy page.
-  if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body)
+  if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body, status, deadline)
     || (cursor && body.facets !== null)
     || (expectedExpandedTerms && (body.expandedTerms.length !== expectedExpandedTerms.length
       || body.expandedTerms.some((term, index) => term !== expectedExpandedTerms[index])))
