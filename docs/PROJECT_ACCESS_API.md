@@ -79,11 +79,21 @@ account-binding/recovery flow.
 
 - Authorization nikdy nevychází z `owner_user_id` poslaného klientem.
 - Raw owner/share tokeny se nepersistují.
-- Request body je omezen na 16 KiB.
+- Body limity jsou definované v `apps/api/src/bodyPolicy.ts` podle endpointu:
+  `POST /projects`, `PUT`/`POST /applicant-profile` a
+  `POST /projects/<projectId>/shares` používají výchozích 16 KiB;
+  `PATCH /projects/<projectId>/watch` a `POST /projects/<projectId>/workspaces`
+  i `PATCH /projects/<projectId>/workspaces/<workspaceId>/tasks/<taskId>`
+  mají explicitní limit 4 KiB. Jde o bajty těla, ne počet znaků JSON.
 - Limit se vynucuje při čtení streamu podle skutečných UTF-8 bajtů (ne až po
   `request.text()`); klientský `Content-Length` slouží jen k časnému odmítnutí.
-  Project/profile JSON: 16 KiB, watch/workspace JSON: 4 KiB. Překročení vrací
-  `413 REQUEST_TOO_LARGE` bez vrácení vstupních dat.
+  Překročení na cestě, která čte tělo, vrací `413 REQUEST_TOO_LARGE` bez
+  vrácení vstupních dat. Workspace autorizuje vlastníka před čtením těla,
+  takže neplatná capability zde vrací `404 OWNER_CAPABILITY_INVALID` i při
+  nadlimitním těle; profile, watch a share naproti tomu mohou při syntakticky
+  platné, ale neoprávněné capability vrátit 413 před databázovým ověřením.
+  Tato politika se vztahuje jen na vyjmenované JSON request body; validace
+  jednotlivých polí, uploady a limity odpovědí zůstávají samostatné.
 - Čtení těla má celkový deadline 10 s od zahájení streamu; zaseknutý nebo
   pomalu dávkovaný stream vrací `408 REQUEST_TIMEOUT` bez vstupních dat a před
   jakoukoliv mutací DB. Pozdní čtení se zruší bez čekání na producenta.
