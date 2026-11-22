@@ -77,6 +77,8 @@ Karta výsledku přebírá `capturedAt` a `verificationStatus` přímo z aktuál
 
 ## Neměnné filtry výsledků
 
+Na šířce do 800 px otevřený panel filtrů funguje jako pojmenovaný modální sheet: ostatní obsah je inertní, Tab/Shift+Tab zůstává uvnitř, Escape i viditelné tlačítko zavřou panel a vrátí fokus na spouštěcí souhrn. Zavřený panel nemá dostupné interaktivní prvky. Otevřený stav se zachová při skutečné změně filtru a novém dotazu; desktopový `details` zůstává běžným rozbalovacím panelem. Regresní test pokrývá lokální D1 → skutečné Search API → mobilní Chromium včetně axe a reflow. Jde o úzký UX slice #400, nikoli o potvrzení aktuálnosti zdrojů.
+
 Při opětovném výběru již aktivního stavu výzvy nebo dostupnosti termínu nesmí klient znovu zahájit hledání: načtené karty, otevřený mobilní panel filtrů a fokus zůstávají beze změny. Skutečná změna filtru stále obnoví první stránku ze Search API. Regrese je ověřena přes lokální D1 → skutečné API → mobilní Chromium, včetně počtu síťových požadavků. Dílčí úprava neuzavírá #400.
 
 Při stránkování vrací Search API facety jen na první stránce; pokračování má `facets: null`. Klient odmítá pokračování s vloženými počty filtrů jako neplatnou odpověď, ponechá již načtené karty a nabídne opakování. Nulové nebo nedostupné počty tím nevyvozuje z dalších stránek. Regrese používá lokální D1 → skutečné API → mobilní Chromium s kontrolou axe/reflow. Jde o dílčí #400, nikoli potvrzení aktuálnosti oficiálních zdrojů.

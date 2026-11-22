@@ -2,6 +2,215 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("mobile filter sheet locks background gestures and restores document scrolling", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=strankovani");
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: unknown[] }).results.length).toBe(20);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  const previousStyles = await page.evaluate(() => {
+    document.documentElement.style.setProperty("overflow", "auto", "important");
+    document.body.style.setProperty("position", "relative");
+    document.body.style.setProperty("top", "7px");
+    document.body.style.setProperty("left", "3px");
+    document.body.style.setProperty("width", "calc(100% - 3px)");
+    document.body.style.setProperty("overflow", "visible");
+    return { root: document.documentElement.style.cssText, body: document.body.style.cssText };
+  });
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
+  const trigger = page.locator(".filter-panel summary");
+  const dialog = page.getByRole("dialog", { name: "Upravit filtry a řazení" });
+  await trigger.focus();
+  const beforeOpenY = await page.evaluate(() => window.scrollY);
+  expect(beforeOpenY).toBeGreaterThan(0);
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+  const locked = await page.evaluate(() => ({
+    y: window.scrollY, top: document.body.getBoundingClientRect().top,
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }));
+  expect(locked.position).toBe("fixed");
+  expect(locked.overflow).toBe("hidden");
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 400);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.synthesizeScrollGesture", {
+    x: 180, y: 40, yDistance: -400, gestureSourceType: "touch", speed: 1000,
+  });
+  await expect.poll(() => page.evaluate(() => ({
+    y: window.scrollY, top: document.body.getBoundingClientRect().top,
+  }))).toEqual({ y: locked.y, top: locked.top });
+
+  const sheet = page.locator(".filter-panel-shell");
+  expect(await sheet.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
+  const box = await sheet.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => sheet.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+  await expect(page).toHaveURL(/sort=DEADLINE/);
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+  // The loading view can shorten the document and clamp its scroll position;
+  // closing must restore the position at the latest successful lock.
+  const afterSearchY = await page.evaluate(() => -parseFloat(document.body.style.top));
+
+  await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(afterSearchY);
+  expect(await page.evaluate(() => ({ root: document.documentElement.style.cssText, body: document.body.style.cssText })))
+    .toEqual(previousStyles);
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(beforeOpenY);
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.setViewportSize({ width: 801, height: 844 });
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => ({ root: document.documentElement.style.cssText, body: document.body.style.cssText })))
+    .toEqual(previousStyles);
+  const desktopY = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(desktopY);
+});
+
+test("failed mobile filter search unlocks scrolling and real D1 retry reopens the sheet", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=strankovani");
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: unknown[] }).results).toHaveLength(20);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.evaluate(() => {
+    // Keep the error view scrollable so this checks behavior as well as styles.
+    document.querySelector<HTMLElement>(".results-page")!.style.minHeight = "2000px";
+    window.scrollTo(0, 500);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
+
+  const dialog = page.getByRole("dialog", { name: "Upravit filtry a řazení" });
+  await page.locator(".filter-panel summary").click();
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+
+  let releaseFailure!: () => void;
+  const heldFailure = new Promise<void>((resolve) => { releaseFailure = resolve; });
+  let recover = false;
+  await page.route("**/api/search?*", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("sort") !== "DEADLINE" || recover) {
+      await route.continue();
+      return;
+    }
+    await heldFailure;
+    await route.fulfill({ status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
+  });
+  await dialog.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+  await expect(page.getByText("Porovnáváme váš záměr s dostupnými výzvami.")).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => ({
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }))).toEqual({ position: "static", overflow: "visible" });
+
+  releaseFailure();
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit.");
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("static");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.mouse.move(180, 400);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  recover = true;
+  const response = page.waitForResponse((result) => result.url().includes("/api/search?") && result.status() === 200);
+  await retry.click();
+  expect(new URL((await response).url()).searchParams.get("sort")).toBe("DEADLINE");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+  const beforeCloseY = await page.evaluate(() => -parseFloat(document.body.style.top));
+  await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(beforeCloseY);
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("static");
+});
+
+test("mobile filters form a keyboard-contained sheet over real D1 search", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: unknown[] }).results.length).toBeGreaterThan(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=digitalizace%20obce");
+  await expect(page.locator(".grant-card")).toHaveCount(2);
+  const trigger = page.locator(".filter-panel summary");
+  const dialog = page.getByRole("dialog", { name: "Upravit filtry a řazení" });
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expect(dialog.getByRole("button", { name: "Zavřít filtry" })).toBeFocused();
+  await dialog.locator("summary").focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByLabel("Řazení všech odpovídajících výsledků")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.locator("summary")).toBeFocused();
+  await page.evaluate(() => document.querySelector<HTMLElement>(".grant-card a")?.focus());
+  expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await dialog.getByLabel("Stav výzvy").selectOption("OPEN");
+  await expect(page).toHaveURL(/status=OPEN/);
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
+  await page.keyboard.press("Tab");
+  expect(await page.locator(".filter-panel").evaluate((node) => node.contains(document.activeElement))).toBe(false);
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.setViewportSize({ width: 800, height: 844 });
+  await trigger.click();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  const closeOnResize = dialog.getByRole("button", { name: "Zavřít filtry" });
+  await closeOnResize.focus();
+  await expect(closeOnResize).toBeFocused();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+  await page.setViewportSize({ width: 801, height: 844 });
+  await expect(page.locator(".filter-panel")).toHaveAttribute("open");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page.getByRole("button", { name: "Zavřít filtry" })).toBeHidden();
+  expect(await page.locator(".results-list").evaluate((node) => (node as HTMLElement).inert)).toBe(false);
+  await expect.poll(() => page.evaluate(() => ({
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }))).toEqual({ position: "static", overflow: "visible" });
+  await page.setViewportSize({ width: 800, height: 844 });
+  await expect(page.locator(".filter-panel")).not.toHaveAttribute("open");
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+});
+
 test("real search keeps decision cautions visible and filter mechanics accessible", async ({ page, request }) => {
   const api = await request.get("/api/search?intent=digitalizace%20obce");
   expect(api.status()).toBe(200);
@@ -892,6 +1101,7 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
     await expect(clearBudget).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if (width === 390) await page.getByRole("button", { name: "Zavřít filtry" }).click();
     await clearBudget.click();
     await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toHaveCount(0);
@@ -899,6 +1109,7 @@ test("project-cost filter uses verified grant scenarios in real D1 on desktop an
     await expect(page.getByLabel("Typ financování", { exact: true })).toHaveValue("GRANT");
     await expect(page.getByRole("button", { name: "Zrušit filtr Náklady projektu: 500000 Kč" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if (width === 390) await page.locator(".filter-panel summary").click();
     await page.getByLabel("Stav výzvy").selectOption("ALL");
     await page.getByLabel("Typ financování", { exact: true }).selectOption("LOAN");
     await expect(page.getByRole("heading", { name: "E2E plánovaná výzva — digitalizace obce" })).toBeVisible();
@@ -968,6 +1179,7 @@ test("captured OPEN stays distinct from current submit-ability in real D1 search
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await card.getByRole("link", { name: "Zobrazit detail" }).click();
   const why = page.getByRole("region", { name: "Proč ji vidíte" });
   await expect(why).toContainText("kontext hledání záměru „digitalizace obce“");
@@ -2055,6 +2267,7 @@ test("provider absent from first page is found by exact name across real D1 and 
   await expect(page.locator(".grant-card")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider B" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await page.getByRole("button", { name: "Zrušit filtr Poskytovatel: E2E test provider B" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(20);
   const first = await request.get("/api/search?intent=strankovani&limit=1&provider=E2E%20test%20provider%20A");
@@ -2111,6 +2324,7 @@ test("inclusive cutoff filters real D1 beyond first page without declaring missi
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.getByLabel("Uzávěrka nejpozději (včetně dne, UTC)")).toHaveValue("");
   await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await page.getByRole("button", { name: "Načíst další výsledky" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(24);
 
@@ -2330,6 +2544,7 @@ test("global date ordering moves a later-page deadline first and paginates missi
   await page.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(page.locator(".grant-card h3").first()).toHaveText("E2E pozdější plánovaná výzva");
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await page.getByRole("button", { name: "Načíst další výsledky" }).click();
   await expect(page.locator(".grant-card")).toHaveCount(25);
   expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
@@ -3050,17 +3265,19 @@ test("mobile result filters, deadline order and chips use the real API without i
   await page.getByLabel("Termín podání").selectOption("UNKNOWN");
   await expect(page.locator(".filter-empty")).toContainText("v indexovaných výsledcích shodu pro tento záměr");
   await expect(page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" })).toBeVisible();
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await page.getByRole("button", { name: "Zrušit filtr Termín: neuveden" }).click();
+  await filterToggle.click();
   await page.getByLabel("Stav výzvy").selectOption("PLANNED");
   await expect(planned).toBeVisible();
   await expect(open).toHaveCount(0);
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   await page.getByRole("button", { name: "Zrušit všechny filtry" }).click();
   await expect(open).toBeVisible();
   await filterToggle.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByLabel("Stav výzvy")).toBeHidden();
-  await page.keyboard.press("Enter");
   await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+  await page.getByRole("button", { name: "Zavřít filtry" }).click();
   const filterExplanation = page.getByRole("region", { name: "Nalezené možnosti" }).locator("details.detail-section");
   await filterExplanation.locator("summary").click();
   await expect(filterExplanation.getByText(/Stav, dostupnost termínu, uzávěrka nejdříve, uzávěrka nejpozději, přesný název poskytovatele a typ financování se filtrují napříč/)).toBeVisible();
@@ -3114,25 +3331,24 @@ test("mobile filter keyboard focus survives real D1 searches, chip removal, rese
   await instrument.focus();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByText("Porovnáváme váš záměr s dostupnými výzvami.")).toBeVisible();
-  const navigationLink = page.getByRole("navigation", { name: "Hlavní navigace" }).getByRole("link").first();
-  await navigationLink.focus();
-  await expect(navigationLink).toBeFocused();
+  const closeFilters = page.getByRole("button", { name: "Zavřít filtry" });
   releaseInstrument();
   await expect(instrument).toHaveValue("GRANT");
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
-  await expect(navigationLink).toBeFocused();
+  await expect(instrument).toBeFocused();
   await page.unroute("**/api/search?*");
   await instrument.focus();
   await page.keyboard.press("ArrowDown");
   await expect(instrument).toHaveValue("LOAN");
   await expect(instrument).toBeFocused();
   await expect(panel).toHaveAttribute("open");
+  await closeFilters.click();
   const statusChip = page.getByRole("button", { name: "Zrušit filtr Stav: Otevřeno v zachycené verzi" });
   await statusChip.focus();
   await page.keyboard.press("Enter");
   await expect(statusChip).toHaveCount(0);
   await expect(panel.locator("summary")).toBeFocused();
-  await expect(panel).toHaveAttribute("open");
+  await expect(panel).not.toHaveAttribute("open");
   const reset = page.getByRole("button", { name: "Zrušit všechny filtry" });
   await reset.focus();
   await page.keyboard.press("Enter");
@@ -3140,6 +3356,7 @@ test("mobile filter keyboard focus survives real D1 searches, chip removal, rese
   await expect(panel.locator("summary")).toBeFocused();
 
   await page.route("**/api/search?*", (route) => route.abort("failed"));
+  await panel.locator("summary").click();
   await instrument.focus();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit.");
@@ -3149,8 +3366,8 @@ test("mobile filter keyboard focus survives real D1 searches, chip removal, rese
   await page.unroute("**/api/search?*");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
-  await expect(panel.locator("summary")).toBeFocused();
   await expect(panel).toHaveAttribute("open");
+  await expect.poll(() => panel.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
