@@ -128,6 +128,10 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+function isNonblankString(value: unknown): value is string {
+  return isString(value) && value.trim().length > 0;
+}
+
 function isNullableString(value: unknown): boolean {
   return value === null || isString(value);
 }
@@ -199,14 +203,14 @@ function isGrantDetailResponse(value: unknown, requestedId: string): value is Gr
   return hasFields(value, {
     grantCallId: (v) => v === requestedId,
     canonicalCode: isNullableString, canonicalSlug: isString,
-    versionId: isString, versionNumber: isVersionNumber, capturedAt: isString,
-    title: isString, summary: isString, status: isCallStatus, verificationStatus: isVerificationStatus,
+    versionId: isNonblankString, versionNumber: isVersionNumber, capturedAt: isString,
+    title: isNonblankString, summary: isString, status: isCallStatus, verificationStatus: isVerificationStatus,
     publishedAt: isNullableString, submissionOpenAt: isNullableString,
     submissionCloseAt: isNullableString, applicationUrl: isNullableString,
     officialDetailUrl: isNullableString, currencyCode: isNullableString,
     fundingInstrumentType: isInstrument,
-    provider: (v) => hasFields(v, { id: isString, name: isString, type: isString, officialUrl: isNullableString }),
-    programme: (v) => hasFields(v, { id: isString, name: isString, fundingOrigin: isString, officialUrl: isNullableString }),
+    provider: (v) => hasFields(v, { id: isString, name: isNonblankString, type: isString, officialUrl: isNullableString }),
+    programme: (v) => hasFields(v, { id: isString, name: isNonblankString, fundingOrigin: isString, officialUrl: isNullableString }),
     sources: (v) => isList(v, (item) => hasFields(item, {
       sourceCode: isString, sourceName: isString, canonicalUrl: isString,
       lastSeenAt: isString,

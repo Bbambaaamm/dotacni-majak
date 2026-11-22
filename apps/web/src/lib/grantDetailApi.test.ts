@@ -49,6 +49,23 @@ describe("grant detail API boundary", () => {
     expect((await fetchGrantDetail("grant:one")).availability.funding).toBe("UNKNOWN");
   });
 
+  it("rejects blank decision identity or source names in an otherwise successful detail", async () => {
+    const invalid = [
+      { ...detail, title: "   " },
+      { ...detail, versionId: " ", versions: [{ ...detail.versions[0], id: " " }] },
+      { ...detail, provider: { ...detail.provider, name: "\t" } },
+      { ...detail, programme: { ...detail.programme, name: "" } },
+    ];
+    for (const body of invalid) {
+      respond(body);
+      await expect(fetchGrantDetail("grant:one")).rejects.toMatchObject({
+        code: "INVALID_GRANT_DETAIL_RESPONSE", status: 200,
+      });
+    }
+    respond(detail);
+    expect((await fetchGrantDetail("grant:one")).provider.name).toBe("Poskytovatel");
+  });
+
   it("rejects malformed success instead of showing false provenance, finance or eligibility", async () => {
     const invalid = [null, [], { ...detail, grantCallId: "another" },
       { ...detail, sources: undefined }, { ...detail, sources: [{}] },
