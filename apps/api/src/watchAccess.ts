@@ -1,11 +1,11 @@
 import type { Env } from "./env";
 import { readBoundedBody } from "./boundedBody";
+import { BODY_LIMIT_BYTES } from "./bodyPolicy";
 import { ApiInputError, hashOwnerToken } from "./projectAccess";
 
 const PROJECT_ID_RE = /^prj_[a-f0-9]{32}$/;
 const OWNER_TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
 const WATCH_ID_RE = /^wch_[a-f0-9]{32}$/;
-const MAX_BODY_BYTES = 4 * 1024;
 
 export interface ProjectWatchRecord {
   id: string;
@@ -162,7 +162,7 @@ export async function deleteProjectWatch(
 }
 
 export async function parseWatchEnabled(request: Request): Promise<boolean> {
-  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+  const text = await readBoundedBody(request, BODY_LIMIT_BYTES.watch,
     () => new ApiInputError("REQUEST_TOO_LARGE", 413),
     () => new ApiInputError("REQUEST_TIMEOUT", 408));
   let body: unknown;

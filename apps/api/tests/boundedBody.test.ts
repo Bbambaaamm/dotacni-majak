@@ -1,16 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import { readBoundedBody } from "../src/boundedBody";
-import { parseProjectInput } from "../src/projectAccess";
+import { parseProjectInput, parseShareOptions } from "../src/projectAccess";
 import { parseApplicantProfileInput } from "../src/applicantProfile";
 import { parseWatchEnabled } from "../src/watchAccess";
 import { handleRequest } from "../src/index";
+import { BODY_LIMIT_BYTES } from "../src/bodyPolicy";
 import type { Env } from "../src/env";
 
-function streamed(chunks: Uint8Array[], declared?: string): { request: Request; pulls: () => number } {
+function streamed(
+  chunks: Uint8Array[], declared?: string, path = "/projects", authorization?: string,
+): { request: Request; pulls: () => number } {
   let index = 0;
-  const request = new Request("https://example.test/projects", {
+  const request = new Request(`https://example.test${path}`, {
     method: "POST",
-    headers: declared === undefined ? {} : { "content-length": declared },
+    headers: {
+      ...(declared === undefined ? {} : { "content-length": declared }),
+      ...(authorization === undefined ? {} : { authorization }),
+    },
     body: new ReadableStream<Uint8Array>({
       pull(controller) {
         if (index === chunks.length) controller.close();
@@ -26,6 +32,16 @@ const bytes = (text: string) => new TextEncoder().encode(text);
 const tooLarge = () => new Error("REQUEST_TOO_LARGE");
 
 describe("bounded streaming request bodies", () => {
+  it("declares the existing default and explicit endpoint overrides", () => {
+    expect(BODY_LIMIT_BYTES).toEqual({
+      project: 16 * 1024,
+      profile: 16 * 1024,
+      share: 16 * 1024,
+      watch: 4 * 1024,
+      workspace: 4 * 1024,
+    });
+  });
+
   it("rejects a declared oversize body without consuming its stream", async () => {
     const { request, pulls } = streamed([bytes("ok")], "4097");
     await expect(readBoundedBody(request, 4096, tooLarge)).rejects.toThrow("REQUEST_TOO_LARGE");
@@ -48,27 +64,67 @@ describe("bounded streaming request bodies", () => {
     await expect(readBoundedBody(oversize.request, 4096, tooLarge)).rejects.toThrow("REQUEST_TOO_LARGE");
   });
 
-  it("returns a safe 413 at the API boundary without touching persistence", async () => {
-    const env = {
-      ENVIRONMENT: "local",
-      DB: { prepare() { throw new Error("DB touched"); }, batch() { throw new Error("DB touched"); } },
-    } as unknown as Env;
-    const { request } = streamed([bytes("x".repeat(16 * 1024)), bytes("y")], "1");
-    const response = await handleRequest(request, env);
-    expect(response.status).toBe(413);
-    expect(await response.json()).toEqual({ error: "REQUEST_TOO_LARGE" });
+  it("returns a safe 413 for declared and streamed overflow in both endpoint classes", async () => {
+    const owner = "S".repeat(43);
+    const projectId = `prj_${"a".repeat(32)}`;
+    const prepare = vi.fn((query: string) => {
+      if (!query.includes("FROM project_owner_capabilities")) throw new Error("Unexpected DB read");
+      return { bind() { return this; }, async first() { return { ok: 1 }; } };
+    });
+    const batch = vi.fn(() => { throw new Error("DB mutation attempted"); });
+    const env = { ENVIRONMENT: "local", DB: { prepare, batch } } as unknown as Env;
+    const routes = [
+      { path: "/projects", limit: BODY_LIMIT_BYTES.project, authorization: undefined, expectedReads: 0 },
+      { path: `/projects/${projectId}/workspaces`, limit: BODY_LIMIT_BYTES.workspace,
+        authorization: `Bearer ${owner}`, expectedReads: 1 },
+    ];
+
+    for (const route of routes) {
+      for (const mode of ["declared", "streamed"] as const) {
+        prepare.mockClear();
+        batch.mockClear();
+        const secret = `private-${owner}`;
+        const chunks = mode === "declared"
+          ? [bytes(secret)]
+          : [bytes("x".repeat(route.limit)), bytes(secret)];
+        const { request } = streamed(chunks, mode === "declared" ? String(route.limit + 1) : "1",
+          route.path, route.authorization);
+        const response = await handleRequest(request, env);
+        expect(response.status).toBe(413);
+        const responseText = await response.text();
+        expect(JSON.parse(responseText)).toEqual({ error: "REQUEST_TOO_LARGE" });
+        expect(responseText).not.toContain(secret);
+        expect(prepare).toHaveBeenCalledTimes(route.expectedReads);
+        expect(batch).not.toHaveBeenCalled();
+      }
+    }
   });
 
-  it("retains the public 413 contract for project, profile and watch parsers", async () => {
+  it("retains the public 413 contract for project, profile, share and watch parsers", async () => {
     for (const [parse, limit] of [
-      [parseProjectInput, 16 * 1024],
-      [parseApplicantProfileInput, 16 * 1024],
-      [parseWatchEnabled, 4096],
+      [parseProjectInput, BODY_LIMIT_BYTES.project],
+      [parseApplicantProfileInput, BODY_LIMIT_BYTES.profile],
+      [parseShareOptions, BODY_LIMIT_BYTES.share],
+      [parseWatchEnabled, BODY_LIMIT_BYTES.watch],
     ] as const) {
       const { request } = streamed([bytes(" ".repeat(limit)), bytes("x")], "1");
       await expect(parse(request)).rejects.toMatchObject({ code: "REQUEST_TOO_LARGE", status: 413 });
     }
     expect(await parseWatchEnabled(streamed([bytes('{"enabled":true}')]).request)).toBe(true);
+  });
+
+  it("checks workspace authorization before rejecting an oversized body", async () => {
+    const projectId = `prj_${"a".repeat(32)}`;
+    const { request } = streamed([bytes("secret")], String(BODY_LIMIT_BYTES.workspace + 1),
+      `/projects/${projectId}/workspaces`);
+    const env = {
+      ENVIRONMENT: "local",
+      DB: { prepare() { throw new Error("DB touched"); }, batch() { throw new Error("DB touched"); } },
+    } as unknown as Env;
+    const response = await handleRequest(request, env);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "OWNER_CAPABILITY_INVALID" });
+    expect(request.bodyUsed).toBe(false);
   });
 
   it("returns 408 for a stalled body before project persistence and never echoes credentials", async () => {

@@ -61,7 +61,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 | `OWNER_CAPABILITY_INVALID` | 404 | Token missing/malformed/incorrect |
 | `INVALID_JSON` | 400 | Body is not valid JSON |
 | `EMPTY_BODY` | 400 | Body is empty |
-| `REQUEST_TOO_LARGE` | 413 | Body exceeds 16 KB |
+| `REQUEST_TOO_LARGE` | 413 | Body exceeds 16 KiB (16,384 UTF-8 bytes) |
 | `INVALID_PROFILE_INPUT` | 400 | Top-level body is not an object |
 | `INVALID_APPLICANT_TYPE` | 400 | `applicantType` missing or outside the canonical enum |
 | `INVALID_ICO` | 400 | IČO not exactly 8 digits |

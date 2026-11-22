@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { readBoundedBody } from "./boundedBody";
+import { BODY_LIMIT_BYTES } from "./bodyPolicy";
 import {
   ApiInputError,
   hashOwnerToken,
@@ -11,7 +12,6 @@ import {
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
 const ICO_RE = /^[0-9]{8}$/;
-const MAX_BODY_BYTES = 16 * 1024;
 
 const APPLICANT_TYPES = new Set([
   "UNKNOWN", "NATURAL_PERSON", "SELF_EMPLOYED", "BUSINESS", "MUNICIPALITY",
@@ -146,7 +146,7 @@ export async function ownerUserId(
 export async function parseApplicantProfileInput(
   request: Request,
 ): Promise<ApplicantProfileInput> {
-  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+  const text = await readBoundedBody(request, BODY_LIMIT_BYTES.profile,
     () => new ApiInputError("REQUEST_TOO_LARGE", 413),
     () => new ApiInputError("REQUEST_TIMEOUT", 408));
   if (!text.trim()) {

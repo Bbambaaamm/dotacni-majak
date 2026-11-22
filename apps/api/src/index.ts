@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { readBoundedBody } from "./boundedBody";
+import { BODY_LIMIT_BYTES } from "./bodyPolicy";
 import {
   ApiInputError,
   bearerToken,
@@ -59,7 +60,7 @@ function projectOwnerPath(pathname: string): { projectId: string; action: "rotat
 }
 
 async function workspaceBody(request: Request): Promise<Record<string, unknown>> {
-  const text = await readBoundedBody(request, 4096,
+  const text = await readBoundedBody(request, BODY_LIMIT_BYTES.workspace,
     () => new ApiInputError("REQUEST_TOO_LARGE", 413),
     () => new ApiInputError("REQUEST_TIMEOUT", 408));
   let body: unknown;

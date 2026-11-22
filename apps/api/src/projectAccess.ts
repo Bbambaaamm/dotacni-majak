@@ -1,10 +1,10 @@
 import type { Env } from "./env";
 import { hashShareToken } from "./share";
 import { readBoundedBody } from "./boundedBody";
+import { BODY_LIMIT_BYTES } from "./bodyPolicy";
 
 const OWNER_TOKEN_DOMAIN = "dotacni-majak-project-owner-v1\0";
 const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
-const MAX_BODY_BYTES = 16 * 1024;
 const DEFAULT_SHARE_DAYS = 30;
 const MAX_SHARE_DAYS = 365;
 
@@ -34,7 +34,7 @@ export function bearerToken(request: Request): string | null {
 }
 
 export async function parseProjectInput(request: Request): Promise<CreateProjectInput> {
-  const raw = await boundedJsonBody(request);
+  const raw = await boundedJsonBody(request, BODY_LIMIT_BYTES.project);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new ApiInputError("INVALID_PROJECT");
   }
@@ -333,7 +333,7 @@ export async function parseShareOptions(request: Request): Promise<number> {
   if (!request.headers.get("content-length") && request.body === null) {
     return DEFAULT_SHARE_DAYS;
   }
-  const body = await boundedJsonBody(request);
+  const body = await boundedJsonBody(request, BODY_LIMIT_BYTES.share);
   if (body == null) return DEFAULT_SHARE_DAYS;
   if (typeof body !== "object" || Array.isArray(body)) {
     throw new ApiInputError("INVALID_SHARE_OPTIONS");
@@ -351,8 +351,8 @@ export async function parseShareOptions(request: Request): Promise<number> {
   return days;
 }
 
-async function boundedJsonBody(request: Request): Promise<unknown> {
-  const text = await readBoundedBody(request, MAX_BODY_BYTES,
+async function boundedJsonBody(request: Request, maxBytes: number): Promise<unknown> {
+  const text = await readBoundedBody(request, maxBytes,
     () => new ApiInputError("REQUEST_TOO_LARGE", 413),
     () => new ApiInputError("REQUEST_TIMEOUT", 408));
   if (!text.trim()) return null;
