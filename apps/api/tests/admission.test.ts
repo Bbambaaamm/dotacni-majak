@@ -26,7 +26,10 @@ function envWithPrepare(prepare: () => D1PreparedStatementLike): Env {
 }
 
 describe("per-isolate API admission", () => {
-  it("logs only bounded lane occupancy on overload, without request data, and tolerates logger failure", async () => {
+  it("bounds warnings per lane, counts a flood, and recovers after clock and logger failures", async () => {
+    vi.resetModules();
+    const { handleRequest: isolatedHandleRequest } = await import("../src/index");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const ordinaryGate = deferred<null>();
     const readyGate = deferred<{ ok: number }>();
     const ordinaryEnv = envWithPrepare(() => {
@@ -36,40 +39,67 @@ describe("per-isolate API admission", () => {
     const readyEnv = envWithPrepare(() => ({ first: () => readyGate.promise }) as D1PreparedStatementLike);
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ordinary = Array.from({ length: MAX_IN_FLIGHT_REQUESTS }, () =>
-      handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv));
+      isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv));
     const ready = Array.from({ length: MAX_IN_FLIGHT_READY_REQUESTS }, () =>
-      handleRequest(new Request("https://example.test/ready"), readyEnv));
+      isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv));
 
     try {
       expect(log).not.toHaveBeenCalled();
       const secret = "private-sentinel-550";
-      const rejectedOrdinary = await handleRequest(new Request(
+      const rejectedOrdinary = await isolatedHandleRequest(new Request(
         `https://example.test/${secret}?token=${secret}`,
         { method: "POST", headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret }, body: secret },
       ), ordinaryEnv);
-      const rejectedReady = await handleRequest(new Request(
+      clock.mockReturnValue(130_000);
+      const rejectedReady = await isolatedHandleRequest(new Request(
         `https://example.test/ready?token=${secret}`,
         { headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret } },
       ), readyEnv);
       expect(rejectedOrdinary.status).toBe(503);
       expect(rejectedReady.status).toBe(503);
       expect(log.mock.calls).toEqual([
-        [{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16 }],
-        [{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2 }],
+        [{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1 }],
+        [{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2, rejectedSinceLast: 1 }],
       ]);
       expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
 
-      log.mockImplementation(() => { throw new Error("logger failure"); });
-      expect((await handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
-      expect((await handleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+      for (let i = 0; i < 1000; i += 1) {
+        expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      }
+      expect(log).toHaveBeenCalledTimes(2);
+      clock.mockReturnValue(Number.NaN);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      clock.mockReturnValue(90_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(2);
+
+      clock.mockReturnValue(160_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(3);
+      expect(log.mock.calls[2]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1003 }]);
+
+      clock.mockReturnValue(190_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+      expect(log.mock.calls[3]).toEqual([{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2, rejectedSinceLast: 2 }]);
+
+      clock.mockReturnValue(220_000);
+      log.mockImplementationOnce(() => { throw new Error("logger failure"); });
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(5);
+      clock.mockReturnValue(280_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log.mock.calls[5]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 3 }]);
     } finally {
       ordinaryGate.resolve(null);
       readyGate.resolve({ ok: 1 });
       await Promise.all([...ordinary, ...ready]);
       log.mockRestore();
+      clock.mockRestore();
     }
-    expect((await handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(404);
-    expect((await handleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(200);
+    expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(404);
+    expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(200);
   });
 
   it("does not log normal admission or health probes", async () => {

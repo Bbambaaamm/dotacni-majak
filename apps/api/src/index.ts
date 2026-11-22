@@ -73,6 +73,12 @@ const MAX_IN_FLIGHT_REQUESTS = 16;
 const MAX_IN_FLIGHT_READY_REQUESTS = 2;
 let inFlightRequests = 0;
 let inFlightReadyRequests = 0;
+const OVERLOAD_LOG_INTERVAL_MS = 60_000;
+type AdmissionLane = "ordinary" | "ready";
+const overloadLogState: Record<AdmissionLane, { lastAttemptAt: number | null; rejectedSinceLast: number }> = {
+  ordinary: { lastAttemptAt: null, rejectedSinceLast: 0 },
+  ready: { lastAttemptAt: null, rejectedSinceLast: 0 },
+};
 
 function overloadedResponse(): Response {
   return json({ error: "API_OVERLOADED" }, {
@@ -81,11 +87,18 @@ function overloadedResponse(): Response {
   });
 }
 
-function observeOverload(lane: "ordinary" | "ready", occupancy: number, cap: number): void {
+function observeOverload(lane: AdmissionLane, occupancy: number, cap: number): void {
+  const state = overloadLogState[lane];
+  state.rejectedSinceLast = Math.min(Number.MAX_SAFE_INTEGER, state.rejectedSinceLast + 1);
   try {
-    console.warn({ event: "api_admission_overload", lane, occupancy, cap });
+    const now = Date.now();
+    if (!Number.isFinite(now) || (state.lastAttemptAt !== null && now - state.lastAttemptAt < OVERLOAD_LOG_INTERVAL_MS)) return;
+    const rejectedSinceLast = state.rejectedSinceLast;
+    state.lastAttemptAt = now;
+    console.warn({ event: "api_admission_overload", lane, occupancy, cap, rejectedSinceLast });
+    state.rejectedSinceLast = 0;
   } catch {
-    // Logging must not change admission responses or slot accounting.
+    // Keep the count for a later attempt; logging must not change admission responses or slots.
   }
 }
 

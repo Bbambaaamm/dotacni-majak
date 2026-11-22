@@ -102,12 +102,15 @@ account-binding/recovery flow.
   po úspěchu i chybě. Jiné metody `/health` a `/ready` podléhají běžnému limitu.
   Limity nejsou sdílené mezi izoláty ani instancemi, nejsou globálním rate limitem
   nebo ochranou proti distribuované zátěži a nestanovují deadline DB operace.
-  Každé odmítnutí na limitu se pokusí zapsat přes Worker logging strukturovanou událost
-  `api_admission_overload` s pevným `lane` (`ordinary` nebo `ready`) a číselnými
-  `occupancy` a `cap` daného izolátu. Přijaté požadavky tuto událost nezapisují.
-  Záznam neobsahuje URL, cestu, query, hlavičky, tokeny, tělo ani IP adresu;
-  selhání logování nemění odpověď ani uvolnění slotů. Záznam není agregovaný
-  ani distribuovaný čítač a jeho dostupnost závisí na sběru Worker logů.
+  Worker se pokusí zapsat nejvýše jedno vlastní varování `api_admission_overload`
+  za minutu a izolát pro každou lane (`ordinary` nebo `ready`). Varování obsahuje
+  číselné `occupancy`, `cap` a `rejectedSinceLast` (počet odmítnutí od posledního
+  volání logovací funkce bez chyby, včetně aktuálního). Přijaté požadavky tuto událost
+  nezapisují. Pouze vlastní payload této události neobsahuje URL, cestu, query,
+  hlavičky, tokeny, tělo ani IP adresu; platformní Cloudflare invocation logy
+  mohou obsahovat URL včetně query. Selhání logování nemění odpověď ani uvolnění
+  slotů. Worker logy mohou být vzorkované nebo vypnuté. Tyto záznamy nejsou
+  přesnými distribuovanými metrikami odmítnutí.
 - Owner token projektu A nemůže spravovat projekt B.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní
