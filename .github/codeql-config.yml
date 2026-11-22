@@ -1,0 +1,84 @@
+# CodeQL configuration — Dotační maják SAST baseline
+#
+# This file defines which paths CodeQL scans and which queries apply.
+# It is referenced by .github/workflows/codeql.yml via the `config-file` parameter.
+#
+# Baseline / suppression policy
+# ------------------------------
+# 1. Path exclusions (paths-ignore below) remove generated/transient/test data that
+#    would only produce noise, not actionable findings. They are NOT a way to hide
+#    unfixed vulnerabilities — real application code stays in scope.
+# 2. Query suppression (query-filters) is intentionally empty right now. We do NOT
+#    start with a pre-seeded ignore list because that would silently hide findings
+#    we have not reviewed. Every query suppression must travel through a PR that
+#    documents the justification (false positive, accepted risk with expiry, or
+#    detector limitation) and is linked to this config update.
+# 3. A SARIF baseline for "known accepted findings" is created after the first
+#    successful CodeQL run on main. Until that baseline exists, the workflow fails
+#    closed on ANY finding in scope. After the baseline is published, new findings
+#    only fail the workflow; previously accepted findings are surfaced as informational.
+# 4. The security tab on GitHub reflects results from the scheduled + PR runs.
+#    Review cadence: every PR that touches application code is expected to produce
+#    zero new findings in scope.
+
+name: dotacni-majak CodeQL SAST baseline
+
+queries:
+  - uses: security-extended
+
+# Paths CodeQL will scan. Both web and API application code are in scope.
+paths:
+  - apps/web/src
+  - apps/api/src
+  # Source SDK and ingestion pipeline are in scope (parse untrusted input).
+  - packages/source-sdk/src
+  - pipelines/ingestion/src
+  # Connector packages handle external HTTP and document parsing.
+  - connectors/*/src
+  # Shared domain packages.
+  - packages/applicant/src
+  - packages/eligibility/src
+  - packages/finance/src
+  - packages/search/src
+  - packages/budget/src
+  - packages/watches/src
+  - packages/notifications/src
+  - packages/workspace/src
+  - packages/sharing/src
+  - packages/project-access/src
+  - packages/change-detection/src
+
+# Paths excluded from scanning. Exclusions are for generated/transient/test data
+# only. No exclusion masks unfixed real code.
+paths-ignore:
+  # Transient / generated (should not be scanned; rebuilt on checkout).
+  - "**/tsconfig.tsbuildinfo"
+  - "**/*.egg-info"
+  - "**/__pycache__"
+  - "**/node_modules"
+  # Worktrees created by issue work — each worktree gets its own checkout and
+  # must not pollute the main-tree scan.
+  - "worktrees/**"
+  # E2E / golden test fixtures — these are known, reviewed datasets, not
+  # application logic, and would produce artificial findings.
+  - "tests/fixtures"
+  - "tests/e2e"
+  - "tests/node"
+  - "test-results"
+  # Scripts that run once in CI and are not long-lived application code.
+  - "scripts/*.mjs"
+  - "scripts/*.py"
+  # Release evidence / provenance queries — data files, not application code.
+  - "release/**"
+  # Migrations are SQL DDL reviewed via schema tests, not TS/Python logic.
+  - "migrations/**"
+  # Data directory (fixtures, seeds).
+  - "data/**"
+  # Research notes and adr (markdown, not scanned logic).
+  - "docs/adr/**"
+  - "docs/ISSUE_ROADMAP.md"
+  - "research/**"
+  # Brand / design assets.
+  - "BRAND_ASSETS.md"
+  - "BRAND.md"
+  - "DESIGN_SYSTEM.md"

@@ -14,6 +14,7 @@
     "accessibility_automation_green",
     "production_build_green",
     "security_dependency_scan_acceptable",
+    "security_sast_scan_acceptable",
     "usage_budget_safe_or_degradation_verified"
   ],
   "manual": [
