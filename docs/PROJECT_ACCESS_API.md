@@ -40,6 +40,13 @@ transakční sekvenci. Cloudflare dokumentuje batched statements jako SQL
 transaction s rollbackem celé sekvence při chybě:
 https://developers.cloudflare.com/d1/worker-api/d1-database/#batch
 
+## Update project watch
+
+`PATCH /projects/<projectId>/watch` vyžaduje owner capability a JSON objekt
+s jediným povoleným polem `enabled` typu boolean (`true` nebo `false`).
+Neznámé top-level pole vrací HTTP 400 `UNKNOWN_WATCH_FIELD`; chybějící nebo
+neplatné `enabled` vrací HTTP 400 `INVALID_WATCH_ENABLED`.
+
 ## Create read-only share
 
 `POST /projects/<projectId>/shares`
@@ -51,6 +58,11 @@ Volitelné JSON:
 ```json
 { "expiresInDays": 30 }
 ```
+
+Vynechané tělo nebo `{}` používá 30 dní. Uvedené `expiresInDays` musí být
+bezpečné celé číslo 1–365; explicitní `null` i jiná neplatná hodnota vrací
+HTTP 400 `INVALID_SHARE_EXPIRY`. Neznámé top-level pole vrací HTTP 400
+`UNKNOWN_SHARE_FIELD`.
 
 Response vrací pouze nový read-only share token. Owner capability není share
 token a jednotlivé token domains jsou kryptograficky oddělené.
@@ -132,6 +144,10 @@ account-binding/recovery flow.
   slotů. Worker logy mohou být vzorkované nebo vypnuté. Tyto záznamy nejsou
   přesnými distribuovanými metrikami odmítnutí.
 - Owner token projektu A nemůže spravovat projekt B.
+- Chybné tělo watch/share se odmítá před přístupem k D1, bez zápisu;
+  odpověď obsahuje jen stabilní chybový kód, nikoli jména polí ani hodnoty.
+  Chybějící nebo neplatná owner capability zachovává externí odpověď
+  `404 OWNER_CAPABILITY_INVALID` pro platný požadavek.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní
   poznámky, dokumentové storage refs ani account/watch data.

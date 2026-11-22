@@ -56,6 +56,18 @@ Chybová odpověď obsahuje jen stabilní kód, nikoli obsah požadavku. Vynecha
 nebo `null` volitelné hodnoty zachovávají výchozí hodnoty popsané v
 `docs/PROJECT_ACCESS_API.md`.
 
+Slice #421 pokrývá také `PATCH /projects/:id/watch` a
+`POST /projects/:id/shares`: oba přijímají pouze známá top-level JSON pole.
+Neznámé pole vrací HTTP 400 `UNKNOWN_WATCH_FIELD` nebo `UNKNOWN_SHARE_FIELD`;
+explicitní `expiresInDays: null` vrací HTTP 400 `INVALID_SHARE_EXPIRY`.
+Odmítnutí nastává před přístupem k D1 a vrací jen chybový kód, bez obsahu
+požadavku. Chybějící/neplatná owner capability pro platný požadavek dál
+vrací externí 404; limity velikosti a času čtení těla platí beze změny.
+Reziduální matice #421: `POST /projects` má validaci známých polí;
+watch PATCH a share POST jsou pokryté tímto slice; ostatní mutační JSON
+endpointy (zejména applicant profile a workspace/task) tímto slice nejsou
+posouzené ani uzavřené.
+
 `GET`/`HEAD /search` přijímá nejvýše 16 384 znaků v zakódovaném query stringu (bez `?`); delší dotaz vrací HTTP 400 `QUERY_TOO_LONG` před čtením D1. Každý známý parametr vyhledávání může být uveden nejvýše jednou, včetně `intent`, `limit` a `cursor`; opakování vrací HTTP 400 i při totožných hodnotách (`INVALID_INTENT`, `INVALID_LIMIT`, resp. `INVALID_CURSOR`). Chybové odpovědi obsahují pouze kód, nikoli text dotazu. Limit omezuje zpracování na úrovni API, ale nezastupuje limit celé URL na proxy/platformě, rate limiting ani ochranu proti mnoha samostatným požadavkům. Neznámé parametry pod touto hranicí zůstávají ignorovány.
 
 ## Release gates

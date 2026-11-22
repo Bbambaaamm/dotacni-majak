@@ -351,8 +351,12 @@ export async function parseShareOptions(request: Request): Promise<number> {
   if (typeof body !== "object" || Array.isArray(body)) {
     throw new ApiInputError("INVALID_SHARE_OPTIONS");
   }
-  const days = (body as Record<string, unknown>).expiresInDays;
-  if (days == null) return DEFAULT_SHARE_DAYS;
+  const value = body as Record<string, unknown>;
+  if (Object.keys(value).some((key) => key !== "expiresInDays")) {
+    throw new ApiInputError("UNKNOWN_SHARE_FIELD");
+  }
+  if (!("expiresInDays" in value)) return DEFAULT_SHARE_DAYS;
+  const days = value.expiresInDays;
   if (
     typeof days !== "number"
     || !Number.isSafeInteger(days)

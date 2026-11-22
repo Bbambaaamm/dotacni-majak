@@ -113,6 +113,23 @@ describe("bounded streaming request bodies", () => {
     expect(await parseWatchEnabled(streamed([bytes('{"enabled":true}')]).request)).toBe(true);
   });
 
+  it("validates share options without defaulting explicit null", async () => {
+    const parse = (body?: string) => parseShareOptions(new Request("https://example.test", {
+      method: "POST",
+      ...(body === undefined ? {} : { body }),
+    }));
+    await expect(parse()).resolves.toBe(30);
+    await expect(parse("{}")).resolves.toBe(30);
+    for (const days of [1, 365]) {
+      await expect(parse(JSON.stringify({ expiresInDays: days }))).resolves.toBe(days);
+    }
+    await expect(parse('{"expiresInDays":null}')).rejects.toMatchObject({
+      code: "INVALID_SHARE_EXPIRY", status: 400,
+    });
+    await expect(parse('{"expiresInDays":30,"unexpectedSecret":"private"}'))
+      .rejects.toMatchObject({ code: "UNKNOWN_SHARE_FIELD", status: 400 });
+  });
+
   it("checks workspace authorization before rejecting an oversized body", async () => {
     const projectId = `prj_${"a".repeat(32)}`;
     const { request } = streamed([bytes("secret")], String(BODY_LIMIT_BYTES.workspace + 1),

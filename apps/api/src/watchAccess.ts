@@ -174,7 +174,11 @@ export async function parseWatchEnabled(request: Request): Promise<boolean> {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new ApiInputError("INVALID_WATCH_INPUT");
   }
-  const enabled = (body as Record<string, unknown>).enabled;
+  const value = body as Record<string, unknown>;
+  if (Object.keys(value).some((key) => key !== "enabled")) {
+    throw new ApiInputError("UNKNOWN_WATCH_FIELD");
+  }
+  const enabled = value.enabled;
   if (typeof enabled !== "boolean") {
     throw new ApiInputError("INVALID_WATCH_ENABLED");
   }

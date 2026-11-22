@@ -147,12 +147,14 @@ describe("project watch access", () => {
   });
 
   it("validates PATCH body strictly", async () => {
-    await expect(
-      parseWatchEnabled(new Request("https://example.test", {
-        method: "PATCH",
-        body: JSON.stringify({ enabled: true }),
-      })),
-    ).resolves.toBe(true);
+    for (const enabled of [true, false]) {
+      await expect(
+        parseWatchEnabled(new Request("https://example.test", {
+          method: "PATCH",
+          body: JSON.stringify({ enabled }),
+        })),
+      ).resolves.toBe(enabled);
+    }
 
     await expect(
       parseWatchEnabled(new Request("https://example.test", {
@@ -160,5 +162,12 @@ describe("project watch access", () => {
         body: JSON.stringify({ enabled: "yes" }),
       })),
     ).rejects.toMatchObject({ code: "INVALID_WATCH_ENABLED" });
+
+    await expect(
+      parseWatchEnabled(new Request("https://example.test", {
+        method: "PATCH",
+        body: JSON.stringify({ enabled: true, unexpectedSecret: "private" }),
+      })),
+    ).rejects.toMatchObject({ code: "UNKNOWN_WATCH_FIELD", status: 400 });
   });
 });
