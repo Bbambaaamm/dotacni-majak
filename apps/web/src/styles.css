@@ -231,6 +231,55 @@ button:focus-visible {
   color: #344451;
 }
 
+/* —  — Breadcrumbs  —  — */
+
+.breadcrumbs {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.breadcrumbs__list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumbs__item {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbs__item:not(:last-child)::after {
+  content: "›";
+  margin-left: 8px;
+  color: var(--muted, #52606d);
+  font-weight: 700;
+  /* Separator is visual-only; CSS ::after is not in the accessibility tree */
+}
+
+.breadcrumbs__link {
+  color: #087f8c;
+  text-decoration: none;
+}
+
+.breadcrumbs__link:hover,
+.breadcrumbs__link:focus {
+  text-decoration: underline;
+}
+
+.breadcrumbs__current {
+  color: #52606d;
+  font-weight: 700;
+}
+
+.breadcrumbs-wrapper {
+  padding-inline: 16px;
+}
+
 @media (max-width: 720px) {
   .site-header__inner {
     align-items: flex-start;
