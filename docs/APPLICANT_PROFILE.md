@@ -45,7 +45,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/applicant-profile` | Bearer owner capability | Returns the caller's profile (keyed by `projects.owner_user_id`) or `404 { profile: null }` when none exists. UNKNOWN ≠ FAIL. |
-| `PUT` | `/applicant-profile` | Bearer owner capability | Atomic create/update. `applicantType` is required; omitted optional fields retain their stored values except dependent municipality fields described below. Explicit `null`/`[]`/`{}` clears them. Body size ≤ 16 KB. |
+| `PUT` | `/applicant-profile` | Bearer owner capability | Atomic create/update. `applicantType` is required; omitted optional fields retain their stored values except dependent municipality fields described below. Explicit `null`/`[]`/`{}` clears them. Body size ≤ 16 KiB (16,384 bytes). |
 | `POST` | `/applicant-profile` | Bearer owner capability | Alias of `PUT` — same upsert semantics. |
 | `DELETE` | `/applicant-profile` | Bearer owner capability | Deletes the profile. Idempotent (returns `200 { deleted: true }` even if no profile exists). |
 | `GET` | `/applicant-profile/last-resolved` | Bearer owner capability | Read-only. Returns `{ lastResolvedAt: "ISO-8601" | null }` — the most recent `observedAt` from ARES, CZSO, or OTHER_OFFICIAL provenance. Exposes only the timestamp, never PII. |
@@ -53,7 +53,7 @@ Tím se starší populační údaj nikdy netváří jako aktuální bez data pla
 ### Authorization
 - Bearer token = anonymous project owner capability (same capability used by `/projects/{id}/watch`).
 - Server-side: `hashOwnerToken(token)` → SHA-256 of `dotacni-majak-project-owner-v1\0` + token → live `project_owner_capabilities` row → `projects.owner_user_id` → `applicant_profiles.user_id`.
-- Raw token is never stored. Missing/invalid token returns `404 OWNER_CAPABILITY_INVALID` (non-disclosing).
+- Raw token is never stored. Missing/malformed token returns `404 OWNER_CAPABILITY_INVALID` (non-disclosing). On `PUT`/`POST`, a syntactically valid but unauthorized token may encounter body validation first: an oversized body returns `413 REQUEST_TOO_LARGE` before DB authorization; a valid body with an invalid token returns 404.
 
 ### Error semantics
 | Code | HTTP | Meaning |
