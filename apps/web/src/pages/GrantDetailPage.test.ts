@@ -103,6 +103,16 @@ describe("detail deadline boundaries", () => {
       .toMatch(/<dt>Od<\/dt>.*<dt>Do<\/dt>.*Zóna uvedená zdrojem/);
   });
 
+  it("cautions reversed comparable bounds while retaining the source values", () => {
+    const html = render({ ...deadline, startsAt: "2027-06-02", endsAt: "2027-06-01" });
+    expect(html).toContain("Termíny jsou v opačném pořadí");
+    expect(html).toContain('role="note"');
+    expect(html).toContain("2027-06-02");
+    expect(html).toContain("2027-06-01");
+    expect(render({ ...deadline, startsAt: "2027-06-01", endsAt: "datum-nejasne" }))
+      .not.toContain("Termíny jsou v opačném pořadí");
+  });
+
   it("keeps a wholly unknown deadline explicit, not an open-ended application", () => {
     for (const [startsAt, endsAt] of [[null, null], ["", null], ["  ", "\t"]] as const) {
       const html = render({ ...deadline, startsAt, endsAt });

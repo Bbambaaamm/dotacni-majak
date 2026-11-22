@@ -9,6 +9,14 @@ export function sourceDeadlineNeedsReview(value: string | null): boolean {
     || !Number.isFinite(Date.parse(value));
 }
 
+// Compare only equally precise, validated source bounds. A date-only boundary
+// cannot be ordered against a clock time without inventing a timezone/cutoff.
+export function conflictingDeadlineBounds(start: string | null, end: string | null): boolean {
+  if (!start || !end || sourceDeadlineNeedsReview(start) || sourceDeadlineNeedsReview(end)) return false;
+  if ((start.length === 10) !== (end.length === 10)) return false;
+  return start.length === 10 ? end < start : Date.parse(end) < Date.parse(start);
+}
+
 // Show the source's clock and offset without converting to the viewer's timezone.
 // Date-only and unrecognized values retain their original precision and spelling.
 export function deadlineTime(value: string | null): string {
