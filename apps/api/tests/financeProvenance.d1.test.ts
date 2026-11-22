@@ -152,6 +152,25 @@ describe("finance provenance on canonical D1", () => {
       scenarioIds: [], conditionEvidenceIds: {} });
   });
 
+  it("withholds structural IDs for blank official scalar and set operands", async () => {
+    const db = await setup();
+    const baseline = await read(db);
+    expect(baseline.status).toBe("STRUCTURE_ONLY");
+    for (const [operator, operand] of [
+      ["EQ", '""'], ["NEQ", '"  \t "'], ["IN", '["MUNICIPALITY", "  "]'],
+      ["NOT_IN", '["", "MUNICIPALITY"]'],
+    ] as const) {
+      await db.prepare("UPDATE rule_conditions SET condition_operator=?, expected_value_json=? WHERE id='c1'")
+        .bind(operator, operand).run();
+      expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND",
+        scenarioIds: [], conditionEvidenceIds: {} });
+    }
+    await db.prepare("UPDATE rule_conditions SET condition_operator='IN', expected_value_json='[\"MUNICIPALITY\"]' WHERE id='c1'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+    await db.prepare("UPDATE rule_conditions SET condition_operator='EQ', expected_value_json='\"MUNICIPALITY\"' WHERE id='c1'").run();
+    expect(await read(db)).toEqual(baseline);
+  });
+
   it("withholds structural IDs for NUL-tailed and byte-oversize rule operands", async () => {
     const db = await setup();
     const invalid = [

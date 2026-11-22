@@ -48,6 +48,8 @@ Finance engine sám nevybírá „nejlepší“ variantu.
 - pouze UNKNOWN → NEEDS_INFORMATION,
 - samé FAIL → SCENARIO_NOT_APPLICABLE.
 
+Interní D1 provenance preflight (#304) vydává nanejvýš `STRUCTURE_ONLY` pro ověřené reference pravidel a scénářů. Prázdné nebo jen whitespace textové operandy pravidel (`STRING`, `ENUM`, `GEO_ID`), včetně členů `IN`/`NOT_IN`, vracejí `NEEDS_INFORMATION / UNSUPPORTED_RULE_OPERAND` bez ID scénářů a evidence. Tato strukturální kontrola neověřuje sémantiku vůči oficiálnímu textu, aktuálnost ani hodnoty žadatele a neopravňuje personalizovaný výpočet či veřejné finance API.
+
 ## Příklad
 Projekt:
 - celkem 4 000 000 Kč,
