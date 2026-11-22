@@ -48,6 +48,34 @@ const read = (db: any, owner = principal, profile = "profile-a", cutoff = asOf) 
   preflightFinanceApplicantValues(db, owner, profile, cutoff);
 
 describe("finance applicant preflight on canonical D1", () => {
+  it("fails closed on rejected, incomplete or malformed snapshot reads without releasing IDs", async () => {
+    const db = await setup();
+    const normal = await read(db);
+    expect(normal.status).toBe("STRUCTURE_ONLY");
+    for (const brokenBatch of [
+      async () => { throw new Error("D1 unavailable"); },
+      async (statements: any[]) => (await db.batch(statements)).slice(0, 1),
+      async () => null,
+      async (statements: any[]) => {
+        const rows = await db.batch(statements);
+        return rows.map((row: any, index: number) => index === 0 ? { ...row, results: undefined } : row);
+      },
+      async (statements: any[]) => {
+        const rows = await db.batch(statements);
+        return rows.map((row: any, index: number) => index === 1 ? { ...row, results: undefined } : row);
+      },
+      async (statements: any[]) => {
+        const rows = await db.batch(statements);
+        return rows.map((row: any, index: number) => index === 1 ? { ...row, success: false } : row);
+      },
+    ]) {
+      const brokenDb = { prepare: db.prepare.bind(db), batch: brokenBatch };
+      await expect(read(brokenDb)).resolves.toEqual({ status: "ERROR", reason: "SNAPSHOT_READ_FAILED",
+        profileId: null, attributeValueIds: [], evidenceIds: [] });
+    }
+    expect(await read(db)).toEqual(normal);
+  });
+
   it("returns only structural identifiers for an owned official scalar value", async () => {
     const db = await setup();
     const result = await read(db);

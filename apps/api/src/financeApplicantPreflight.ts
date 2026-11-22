@@ -78,11 +78,13 @@ export async function preflightFinanceApplicantValues(
       LEFT JOIN source_registry sr ON sr.id = sd.source_id
       WHERE av.applicant_profile_id = ? ORDER BY av.id LIMIT 129`).bind(principal, profileId),
   ]); } catch { return result("ERROR", "SNAPSHOT_READ_FAILED"); }
-  if (rows.length !== 2 || rows.some((row) => !row.success)) return result("ERROR", "SNAPSHOT_READ_FAILED");
-  const profiles = (rows[0].results ?? []) as { id: string; created_at: string }[];
+  if (!Array.isArray(rows) || rows.length !== 2
+    || rows.some((row) => !row?.success || !Array.isArray(row.results)))
+    return result("ERROR", "SNAPSHOT_READ_FAILED");
+  const profiles = rows[0].results as { id: string; created_at: string }[];
   if (profiles.length !== 1) return result("NEEDS_INFORMATION", "PROFILE_NOT_OWNED");
   const profileCreated = instant(profiles[0].created_at);
-  const values = (rows[1].results ?? []) as ValueRow[];
+  const values = rows[1].results as ValueRow[];
   if (values.length > 128) return result("ERROR", "ATTRIBUTE_LIMIT_EXCEEDED");
   if (!values.length) return result("NEEDS_INFORMATION", "NO_ATTRIBUTE_VALUES");
   for (const row of values) {

@@ -12,7 +12,9 @@ The same read-only D1 gate also checks the actual group operator and direct chil
 
 `apps/api/src/financeApplicantPreflight.ts` now provides an API-internal, read-only
 `preflightFinanceApplicantValues` check for the sparse `applicant_attribute_values` table.
-The caller supplies an already authenticated principal, an exact profile ID, and an
+Rejected or incomplete two-query D1 snapshots are `ERROR / SNAPSHOT_READ_FAILED`
+with no profile, value or evidence IDs; they are not mistaken for an unowned
+profile or absent values. The caller supplies an already authenticated principal, an exact profile ID, and an
 `asOf` UTC instant. One D1 batch checks profile ownership and at most 128 value rows
 from the same snapshot. Each row must have an active applicant scalar definition,
 matching and well-formed byte-bounded JSON type (including rejection of embedded NUL), VERIFIED official-source status, and
