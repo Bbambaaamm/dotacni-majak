@@ -79,6 +79,8 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
         WHERE fe.id = c.evidence_id AND fe.entity_type = 'GRANT_CALL_VERSION'
           AND fe.entity_id = (${versionIdSql}) AND fe.field_path = '/rule_conditions/' || c.id
           AND fe.verification_status = 'VERIFIED' AND dv.extraction_status = 'EXTRACTED'
+          AND (fe.document_section_id IS NULL OR EXISTS (SELECT 1 FROM document_sections ds
+            WHERE ds.id = fe.document_section_id AND ds.document_version_id = fe.document_version_id))
           AND sd.grant_call_id = ? AND sr.authority IN ('OFFICIAL','OFFICIAL_OPEN_DATA'))
         THEN 1 ELSE 0 END AS trusted
       FROM rule_conditions c JOIN rule_groups g ON g.id = c.rule_group_id
@@ -94,6 +96,8 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
           AND fe.entity_id = fs.grant_call_version_id
           AND fe.field_path = '/funding_scenarios/' || fs.id
           AND fe.verification_status = 'VERIFIED' AND dv.extraction_status = 'EXTRACTED'
+          AND (fe.document_section_id IS NULL OR EXISTS (SELECT 1 FROM document_sections ds
+            WHERE ds.id = fe.document_section_id AND ds.document_version_id = fe.document_version_id))
           AND sd.grant_call_id = ? AND sr.authority IN ('OFFICIAL','OFFICIAL_OPEN_DATA'))
         THEN 1 ELSE 0 END AS trusted
       FROM funding_scenarios fs WHERE fs.grant_call_version_id = (${versionIdSql})
