@@ -15,7 +15,8 @@ type SetRow = { id: string; completeness_status: string; verification_status: st
 type Group = { id: string; parent_group_id: string | null; group_operator: string };
 type Condition = { id: string; rule_group_id: string; evidence_id: string | null; verification_status: string; trusted: number;
   attribute_key: string; scope: string; data_type: string; active: number; condition_operator: string;
-  expected_value_json: string; blocking: number; unknown_policy: string };
+  expected_value_json: string; operand_bytes: number; operand_nul_offset: number;
+  blocking: number; unknown_policy: string };
 type Scenario = { id: string; condition_group_id: string | null; trusted: number };
 
 // Finance may use only the deterministic scalar applicant-rule subset supported by
@@ -32,7 +33,8 @@ function supportedCondition(c: Condition): boolean {
   if (c.scope !== "APPLICANT" || c.active !== 1 || typeof c.attribute_key !== "string" || !c.attribute_key.startsWith("applicant.")
     || !scalarTypes.has(c.data_type) || !operators.has(c.condition_operator)
     || ![0, 1].includes(c.blocking) || !["PROPAGATE", "NOT_APPLICABLE"].includes(c.unknown_policy)
-    || typeof c.expected_value_json !== "string" || c.expected_value_json.length > 4096
+    || typeof c.expected_value_json !== "string" || typeof c.operand_bytes !== "number"
+    || c.operand_bytes < 1 || c.operand_bytes > 4096 || c.operand_nul_offset !== 0
     || (["LT", "LTE", "GT", "GTE"].includes(c.condition_operator)
       && !["INTEGER", "NUMBER", "MONEY_MINOR", "PERCENT_BPS"].includes(c.data_type))) return false;
   try {
@@ -66,7 +68,10 @@ export async function verifyFinanceRuleProvenance(db: D1DatabaseLike, grantCallI
       WHERE rule_set_id = (${ruleSetSql}) ORDER BY id LIMIT 65`).bind(grantCallId),
     db.prepare(`SELECT c.id, c.rule_group_id, c.evidence_id, c.verification_status,
       a.attribute_key, a.scope, a.data_type, a.active, c.condition_operator,
-      c.expected_value_json, c.blocking, c.unknown_policy,
+      substr(c.expected_value_json, 1, 4097) AS expected_value_json,
+      length(CAST(c.expected_value_json AS BLOB)) AS operand_bytes,
+      instr(CAST(c.expected_value_json AS BLOB), x'00') AS operand_nul_offset,
+      c.blocking, c.unknown_policy,
       CASE WHEN EXISTS (SELECT 1 FROM field_evidence fe
         JOIN document_versions dv ON dv.id = fe.document_version_id
         JOIN source_documents sd ON sd.id = dv.source_document_id
