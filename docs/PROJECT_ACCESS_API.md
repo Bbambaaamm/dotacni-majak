@@ -87,9 +87,11 @@ account-binding/recovery flow.
   mají explicitní limit 4 KiB. Jde o bajty těla, ne počet znaků JSON.
 - Limit se vynucuje při čtení streamu podle skutečných UTF-8 bajtů (ne až po
   `request.text()`); klientský `Content-Length` slouží jen k časnému odmítnutí.
-  Po úspěšné autorizaci dané cesty překročení vrací `413 REQUEST_TOO_LARGE`
-  bez vrácení vstupních dat. Bez platné capability se chráněné cesty odmítnou
-  ještě před čtením těla (`404 OWNER_CAPABILITY_INVALID`), i kdyby bylo nad limitem.
+  Překročení na cestě, která čte tělo, vrací `413 REQUEST_TOO_LARGE` bez
+  vrácení vstupních dat. Workspace autorizuje vlastníka před čtením těla,
+  takže neplatná capability zde vrací `404 OWNER_CAPABILITY_INVALID` i při
+  nadlimitním těle; profile, watch a share naproti tomu mohou při syntakticky
+  platné, ale neoprávněné capability vrátit 413 před databázovým ověřením.
   Tato politika se vztahuje jen na vyjmenované JSON request body; validace
   jednotlivých polí, uploady a limity odpovědí zůstávají samostatné.
 - Čtení těla má celkový deadline 10 s od zahájení streamu; zaseknutý nebo
