@@ -20,7 +20,7 @@ import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { formatMinorMoney } from "../lib/sharedProject";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
 import { verificationLabel } from "../lib/verificationLabel";
-import { allSourcesMissing, mixedSourcePresence, sourcePresenceLabel } from "../lib/sourcePresence";
+import { allSourcesMissing, mixedSourcePresence, sourcePresenceLabel, verificationSourceUrl } from "../lib/sourcePresence";
 import "./results.css";
 
 export function statusLabel(status: string): string {
@@ -372,7 +372,7 @@ export function GrantDetailPage() {
   const showSourceCaution = allSourcesMissing(detail.sources);
   const showMixedSourceCaution = mixedSourcePresence(detail.sources);
   const verificationFirst = detail.status === "OPEN" && (detail.sources.length === 0 || showSourceCaution || showMixedSourceCaution);
-  const verificationUrl = versionSource ?? recordSource;
+  const verificationUrl = verificationSourceUrl(detail.officialDetailUrl, detail.sources);
   const action = grantDetailAction(
     detail.status,
     detail.availability.requirements !== "UNKNOWN",

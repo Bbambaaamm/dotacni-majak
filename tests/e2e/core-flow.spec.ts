@@ -1474,7 +1474,7 @@ test("grant detail reports source presence without changing OPEN status", async 
       } else {
         const verify = region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" });
         await expect(verify).toHaveClass(/button--primary/);
-        await expect(verify).toHaveAttribute("href", `https://example.invalid/e2e/page/${scenario.id}`);
+        await expect(verify).toHaveAttribute("href", `https://example.invalid/e2e/page/${scenario.id}${scenario.id === 23 ? "-b" : ""}`);
         await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
         await expect(region.locator(".button--primary")).toHaveCount(1);
       }
@@ -1509,9 +1509,15 @@ test("grant detail reports source presence without changing OPEN status", async 
 test("mixed source caution remains accurate on desktop with real D1/API", async ({ page, request }) => {
   const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A23");
   expect(response.status()).toBe(200);
-  const detail = await response.json() as { status: string; sources: Array<{ presenceState: string }> };
+  const detail = await response.json() as {
+    status: string; officialDetailUrl: string;
+    sources: Array<{ presenceState: string; canonicalUrl: string }>;
+  };
   expect(detail.status).toBe("OPEN");
+  expect(detail.officialDetailUrl).toBe("https://example.invalid/e2e/page/23");
   expect(detail.sources.map((source) => source.presenceState).sort()).toEqual(["MISSING_CANDIDATE", "SEEN"]);
+  expect(detail.sources.find((source) => source.presenceState === "SEEN")?.canonicalUrl)
+    .toBe("https://example.invalid/e2e/page/23-b");
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/dotace/grant%3Ae2e%3Apage%3A23");
@@ -1520,11 +1526,29 @@ test("mixed source caution remains accurate on desktop with real D1/API", async 
   await expect(page.locator(".source-presence-caution")).toContainText("stav „viděn“ i předběžné nebo potvrzené chybění");
   await expect(page.locator(".source-presence-caution")).not.toContainText("V žádném zobrazeném zdrojovém záznamu není stav „viděn“");
   for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
-    await expect(region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" })).toHaveClass(/button--primary/);
+    const verify = region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" });
+    await expect(verify).toHaveClass(/button--primary/);
+    await expect(verify).toHaveAttribute("href", "https://example.invalid/e2e/page/23-b");
     await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
   }
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
+
+  await page.route("**/api/grants/**", async (route) => {
+    await route.fulfill({ json: {
+      ...detail,
+      sources: detail.sources.map((source) => source.presenceState === "SEEN"
+        ? { ...source, canonicalUrl: "javascript:alert(1)" }
+        : source),
+    } });
+  });
+  await page.reload();
+  for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
+    await expect(region.getByRole("note")).toContainText("Ověřte aktuální stav přímo u poskytovatele");
+    await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+    await expect(region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" })).toHaveCount(0);
+    await expect(region.locator(".button--primary")).toHaveCount(0);
+  }
 });
 
 test("missing source offers offline verification when no call URL is safe", async ({ page, request }) => {

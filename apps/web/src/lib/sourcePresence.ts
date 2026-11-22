@@ -1,4 +1,5 @@
 import type { GrantSourceRef } from "./grantDetailApi";
+import { safeOfficialUrl } from "./safeOfficialUrl";
 
 export function sourcePresenceLabel(state: string): string {
   switch (state) {
@@ -20,4 +21,14 @@ export function mixedSourcePresence(sources: GrantSourceRef[]): boolean {
   return sources.some((source) => source.presenceState === "SEEN")
     && sources.some((source) => source.presenceState === "MISSING_CANDIDATE"
       || source.presenceState === "CONFIRMED_MISSING");
+}
+
+export function verificationSourceUrl(officialDetailUrl: string | null, sources: GrantSourceRef[]): string | null {
+  if (mixedSourcePresence(sources)) {
+    return sources.filter((source) => source.presenceState === "SEEN")
+      .map((source) => safeOfficialUrl(source.canonicalUrl)).find(Boolean) ?? null;
+  }
+  return safeOfficialUrl(officialDetailUrl)
+    ?? sources.map((source) => safeOfficialUrl(source.canonicalUrl)).find(Boolean)
+    ?? null;
 }
