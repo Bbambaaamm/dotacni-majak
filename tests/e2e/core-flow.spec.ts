@@ -229,11 +229,11 @@ test("detail marks only malformed source deadline from real D1/API at mobile wid
   expect(response.status()).toBe(200);
   const detail = await response.json() as {
     submissionCloseAt: string | null;
-    deadlines: Array<{ id: string; startsAt: string | null; endsAt: string | null }>;
+    deadlines: Array<{ id: string; startsAt: string | null; endsAt: string | null; evidenceId: string | null }>;
   };
   expect(detail.submissionCloseAt).toBeNull();
   expect(detail.deadlines.find((item) => item.id === "e2e-deadline-uncertain"))
-    .toMatchObject({ startsAt: "2027-06-01", endsAt: "datum-nejasne" });
+    .toMatchObject({ startsAt: "2027-06-01", endsAt: "datum-nejasne", evidenceId: null });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(path);
@@ -245,6 +245,8 @@ test("detail marks only malformed source deadline from real D1/API at mobile wid
   await expect(deadline).toContainText("datum-nejasne");
   await expect(deadline.getByRole("note")).toContainText("Formát termínu není ověřen");
   await expect(deadline.getByRole("note")).toHaveCount(1);
+  await expect(deadline).toContainText("Samostatný doklad termínu není připojen");
+  await expect(deadline).not.toContainText("Ověření doloženého údaje:");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
@@ -2372,6 +2374,14 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
   );
 
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+  const deadlineResponse = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(deadlineResponse.status()).toBe(200);
+  const deadlineDetail = await deadlineResponse.json() as {
+    deadlines: Array<{ id: string; evidenceId: string | null }>;
+    evidence: Array<{ id: string; verificationStatus: string }>;
+  };
+  const closingEvidenceId = deadlineDetail.deadlines.find((item) => item.id === "e2e-deadline-open")?.evidenceId;
+  expect(deadlineDetail.evidence.find((item) => item.id === closingEvidenceId)?.verificationStatus).toBe("VERIFIED");
   await expect(deadlines).toContainText("Ukončení příjmu žádostí");
   await expect(deadlines).toContainText("2027-12-31 23:59:59 UTC");
   const overview = page.locator(".detail-section").filter({ has: page.getByRole("heading", { name: "Rychlý přehled" }) });
@@ -2381,6 +2391,8 @@ test("non-sport intent -> real API results -> filters -> detail -> provenance", 
     .toContainText("2026-09-20 08:00:00 UTC");
   await expect(deadlines.getByRole("link", { name: /Doklad termínu: E2E oficiální podmínky, str. 2/ }))
     .toHaveAttribute("href", "https://example.invalid/e2e/open-source");
+  await expect(deadlines.locator("li").filter({ hasText: "Ukončení příjmu žádostí" }))
+    .toContainText("Ověření doloženého údaje: Ověřeno");
   await expect(deadlines).toContainText("nikoli potvrzení, že lze právě podat žádost");
 
   const finance = page.getByRole("region", { name: "Finance" });

@@ -484,7 +484,7 @@ export function GrantDetailPage() {
                         <p><OfficialSourceLink url={evidence.sourceUrl}>
                           Doklad termínu: {evidence.documentTitle ?? "oficiální dokument"}
                           {evidence.pageFrom ? `, str. ${evidence.pageFrom}` : ""} ↗
-                        </OfficialSourceLink></p>
+                        </OfficialSourceLink> · Ověření doloženého údaje: {verificationLabel(evidence.verificationStatus)}</p>
                       ) : deadline.evidenceId !== null ? (
                         <p className="fine-print">Doklad termínu je uveden, ale není dostupný v omezeném seznamu dokladů; ověřte jej v oficiálním zdroji.</p>
                       ) : (
