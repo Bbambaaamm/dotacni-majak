@@ -159,8 +159,9 @@ function facetsCoverResults(response: GrantSearchResponse,
   // The facet opposite a selected filter counts the matched calls. With both
   // filters selected, neither facet describes the filtered result set.
   const comparableTotal = status ? deadlineTotal : statusTotal;
-  if ((!status || !deadline) && response.nextCursor === null
-    && comparableTotal !== response.results.length) return false;
+  if ((!status || !deadline) && (response.nextCursor === null
+    ? comparableTotal !== response.results.length
+    : comparableTotal <= response.results.length)) return false;
   // Provider options omit only the provider filter. With at most one of the
   // status/deadline filters selected, one other facet counts the same population.
   // A truncated provider list is only a lower bound, never a complete total.
