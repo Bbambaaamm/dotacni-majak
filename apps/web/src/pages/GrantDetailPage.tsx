@@ -11,6 +11,7 @@ import {
   fetchGrantDetail,
   type GrantChangeDetail,
   type GrantDetailResponse,
+  type GrantDeadlineDetail,
   type GrantFundingScenarioDetail,
 } from "../lib/grantDetailApi";
 import { buildReturnSearchUrl, readReturnResult, readSearchUrlState } from "../lib/intent";
@@ -156,6 +157,24 @@ export function SourceDeadline({ value }: { value: string | null }) {
       <span role="note"> — Formát termínu není ověřen; ověřte jej v oficiálním zdroji.</span>
     ) : null}
   </>;
+}
+
+export function DeadlineBounds({ deadline }: { deadline: GrantDeadlineDetail }) {
+  const hasStart = Boolean(deadline.startsAt?.trim());
+  const hasEnd = Boolean(deadline.endsAt?.trim());
+  return <dl className="facts">
+    {hasStart ? (
+      <div><dt>Od</dt><dd><SourceDeadline value={deadline.startsAt} /></dd></div>
+    ) : null}
+    {hasEnd ? (
+      <div><dt>Do</dt><dd><SourceDeadline value={deadline.endsAt} /></dd></div>
+    ) : null}
+    {!hasStart && !hasEnd ? (
+      <div><dt>Termín</dt><dd>Není uveden; ověřte jej v oficiálním zdroji.</dd></div>
+    ) : null}
+    {deadline.timezone && deadline.timezone !== "UTC"
+      ? <div><dt>Zóna uvedená zdrojem</dt><dd>{deadline.timezone}</dd></div> : null}
+  </dl>;
 }
 
 export function DetailMetadataDate({ value, label }: { value: string; label: string }) {
@@ -459,12 +478,7 @@ export function GrantDetailPage() {
                   return (
                     <li key={deadline.id}>
                       <strong>{deadlineLabel(deadline.type)}</strong>
-                      <dl className="facts">
-                        {deadline.startsAt ? <div><dt>Od</dt><dd><SourceDeadline value={deadline.startsAt} /></dd></div> : null}
-                        <div><dt>Do</dt><dd><SourceDeadline value={deadline.endsAt} /></dd></div>
-                        {deadline.timezone && deadline.timezone !== "UTC"
-                          ? <div><dt>Zóna uvedená zdrojem</dt><dd>{deadline.timezone}</dd></div> : null}
-                      </dl>
+                      <DeadlineBounds deadline={deadline} />
                       {deadline.description ? <p>{deadline.description}</p> : null}
                       {evidence ? (
                         <p><OfficialSourceLink url={evidence.sourceUrl}>

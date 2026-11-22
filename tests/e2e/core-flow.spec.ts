@@ -2842,6 +2842,12 @@ test("detail retains version opening beside an evidenced normalized closing", as
     await expect(deadlines).toContainText("Ukončení příjmu žádostí");
     await expect(deadlines).toContainText("Zahájení ze souhrnu zachycené verze");
     await expect(deadlines).toContainText("2026-09-20 08:00:00 UTC");
+    const opening = deadlines.locator("li").filter({ hasText: "Zahájení příjmu žádostí" });
+    const closing = deadlines.locator("li").filter({ hasText: "Ukončení příjmu žádostí" });
+    await expect(opening.locator("dt")).toHaveText(["Od"]);
+    await expect(opening.locator("dd")).toContainText(["2026-09-20 08:00:00 UTC"]);
+    await expect(closing.locator("dt")).toHaveText(["Do"]);
+    await expect(closing.locator("dd")).toContainText(["2027-12-31 23:59:59 UTC"]);
     await expect(deadlines).toContainText("Samostatný doklad termínu není připojen");
     expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

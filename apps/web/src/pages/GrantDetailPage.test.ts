@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { formatMinorMoney } from "../lib/sharedProject";
-import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeFieldLabel, changeSeverityLabel, DetailMetadataDate, evidenceDocumentLabel, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
-import type { GrantChangeDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
+import { ChangeEventDate, ChangeStatusTransition, changeEventLabel, changeFieldLabel, changeSeverityLabel, DeadlineBounds, DetailMetadataDate, evidenceDocumentLabel, formatMinor, fundingSummary, SourceDeadline, SourceObservation, statusLabel, vatRuleLabel } from "./GrantDetailPage";
+import type { GrantChangeDetail, GrantDeadlineDetail, GrantFundingScenarioDetail } from "../lib/grantDetailApi";
 
 describe("detail status labels", () => {
   it("renders accepted draft and archived statuses without implying an open application", () => {
@@ -82,6 +82,39 @@ describe("detail source deadline", () => {
     expect(html).toContain(value ? value.slice(0, 10) : "Není uvedeno");
     expect(html.includes('role="note"')).toBe(caution);
     if (caution) expect(html).toContain("ověřte jej v oficiálním zdroji");
+  });
+});
+
+describe("detail deadline boundaries", () => {
+  const deadline: GrantDeadlineDetail = {
+    id: "opening", type: "APPLICATION_OPEN", startsAt: "2027-06-01T12:30:00Z",
+    endsAt: null, timezone: null, description: null, evidenceId: null,
+  };
+  const render = (value: GrantDeadlineDetail) => renderToStaticMarkup(createElement(DeadlineBounds, { deadline: value }));
+
+  it("shows only supplied opening or closing boundaries without inventing the other", () => {
+    expect(render(deadline)).toContain("<dt>Od</dt>");
+    expect(render(deadline)).not.toContain("<dt>Do</dt>");
+    expect(render({ ...deadline, startsAt: null, endsAt: "2027-12-31T23:59:59Z" }))
+      .toContain("<dt>Do</dt>");
+    expect(render({ ...deadline, startsAt: null, endsAt: "2027-12-31T23:59:59Z" }))
+      .not.toContain("<dt>Od</dt>");
+    expect(render({ ...deadline, endsAt: "2027-12-31T23:59:59Z", timezone: "Europe/Prague" }))
+      .toMatch(/<dt>Od<\/dt>.*<dt>Do<\/dt>.*Zóna uvedená zdrojem/);
+  });
+
+  it("keeps a wholly unknown deadline explicit, not an open-ended application", () => {
+    for (const [startsAt, endsAt] of [[null, null], ["", null], ["  ", "\t"]] as const) {
+      const html = render({ ...deadline, startsAt, endsAt });
+      expect(html).toContain("<dt>Termín</dt>");
+      expect(html).toContain("Není uveden; ověřte jej v oficiálním zdroji.");
+      expect(html).not.toContain("<dt>Od</dt>");
+      expect(html).not.toContain("<dt>Do</dt>");
+    }
+    expect(render({ ...deadline, startsAt: " ", endsAt: "2027-12-31" }))
+      .toContain("<dt>Do</dt>");
+    expect(render({ ...deadline, startsAt: "2027-06-01", endsAt: " " }))
+      .not.toContain("<dt>Do</dt>");
   });
 });
 
