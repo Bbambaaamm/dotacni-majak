@@ -100,6 +100,35 @@ export function SearchPage() {
     return () => mobile.removeEventListener("change", update);
   }, []);
   useLayoutEffect(() => {
+    if (!isMobile || !mobileDialogOpen || !filterPanel.current?.open) return;
+    const root = document.documentElement;
+    const body = document.body;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const properties = ["position", "top", "left", "width", "overflow"] as const;
+    const previousBody = properties.map((property) => ({
+      property, value: body.style.getPropertyValue(property), priority: body.style.getPropertyPriority(property),
+    }));
+    const previousRootOverflow = {
+      value: root.style.getPropertyValue("overflow"), priority: root.style.getPropertyPriority("overflow"),
+    };
+    root.style.setProperty("overflow", "hidden");
+    body.style.setProperty("position", "fixed");
+    body.style.setProperty("top", `${-scrollY}px`);
+    body.style.setProperty("left", `${-scrollX}px`);
+    body.style.setProperty("width", "100%");
+    body.style.setProperty("overflow", "hidden");
+    return () => {
+      for (const { property, value, priority } of previousBody) {
+        if (value) body.style.setProperty(property, value, priority);
+        else body.style.removeProperty(property);
+      }
+      if (previousRootOverflow.value) root.style.setProperty("overflow", previousRootOverflow.value, previousRootOverflow.priority);
+      else root.style.removeProperty("overflow");
+      window.scrollTo(scrollX, scrollY);
+    };
+  }, [isMobile, mobileDialogOpen]);
+  useLayoutEffect(() => {
     const panel = filterPanel.current;
     if (!isMobile || !mobileDialogOpen || !panel?.open) return;
     const changed: Array<{ element: HTMLElement; inert: boolean }> = [];

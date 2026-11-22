@@ -2,6 +2,83 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 
+test("mobile filter sheet locks background gestures and restores document scrolling", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=strankovani");
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: unknown[] }).results.length).toBe(20);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  const previousStyles = await page.evaluate(() => {
+    document.documentElement.style.setProperty("overflow", "auto", "important");
+    document.body.style.setProperty("position", "relative");
+    document.body.style.setProperty("top", "7px");
+    document.body.style.setProperty("left", "3px");
+    document.body.style.setProperty("width", "calc(100% - 3px)");
+    document.body.style.setProperty("overflow", "visible");
+    return { root: document.documentElement.style.cssText, body: document.body.style.cssText };
+  });
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
+  const trigger = page.locator(".filter-panel summary");
+  const dialog = page.getByRole("dialog", { name: "Upravit filtry a řazení" });
+  await trigger.focus();
+  const beforeOpenY = await page.evaluate(() => window.scrollY);
+  expect(beforeOpenY).toBeGreaterThan(0);
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+  const locked = await page.evaluate(() => ({
+    y: window.scrollY, top: document.body.getBoundingClientRect().top,
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }));
+  expect(locked.position).toBe("fixed");
+  expect(locked.overflow).toBe("hidden");
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 400);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.synthesizeScrollGesture", {
+    x: 180, y: 40, yDistance: -400, gestureSourceType: "touch", speed: 1000,
+  });
+  await expect.poll(() => page.evaluate(() => ({
+    y: window.scrollY, top: document.body.getBoundingClientRect().top,
+  }))).toEqual({ y: locked.y, top: locked.top });
+
+  const sheet = page.locator(".filter-panel-shell");
+  expect(await sheet.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
+  const box = await sheet.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => sheet.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+  await expect(page).toHaveURL(/sort=DEADLINE/);
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+
+  await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(beforeOpenY);
+  expect(await page.evaluate(() => ({ root: document.documentElement.style.cssText, body: document.body.style.cssText })))
+    .toEqual(previousStyles);
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(beforeOpenY);
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.setViewportSize({ width: 801, height: 844 });
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => ({ root: document.documentElement.style.cssText, body: document.body.style.cssText })))
+    .toEqual(previousStyles);
+  const desktopY = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(180, 40);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(desktopY);
+});
+
 test("mobile filters form a keyboard-contained sheet over real D1 search", async ({ page, request }) => {
   const api = await request.get("/api/search?intent=digitalizace%20obce");
   expect(api.status()).toBe(200);
