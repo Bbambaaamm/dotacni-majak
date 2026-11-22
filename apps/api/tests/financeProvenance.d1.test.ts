@@ -152,6 +152,21 @@ describe("finance provenance on canonical D1", () => {
       scenarioIds: [], conditionEvidenceIds: {} });
   });
 
+  it("withholds structural IDs for NUL-tailed and byte-oversize rule operands", async () => {
+    const db = await setup();
+    const invalid = [
+      '"MUNICIPALITY"' + "\0" + "trailing",
+      JSON.stringify("é".repeat(2048)), // Under 4096 UTF-16 units, over 4096 UTF-8 bytes.
+    ];
+    for (const operand of invalid) {
+      await db.prepare("UPDATE rule_conditions SET expected_value_json=? WHERE id='c1'").bind(operand).run();
+      expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_RULE_OPERAND",
+        scenarioIds: [], conditionEvidenceIds: {} });
+    }
+    await db.prepare("UPDATE rule_conditions SET expected_value_json='\"MUNICIPALITY\"' WHERE id='c1'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+  });
+
   it("does not certify malformed, inactive, project or unsupported rule operands even with official evidence", async () => {
     const db = await setup();
     const changes = [
