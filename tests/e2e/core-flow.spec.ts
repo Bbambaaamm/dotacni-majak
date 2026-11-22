@@ -1473,14 +1473,14 @@ test("grant detail reports source presence without changing OPEN status", async 
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj A ↗" })).toBeVisible();
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj B ↗" })).toBeVisible();
       await expect(page.locator(".source-presence-caution")).toContainText("stav „viděn“ i předběžné nebo potvrzené chybění");
-      await expect(page.locator(".source-presence-caution")).toContainText("chybění u jiného zdroje samo o sobě neznamená zrušení výzvy");
+      await expect(page.locator(".source-presence-caution")).toContainText("chybění jiného záznamu samo o sobě neznamená zrušení výzvy");
       await expect(page.locator(".source-presence-caution")).not.toContainText("V žádném zobrazeném zdrojovém záznamu není stav „viděn“");
     }
     if (scenario.caution) {
       await expect(page.locator(".source-presence-caution")).toContainText(scenario.id === 24
         ? "chybějící záznam sám o sobě neznamená zrušení"
         : scenario.id === 23
-          ? "chybění u jiného zdroje samo o sobě neznamená zrušení výzvy"
+          ? "chybění jiného záznamu samo o sobě neznamená zrušení výzvy"
           : "Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
       const accessibility = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -1542,7 +1542,7 @@ test("source observation uses the latest instant across offsets in detail and wo
     .filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first();
   await expect(observed).toContainText("1. října 2026");
   await expect(page.locator(".source-presence-caution"))
-    .toContainText("Výskyt u jednoho zdroje nepotvrzuje aktuální dostupnost výzvy");
+    .toContainText("Výskyt jednoho záznamu nepotvrzuje aktuální dostupnost výzvy");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 

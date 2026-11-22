@@ -415,7 +415,7 @@ export function GrantDetailPage() {
           <p className="source-presence-caution" role="status">
             <strong>Ověřte dostupnost u poskytovatele.</strong>{" "}
             Mezi zobrazenými zdrojovými záznamy je stav „viděn“ i předběžné nebo potvrzené chybění.
-            Výskyt u jednoho zdroje nepotvrzuje aktuální dostupnost výzvy; chybění u jiného zdroje samo o sobě neznamená zrušení výzvy.
+            Výskyt jednoho záznamu nepotvrzuje aktuální dostupnost výzvy; chybění jiného záznamu samo o sobě neznamená zrušení výzvy.
           </p>
         ) : null}
         <p className="eyebrow">{detail.provider.name}</p>

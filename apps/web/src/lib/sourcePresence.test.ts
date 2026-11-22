@@ -29,6 +29,9 @@ describe("source presence presentation", () => {
   it("identifies mixed seen and missing records without treating unknown or empty records as mixed", () => {
     expect(mixedSourcePresence(sources("MISSING_CANDIDATE", "SEEN"))).toBe(true);
     expect(mixedSourcePresence(sources("SEEN", "CONFIRMED_MISSING"))).toBe(true);
+    const sameSource = sources("SEEN", "MISSING_CANDIDATE")
+      .map((source) => ({ ...source, sourceCode: "same-source" }));
+    expect(mixedSourcePresence(sameSource)).toBe(true);
     expect(mixedSourcePresence(sources("SEEN", "OTHER"))).toBe(false);
     expect(mixedSourcePresence(sources("MISSING_CANDIDATE", "OTHER"))).toBe(false);
     expect(mixedSourcePresence(sources("SEEN"))).toBe(false);
