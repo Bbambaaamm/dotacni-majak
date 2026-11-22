@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { D1PreparedStatementLike, Env } from "../src/env";
-import { handleRequest, MAX_IN_FLIGHT_REQUESTS } from "../src/index";
+import { handleRequest, MAX_IN_FLIGHT_READY_REQUESTS, MAX_IN_FLIGHT_REQUESTS } from "../src/index";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -88,5 +88,48 @@ describe("per-isolate API admission", () => {
     gate.resolve(null);
     expect((await Promise.all(pending)).map((response) => response.status))
       .toEqual(Array(MAX_IN_FLIGHT_REQUESTS).fill(404));
+  });
+
+  it("bounds ready D1 checks independently and releases slots after success and failure", async () => {
+    const gates = Array.from({ length: MAX_IN_FLIGHT_READY_REQUESTS + 2 }, () => deferred<{ ok: number }>());
+    let prepares = 0;
+    const probeEnv = envWithPrepare(() => {
+      const gate = gates[prepares++];
+      const statement = { first: () => gate.promise } as D1PreparedStatementLike;
+      return statement;
+    });
+    const ready = (method: string) => handleRequest(new Request("https://example.test/ready", { method }), probeEnv);
+    const pendingGet = ready("GET");
+    const pendingHead = ready("HEAD");
+    expect(prepares).toBe(MAX_IN_FLIGHT_READY_REQUESTS);
+
+    for (const method of ["GET", "HEAD"]) {
+      const excess = await ready(method);
+      expect(excess.status).toBe(503);
+      expect(excess.headers.get("retry-after")).toBe("1");
+      expect(excess.headers.get("cache-control")).toBe("no-store");
+      expect(excess.headers.get("content-type")).toContain("application/json");
+      expect(await excess.json()).toEqual({ error: "API_OVERLOADED" });
+    }
+    expect(prepares).toBe(MAX_IN_FLIGHT_READY_REQUESTS);
+    expect((await handleRequest(new Request("https://example.test/health"), probeEnv)).status).toBe(200);
+    expect(prepares).toBe(MAX_IN_FLIGHT_READY_REQUESTS);
+
+    gates[0].resolve({ ok: 1 });
+    expect((await pendingGet).status).toBe(200);
+    const afterSuccess = ready("GET");
+    expect(prepares).toBe(MAX_IN_FLIGHT_READY_REQUESTS + 1);
+
+    gates[1].reject(new Error("synthetic D1 failure"));
+    const failed = await pendingHead;
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toEqual({ status: "not_ready", reason: "D1_UNAVAILABLE" });
+    const afterFailure = ready("HEAD");
+    expect(prepares).toBe(MAX_IN_FLIGHT_READY_REQUESTS + 2);
+
+    gates[2].resolve({ ok: 1 });
+    gates[3].resolve({ ok: 1 });
+    expect((await Promise.all([afterSuccess, afterFailure])).map((response) => response.status))
+      .toEqual([200, 200]);
   });
 });
