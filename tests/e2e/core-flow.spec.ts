@@ -584,6 +584,47 @@ test("unsafe indexed source URL is not a link in real D1 search or detail", asyn
   }
 });
 
+test("unfiltered facet totals agree across status and deadline in real D1 search and fail closed on contradiction", async ({ page, request }) => {
+  const intent = "digitalizace obce";
+  const response = await request.get(`/api/search?intent=${encodeURIComponent(intent)}`);
+  expect(response.status()).toBe(200);
+  const body = await response.json() as {
+    results: Array<{ grantCallId: string }>;
+    facets: { status: Record<string, number>; deadline: Record<string, number> } | null;
+  };
+  expect(body.results).toHaveLength(2);
+  expect(body.facets).not.toBeNull();
+  expect(Object.values(body.facets!.status).reduce((sum, count) => sum + count, 0))
+    .toBe(Object.values(body.facets!.deadline).reduce((sum, count) => sum + count, 0));
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+    await expect(page.locator(".grant-card")).toHaveCount(body.results.length);
+    if (width === 390) await page.locator(".filter-panel summary").click();
+    await expect(page.getByLabel("Stav výzvy")).toBeVisible();
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  let corrupt = true;
+  await page.route("**/api/search?*", async (route) => {
+    if (!corrupt) return route.continue();
+    const actual = await route.fetch();
+    const real = await actual.json() as typeof body;
+    expect(actual.ok()).toBe(true);
+    expect(real.facets).not.toBeNull();
+    await route.fulfill({ response: actual, json: { ...real, facets: {
+      ...real.facets!, status: { ...real.facets!.status, OPEN: real.facets!.status.OPEN + 1 },
+    } } });
+  });
+  await page.goto(`/hledat?intent=${encodeURIComponent(intent)}`);
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  corrupt = false;
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(body.results.length);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+});
+
 test("applied results filters survive refresh and link sharing against real D1", async ({ page, request, browser }) => {
   const intent = "digitalizace obce";
   const filtered = await request.get(`/api/search?intent=${encodeURIComponent(intent)}&status=OPEN&sort=DEADLINE`);

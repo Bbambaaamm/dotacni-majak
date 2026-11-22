@@ -111,5 +111,8 @@ Detail výzvy zobrazuje celočíselné `amount_minor` podle počtu desetinných 
 
 Detail čte dolní i horní mez dotace z již existujícího `grantAmountMinMinor` / `grantAmountMaxMinor`. U scénáře s pouze dolní mezí výslovně říká, že horní mez není uvedena; nejde o individuální příslib ani vypočtenou potřebu vlastních zdrojů. Non-grant scénáře nadále nezobrazují grantové částky. Ověření zahrnuje unit test a syntetickou D1 → skutečné Detail API → mobilní Chromium cestu s kontrolou accessibility. Celkové #401 a release gate zůstávají otevřené.
 
+## Konzistence počtů filtrů výsledků — dílčí #400
+Na první stránce bez filtru stavu a dostupnosti termínu počítá Search API obě skupiny facetů ze stejné množiny shod. Pokud součet stavů a součet dostupnosti termínu nesouhlasí, klient odpověď odmítne jako chybnou a nabídne opakování, místo aby ukázal rozporné počty. Při aktivním filtru stavu či termínu se obě skupiny počítají s odlišným průřezem a tato rovnost se nevyžaduje; `facets: null` znamená nedostupné počty, nikoli nuly. Izolovaný regresní test pokrývá rozpor a reálný D1 → API → desktop/mobilní Chromium ověřuje běžný případ a přístupnost. Nejde o úplné uzavření #400 ani potvrzení aktuálnosti zdrojů.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.

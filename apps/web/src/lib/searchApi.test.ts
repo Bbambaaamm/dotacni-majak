@@ -130,6 +130,26 @@ describe("search API client", () => {
     }
   });
 
+  it("rejects contradictory status and deadline facet totals when neither is filtered", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const facets = { status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 1 }, providers: [{ name: "Obec", count: 1 }],
+      providersTruncated: false };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets };
+    for (const invalid of [facets, { ...facets, deadline: { ...facets.deadline, OTHER: 1 } }]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: invalid }), { status: 200 })));
+      await expect(searchGrants("alpha")).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    }
+    // A selected status changes the population behind the deadline facet.
+    expect((await searchGrants("alpha", undefined, undefined, "OPEN")).results).toEqual([result]);
+    // Unavailable counts remain unknown, never interpreted as zero.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: null }), { status: 200 })));
+    expect((await searchGrants("alpha")).results).toEqual([result]);
+  });
+
   it("rejects successful pages that contradict applied status, deadline or exact provider filters", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
