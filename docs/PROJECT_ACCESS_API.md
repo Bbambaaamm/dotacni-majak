@@ -59,10 +59,11 @@ Volitelné JSON:
 { "expiresInDays": 30 }
 ```
 
-Vynechané tělo nebo `{}` používá 30 dní. Uvedené `expiresInDays` musí být
-bezpečné celé číslo 1–365; explicitní `null` i jiná neplatná hodnota vrací
-HTTP 400 `INVALID_SHARE_EXPIRY`. Neznámé top-level pole vrací HTTP 400
-`UNKNOWN_SHARE_FIELD`.
+Skutečně vynechané tělo nebo `{}` používá 30 dní. Dodané JSON `null`, prázdné
+tělo nebo tělo obsahující pouze bílé znaky vrací HTTP 400 `INVALID_SHARE_OPTIONS`.
+Uvedené `expiresInDays` musí být bezpečné celé číslo 1–365; jeho explicitní
+`null` i jiná neplatná hodnota vrací HTTP 400 `INVALID_SHARE_EXPIRY`. Neznámé
+top-level pole vrací HTTP 400 `UNKNOWN_SHARE_FIELD`.
 
 Response vrací pouze nový read-only share token. Owner capability není share
 token a jednotlivé token domains jsou kryptograficky oddělené.

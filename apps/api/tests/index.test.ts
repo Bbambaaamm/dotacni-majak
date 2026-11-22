@@ -539,6 +539,24 @@ describe("api worker", () => {
     expect(batch).not.toHaveBeenCalled();
   });
 
+  it("rejects supplied null or blank share options before D1 access", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "B".repeat(43);
+    const prepare = vi.fn(() => { throw new Error("D1 reached"); });
+    const batch = vi.fn(() => { throw new Error("D1 reached"); });
+    for (const body of ["null", "", "   \n\t"]) {
+      const response = await handleRequest(new Request(`https://example.test/projects/${projectId}/shares`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${owner}` },
+        body,
+      }), { ...env(), DB: { prepare, batch } });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "INVALID_SHARE_OPTIONS" });
+    }
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
   it("share revocation is idempotent and non-disclosing", async () => {
     const projectId = "prj_" + "a".repeat(32);
     const shareId = "shr_" + "c".repeat(32);

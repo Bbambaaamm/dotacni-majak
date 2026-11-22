@@ -113,13 +113,18 @@ describe("bounded streaming request bodies", () => {
     expect(await parseWatchEnabled(streamed([bytes('{"enabled":true}')]).request)).toBe(true);
   });
 
-  it("validates share options without defaulting explicit null", async () => {
+  it("defaults only absent or empty-object share options", async () => {
     const parse = (body?: string) => parseShareOptions(new Request("https://example.test", {
       method: "POST",
       ...(body === undefined ? {} : { body }),
     }));
     await expect(parse()).resolves.toBe(30);
     await expect(parse("{}")).resolves.toBe(30);
+    for (const body of ["null", "", "   \n\t"]) {
+      await expect(parse(body)).rejects.toMatchObject({
+        code: "INVALID_SHARE_OPTIONS", status: 400,
+      });
+    }
     for (const days of [1, 365]) {
       await expect(parse(JSON.stringify({ expiresInDays: days }))).resolves.toBe(days);
     }

@@ -347,7 +347,7 @@ export async function parseShareOptions(request: Request): Promise<number> {
     return DEFAULT_SHARE_DAYS;
   }
   const body = await boundedJsonBody(request, BODY_LIMIT_BYTES.share);
-  if (body == null) return DEFAULT_SHARE_DAYS;
+  if (body == null) throw new ApiInputError("INVALID_SHARE_OPTIONS");
   if (typeof body !== "object" || Array.isArray(body)) {
     throw new ApiInputError("INVALID_SHARE_OPTIONS");
   }
