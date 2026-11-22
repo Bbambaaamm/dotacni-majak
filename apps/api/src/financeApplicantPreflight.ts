@@ -66,6 +66,8 @@ export async function preflightFinanceApplicantValues(
         CASE WHEN fe.entity_type = 'APPLICANT_ATTRIBUTE_VALUE' AND fe.entity_id = av.id
           AND fe.field_path = a.attribute_key AND fe.verification_status = 'VERIFIED'
           AND dv.extraction_status = 'EXTRACTED'
+          AND (fe.document_section_id IS NULL OR EXISTS (SELECT 1 FROM document_sections ds
+            WHERE ds.id = fe.document_section_id AND ds.document_version_id = fe.document_version_id))
           AND sr.authority IN ('OFFICIAL', 'OFFICIAL_OPEN_DATA')
           AND (av.source_kind = 'OTHER_OFFICIAL'
             OR (av.source_kind = 'ARES' AND sr.code = 'ARES_PROFILE')

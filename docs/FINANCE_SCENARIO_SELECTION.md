@@ -19,7 +19,9 @@ profile or absent values. The caller supplies an already authenticated principal
 from the same snapshot. Each row must have an active applicant scalar definition,
 matching and well-formed byte-bounded JSON type (including rejection of embedded NUL and empty or whitespace-only string/enum/geography values), VERIFIED official-source status, and
 VERIFIED evidence on that exact value ID and attribute key from an EXTRACTED official
-document. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` /
+document. A referenced document section must belong to that evidence's document
+version; a null section is permitted. This is only a structural reference check,
+not proof that the section's text supports the value. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` /
 `CZSO_POPULATION` registry codes (see `data/sources`); OTHER_OFFICIAL requires
 an official registry authority but has no more specific identity binding.
 Missing or inconsistent profile creation, source first-seen, observation, evidence,
