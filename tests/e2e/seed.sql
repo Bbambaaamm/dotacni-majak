@@ -550,3 +550,17 @@ VALUES ('e2e-sr-jpy','e2e-source-open','E2E-JPY','https://example.invalid/e2e/jp
   'GRANT_CALL','grant:e2e:jpy','2026-09-20T08:00:00Z','2026-09-26T20:00:00Z','SEEN',0);
 INSERT INTO funding_scenarios(id,grant_call_version_id,name,currency_code,grant_amount_max_minor)
 VALUES ('e2e-funding-jpy','gcv-e2e-jpy','E2E JPY scénář','JPY',1234);
+
+-- A historical indexed version must not leak into current search cards or facets.
+INSERT INTO grant_call_versions(id,grant_call_id,version_number,captured_at,title,summary,status,
+  official_detail_url,currency_code,normalization_version,content_hash,verification_status,created_at)
+VALUES ('gcv-e2e-open-stale','grant:e2e:open',2,'2026-09-20T08:00:00Z',
+  'E2E zastaralá výzva — digitalizace obce','Historická indexová položka.',
+  'OPEN','https://example.invalid/e2e/open','CZK','e2e-v1',
+  '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+  'VERIFIED','2026-09-20T08:00:00Z');
+INSERT INTO grant_search_documents(grant_call_version_id,title,summary,supported_activities,
+  eligible_costs,keywords,status,submission_close_at,updated_at)
+SELECT 'gcv-e2e-open-stale','E2E zastaralá výzva — digitalizace obce',summary,
+  supported_activities,eligible_costs,keywords,status,submission_close_at,updated_at
+FROM grant_search_documents WHERE grant_call_version_id='gcv-e2e-open';
