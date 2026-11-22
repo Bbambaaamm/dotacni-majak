@@ -15,3 +15,9 @@ export function allSourcesMissing(sources: GrantSourceRef[]): boolean {
       || source.presenceState === "CONFIRMED_MISSING",
   );
 }
+
+export function mixedSourcePresence(sources: GrantSourceRef[]): boolean {
+  return sources.some((source) => source.presenceState === "SEEN")
+    && sources.some((source) => source.presenceState === "MISSING_CANDIDATE"
+      || source.presenceState === "CONFIRMED_MISSING");
+}

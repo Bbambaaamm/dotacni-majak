@@ -20,7 +20,7 @@ import { safeOfficialUrl } from "../lib/safeOfficialUrl";
 import { formatMinorMoney } from "../lib/sharedProject";
 import { sourceCalendarDate } from "../lib/sourceCalendarDate";
 import { verificationLabel } from "../lib/verificationLabel";
-import { allSourcesMissing, sourcePresenceLabel } from "../lib/sourcePresence";
+import { allSourcesMissing, mixedSourcePresence, sourcePresenceLabel } from "../lib/sourcePresence";
 import "./results.css";
 
 export function statusLabel(status: string): string {
@@ -370,6 +370,7 @@ export function GrantDetailPage() {
     ? "Web poskytovatele (odkaz na tuto výzvu není doložen) ↗"
     : "Ověřit stav u poskytovatele ↗";
   const showSourceCaution = allSourcesMissing(detail.sources);
+  const showMixedSourceCaution = mixedSourcePresence(detail.sources);
   const action = grantDetailAction(
     detail.status,
     detail.availability.requirements !== "UNKNOWN",
@@ -408,6 +409,13 @@ export function GrantDetailPage() {
               : null}
             {detail.sources.length === 20 ? " Další zdrojové záznamy mohou být mimo zobrazený seznam." : null}
             {" "}Chybění u zdroje samo o sobě neznamená zrušení výzvy.
+          </p>
+        ) : null}
+        {showMixedSourceCaution ? (
+          <p className="source-presence-caution" role="status">
+            <strong>Ověřte dostupnost u poskytovatele.</strong>{" "}
+            Mezi zobrazenými zdrojovými záznamy je stav „viděn“ i předběžné nebo potvrzené chybění.
+            Výskyt jednoho záznamu nepotvrzuje aktuální dostupnost výzvy; chybění jiného záznamu samo o sobě neznamená zrušení výzvy.
           </p>
         ) : null}
         <p className="eyebrow">{detail.provider.name}</p>

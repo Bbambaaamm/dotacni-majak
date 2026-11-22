@@ -1448,7 +1448,7 @@ test("grant detail reports source presence without changing OPEN status", async 
   const cases = [
     { id: 21, states: ["MISSING_CANDIDATE"], labels: ["Možná chybí u zdroje (předběžné)"], caution: true },
     { id: 22, states: ["CONFIRMED_MISSING"], labels: ["Potvrzeně chybí u zdroje (neznamená zrušení výzvy)"], caution: true },
-    { id: 23, states: ["MISSING_CANDIDATE", "SEEN"], labels: ["Možná chybí u zdroje (předběžné)", "Viděn u zdroje"], caution: false },
+    { id: 23, states: ["MISSING_CANDIDATE", "SEEN"], labels: ["Možná chybí u zdroje (předběžné)", "Viděn u zdroje"], caution: true },
     { id: 24, states: [], labels: [], caution: true },
     { id: 20, states: ["SEEN"], labels: ["Viděn u zdroje"], caution: false },
   ];
@@ -1472,17 +1472,40 @@ test("grant detail reports source presence without changing OPEN status", async 
     if (scenario.id === 23) {
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj A ↗" })).toBeVisible();
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj B ↗" })).toBeVisible();
+      await expect(page.locator(".source-presence-caution")).toContainText("stav „viděn“ i předběžné nebo potvrzené chybění");
+      await expect(page.locator(".source-presence-caution")).toContainText("chybění jiného záznamu samo o sobě neznamená zrušení výzvy");
+      await expect(page.locator(".source-presence-caution")).not.toContainText("V žádném zobrazeném zdrojovém záznamu není stav „viděn“");
     }
     if (scenario.caution) {
-      await expect(page.getByRole("status")).toContainText(scenario.id === 24
+      await expect(page.locator(".source-presence-caution")).toContainText(scenario.id === 24
         ? "chybějící záznam sám o sobě neznamená zrušení"
-        : "Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
+        : scenario.id === 23
+          ? "chybění jiného záznamu samo o sobě neznamená zrušení výzvy"
+          : "Chybění u zdroje samo o sobě neznamená zrušení výzvy.");
       const accessibility = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
         .analyze();
       expect(accessibility.violations).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     }
   }
+});
+
+test("mixed source caution remains accurate on desktop with real D1/API", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A23");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { status: string; sources: Array<{ presenceState: string }> };
+  expect(detail.status).toBe("OPEN");
+  expect(detail.sources.map((source) => source.presenceState).sort()).toEqual(["MISSING_CANDIDATE", "SEEN"]);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/dotace/grant%3Ae2e%3Apage%3A23");
+  await expect(page.getByRole("heading", { name: "E2E stránkování 23" })).toBeVisible();
+  await expect(page.locator(".detail-hero").getByText("Otevřeno v zachycené verzi")).toBeVisible();
+  await expect(page.locator(".source-presence-caution")).toContainText("stav „viděn“ i předběžné nebo potvrzené chybění");
+  await expect(page.locator(".source-presence-caution")).not.toContainText("V žádném zobrazeném zdrojovém záznamu není stav „viděn“");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
 });
 
 test("malformed source observation is cautioned through real Detail API and mobile browser", async ({ page, request }) => {
@@ -1518,7 +1541,8 @@ test("source observation uses the latest instant across offsets in detail and wo
   const observed = page.locator(".detail-section .facts").first().locator("div")
     .filter({ has: page.locator("dt", { hasText: "Poslední pozorování záznamu u zdroje" }) }).first();
   await expect(observed).toContainText("1. října 2026");
-  await expect(page.locator(".source-presence-caution")).toHaveCount(0);
+  await expect(page.locator(".source-presence-caution"))
+    .toContainText("Výskyt jednoho záznamu nepotvrzuje aktuální dostupnost výzvy");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
