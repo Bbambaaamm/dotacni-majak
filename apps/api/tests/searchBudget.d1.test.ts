@@ -27,12 +27,6 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
     "CREATE TABLE source_documents (id TEXT PRIMARY KEY, grant_call_id TEXT)",
     "INSERT INTO providers VALUES ('p', 'Test provider')",
     "INSERT INTO programmes VALUES ('pr', 'p')",
-    "INSERT INTO grant_calls VALUES ('g', 'pr', 'a')",
-    "INSERT INTO grant_calls VALUES ('b-call', 'pr', 'b')",
-    "INSERT INTO source_documents VALUES ('doc', 'g')",
-    "INSERT INTO source_documents VALUES ('b-doc', 'b-call')",
-    "INSERT INTO document_versions VALUES ('dv', 'doc')",
-    "INSERT INTO document_versions VALUES ('b-dv', 'b-doc')",
   ]) await db.prepare(sql).run();
   const cases: Array<[string, string, string, number | null, number | null, string, string, string]> = [
     ["a", "GRANT", "CZK", 10000, 20000, "VERIFIED", "GRANT", "OPEN"],
@@ -50,12 +44,15 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
     ["no-evidence", "GRANT", "CZK", 10000, 20000, "VERIFIED", "GRANT", "OPEN"],
   ];
   for (const [id, type, currency, min, max, verification, versionType, status] of cases) {
-    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, ?, NULL, ?)").bind(id, id === "b" ? "b-call" : "g", versionType).run();
+    await db.prepare("INSERT INTO grant_calls VALUES (?, 'pr', ?)").bind(`call-${id}`, id).run();
+    await db.prepare("INSERT INTO source_documents VALUES (?, ?)").bind(`doc-${id}`, `call-${id}`).run();
+    await db.prepare("INSERT INTO document_versions VALUES (?, ?)").bind(`dv-${id}`, `doc-${id}`).run();
+    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, ?, NULL, ?)").bind(id, `call-${id}`, versionType).run();
     await db.prepare("INSERT INTO grant_search_documents VALUES (?, 'alpha grant', '', ?, ?)")
       .bind(id, status, `2027-01-${id === "a" ? "01" : "02"}T00:00:00Z`).run();
     await db.prepare("INSERT INTO grant_search_fts(grant_call_version_id, title) VALUES (?, 'alpha grant')").bind(id).run();
     await db.prepare("INSERT INTO field_evidence VALUES (?, 'GRANT_CALL_VERSION', ?, ?, ?, ?)")
-      .bind(`fe-${id}`, id, `/funding_scenarios/fs-${id}`, id === "b" ? "b-dv" : "dv", verification).run();
+      .bind(`fe-${id}`, id, `/funding_scenarios/fs-${id}`, `dv-${id}`, verification).run();
     await db.prepare("INSERT INTO funding_scenarios VALUES (?, ?, ?, ?, ?, ?, ?)")
       .bind(`fs-${id}`, id, type, currency, min, max, `fe-${id}`).run();
   }
