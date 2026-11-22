@@ -35,6 +35,8 @@ import { notificationsProjectId, projectNotifications } from "./notifications";
 import { authorizeProjectWorkspace, createWorkspace, listWorkspaces, readWorkspace, updateWorkspaceTask, workspacePath } from "./workspaceAccess";
 import { eligibilityPath, evaluateGrant } from "./eligibility";
 
+const MAX_SEARCH_QUERY_LENGTH = 16 * 1024;
+
 function json(body: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json; charset=utf-8");
@@ -177,6 +179,12 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
 
     if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/search") {
       try {
+        if (url.search.length > 0 && url.search.length - 1 > MAX_SEARCH_QUERY_LENGTH) {
+          throw new SearchInputError("QUERY_TOO_LONG", 400);
+        }
+        if (url.searchParams.getAll("intent").length > 1) throw new SearchInputError("INVALID_INTENT", 400);
+        if (url.searchParams.getAll("limit").length > 1) throw new SearchInputError("INVALID_LIMIT", 400);
+        if (url.searchParams.getAll("cursor").length > 1) throw new SearchInputError("INVALID_CURSOR", 400);
         if (url.searchParams.getAll("status").length > 1) throw new SearchInputError("INVALID_STATUS", 400);
         if (url.searchParams.getAll("deadline").length > 1) throw new SearchInputError("INVALID_DEADLINE", 400);
         if (url.searchParams.getAll("provider").length > 1) throw new SearchInputError("INVALID_PROVIDER", 400);
