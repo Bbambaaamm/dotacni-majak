@@ -82,22 +82,22 @@ export function SearchPage() {
   const attachFilterPanel = useCallback((node: HTMLDetailsElement | null) => {
     // A filter change unmounts the panel before its asynchronous toggle event
     // necessarily fires. Keep the actual DOM state for the replacement panel.
-    if (!node && filterPanel.current && !window.matchMedia("(min-width: 801px)").matches) {
+    if (!node && filterPanel.current && window.matchMedia("(max-width: 800px)").matches) {
       mobileFiltersOpen.current = filterPanel.current.open;
     }
     filterPanel.current = node;
-    if (node) node.open = window.matchMedia("(min-width: 801px)").matches || mobileFiltersOpen.current;
+    if (node) node.open = !window.matchMedia("(max-width: 800px)").matches || mobileFiltersOpen.current;
   }, []);
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 801px)");
+    const mobile = window.matchMedia("(max-width: 800px)");
     const update = () => {
       mobileFiltersOpen.current = false;
       setMobileDialogOpen(false);
-      setIsMobile(!desktop.matches);
-      if (filterPanel.current) filterPanel.current.open = desktop.matches;
+      setIsMobile(mobile.matches);
+      if (filterPanel.current) filterPanel.current.open = !mobile.matches;
     };
-    desktop.addEventListener("change", update);
-    return () => desktop.removeEventListener("change", update);
+    mobile.addEventListener("change", update);
+    return () => mobile.removeEventListener("change", update);
   }, []);
   useLayoutEffect(() => {
     const panel = filterPanel.current;
@@ -562,7 +562,7 @@ export function SearchPage() {
               // A detached panel can dispatch a delayed toggle after a new search
               // has mounted its replacement; never overwrite that panel's state.
               if (event.currentTarget !== filterPanel.current) return;
-              if (!window.matchMedia("(min-width: 801px)").matches) {
+              if (window.matchMedia("(max-width: 800px)").matches) {
                 mobileFiltersOpen.current = event.currentTarget.open;
                 setMobileDialogOpen(event.currentTarget.open);
                 if (!event.currentTarget.open) event.currentTarget.querySelector("summary")?.focus();
@@ -584,7 +584,7 @@ export function SearchPage() {
                 }
               }
               if (event.key !== "Escape" || !filterPanel.current?.open ||
-                  window.matchMedia("(min-width: 801px)").matches) return;
+                  !window.matchMedia("(max-width: 800px)").matches) return;
               event.preventDefault();
               closeMobileFilters();
             }}>

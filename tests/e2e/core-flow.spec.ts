@@ -43,6 +43,17 @@ test("mobile filters form a keyboard-contained sheet over real D1 search", async
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.setViewportSize({ width: 801, height: 844 });
+  await expect(page.locator(".filter-panel")).toHaveAttribute("open");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Zavřít filtry" })).toBeHidden();
+  expect(await page.locator(".results-list").evaluate((node) => (node as HTMLElement).inert)).toBe(false);
+  await page.setViewportSize({ width: 800, height: 844 });
+  await expect(page.locator(".filter-panel")).not.toHaveAttribute("open");
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
 });
 
 test("real search keeps decision cautions visible and filter mechanics accessible", async ({ page, request }) => {
