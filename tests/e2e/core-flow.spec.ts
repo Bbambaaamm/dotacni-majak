@@ -292,6 +292,34 @@ test("unknown call status in a 200 detail fails closed then retries real D1 stat
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("blank provider in a successful detail fails closed then retries real D1/API identity", async ({ page, request }) => {
+  const path = "/dotace/grant%3Ae2e%3Aopen";
+  const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(actual.status()).toBe(200);
+  const valid = await actual.json() as { provider: { name: string }; title: string };
+  expect(valid.provider.name.trim()).not.toBe("");
+  let corrupt = true;
+  await page.route("**/api/grants/grant%3Ae2e%3Aopen", async (route) => {
+    if (!corrupt) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as typeof valid;
+    await route.fulfill({ response, json: { ...body, provider: { ...body.provider, name: "  " } } });
+  });
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    corrupt = true;
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Detail výzvy se teď nepodařilo bezpečně načíst." })).toBeVisible();
+    await expect(page.locator(".detail-hero")).toHaveCount(0);
+    corrupt = false;
+    await page.getByRole("button", { name: "Zkusit načíst detail znovu" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: valid.title })).toBeVisible();
+    await expect(page.locator(".detail-hero")).toContainText(valid.provider.name);
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("mobile detail rejects oversized evidence and retries actual D1/API provenance", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aopen";
   const actual = await request.get("/api/grants/grant%3Ae2e%3Aopen");
