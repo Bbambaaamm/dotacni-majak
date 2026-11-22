@@ -143,6 +143,22 @@ describe("finance applicant preflight on canonical D1", () => {
     }
   });
 
+  it("does not certify an empty or whitespace-only official string as a known value", async () => {
+    const db = await setup();
+    for (const value of ["", "  \t  "]) {
+      await db.prepare("UPDATE applicant_attribute_values SET value_json=? WHERE id='value-a'")
+        .bind(JSON.stringify(value)).run();
+      expect(await read(db)).toEqual({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_ATTRIBUTE_VALUE",
+        profileId: null, attributeValueIds: [], evidenceIds: [] });
+    }
+    await db.prepare("UPDATE applicant_attribute_values SET value_json='\"12345678\"' WHERE id='value-a'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+    await db.prepare("UPDATE applicant_attribute_values SET attribute_definition_id='attr-applicant-municipality-code', value_type='GEO_ID', value_json='\" \"' WHERE id='value-a'").run();
+    await db.prepare("UPDATE field_evidence SET field_path='applicant.municipality.code' WHERE id='ev'").run();
+    expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNSUPPORTED_ATTRIBUTE_VALUE",
+      attributeValueIds: [], evidenceIds: [] });
+  });
+
   it("rejects embedded NUL and byte-oversize JSON before parsing a truncated scalar", async () => {
     const db = await setup();
     await db.prepare("UPDATE applicant_attribute_values SET value_json='\"12345678\"' || char(0) || 'suffix' WHERE id='value-a'").run();

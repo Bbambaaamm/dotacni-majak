@@ -35,7 +35,8 @@ function validValue(row: ValueRow): boolean {
     || row.nul_offset !== 0 || row.value_length > 4096 || row.value_length < 1 || row.value_json.length === 0) return false;
   try {
     const value: unknown = JSON.parse(row.value_json);
-    if (["STRING", "ENUM", "GEO_ID"].includes(row.data_type)) return typeof value === "string" && value.length <= 4096;
+    if (["STRING", "ENUM", "GEO_ID"].includes(row.data_type))
+      return typeof value === "string" && value.trim().length > 0 && value.length <= 4096;
     if (["INTEGER", "MONEY_MINOR", "PERCENT_BPS"].includes(row.data_type))
       return typeof value === "number" && Number.isSafeInteger(value);
     if (row.data_type === "NUMBER") return typeof value === "number" && Number.isFinite(value);

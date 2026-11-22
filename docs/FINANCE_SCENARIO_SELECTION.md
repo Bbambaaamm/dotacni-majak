@@ -17,7 +17,7 @@ with no profile, value or evidence IDs; they are not mistaken for an unowned
 profile or absent values. The caller supplies an already authenticated principal, an exact profile ID, and an
 `asOf` UTC instant. One D1 batch checks profile ownership and at most 128 value rows
 from the same snapshot. Each row must have an active applicant scalar definition,
-matching and well-formed byte-bounded JSON type (including rejection of embedded NUL), VERIFIED official-source status, and
+matching and well-formed byte-bounded JSON type (including rejection of embedded NUL and empty or whitespace-only string/enum/geography values), VERIFIED official-source status, and
 VERIFIED evidence on that exact value ID and attribute key from an EXTRACTED official
 document. Claimed ARES/CZSO kinds must also match the configured `ARES_PROFILE` /
 `CZSO_POPULATION` registry codes (see `data/sources`); OTHER_OFFICIAL requires
