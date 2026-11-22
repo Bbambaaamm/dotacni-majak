@@ -156,11 +156,15 @@ function facetsCoverResults(response: GrantSearchResponse,
   const statusTotal = response.facets.status.OPEN + response.facets.status.PLANNED + response.facets.status.ANNOUNCED;
   const deadlineTotal = response.facets.deadline.KNOWN + response.facets.deadline.UNKNOWN;
   if (!status && !deadline && statusTotal !== deadlineTotal) return false;
+  // The facet opposite a selected filter counts the matched calls. With both
+  // filters selected, neither facet describes the filtered result set.
+  const comparableTotal = status ? deadlineTotal : statusTotal;
+  if ((!status || !deadline) && response.nextCursor === null
+    && comparableTotal !== response.results.length) return false;
   // Provider options omit only the provider filter. With at most one of the
   // status/deadline filters selected, one other facet counts the same population.
   // A truncated provider list is only a lower bound, never a complete total.
   if (!provider && (!status || !deadline)) {
-    const comparableTotal = status ? deadlineTotal : statusTotal;
     const providerTotal = response.facets.providers.reduce((sum, item) => sum + item.count, 0);
     if (providerTotal > comparableTotal || (!response.facets.providersTruncated && providerTotal !== comparableTotal)) return false;
   }

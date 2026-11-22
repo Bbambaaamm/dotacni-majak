@@ -2011,6 +2011,70 @@ test("real D1 search loads more than 20 distinct results and retries a failed la
   expect(new Set(await page.locator(".grant-card h3").allTextContents()).size).toBe(25);
 });
 
+test("a terminal first page cannot hide real D1 matches counted by facets", async ({ page, request }) => {
+  const intent = "strankovani";
+  const actual = await request.get(`/api/search?intent=${intent}`);
+  expect(actual.status()).toBe(200);
+  const body = await actual.json() as { results: unknown[]; nextCursor: string | null;
+    facets: { status: Record<string, number>; deadline: Record<string, number> } | null };
+  expect(body.results).toHaveLength(20);
+  expect(body.nextCursor).toBeTruthy();
+  expect(body.facets).not.toBeNull();
+  const total = Object.values(body.facets!.status).reduce((sum, count) => sum + count, 0);
+  expect(total).toBe(25);
+  expect(Object.values(body.facets!.deadline).reduce((sum, count) => sum + count, 0)).toBe(total);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const corruptPage = async (route: import("@playwright/test").Route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const real = await response.json() as typeof body;
+    await route.fulfill({ response, json: { ...real, nextCursor: null } });
+  };
+  await page.route("**/api/search?*", corruptPage);
+  await page.goto(`/hledat?intent=${intent}`);
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  await page.unroute("**/api/search?*", corruptPage);
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Načíst další výsledky" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(total);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+});
+
+test("mobile status filter rejects a terminal page hiding matches and retries real D1/API", async ({ page, request }) => {
+  const url = "/api/search?intent=strankovani&status=PLANNED";
+  const actual = await request.get(url);
+  expect(actual.status()).toBe(200);
+  const body = await actual.json() as { results: unknown[]; nextCursor: string | null;
+    facets: { deadline: { KNOWN: number; UNKNOWN: number };
+      providers: Array<{ name: string; count: number }> } | null };
+  expect(body.results).toHaveLength(1);
+  expect(body.nextCursor).toBeNull();
+  expect(body.facets?.deadline.KNOWN).toBe(1);
+  expect(body.facets?.providers).toHaveLength(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const corruptPage = async (route: import("@playwright/test").Route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const real = await response.json() as typeof body;
+    await route.fulfill({ response, json: { ...real, facets: { ...real.facets!,
+      deadline: { ...real.facets!.deadline, KNOWN: 2 },
+      providers: real.facets!.providers.map((item) => ({ ...item, count: 2 })),
+    } } });
+  };
+  await page.route("**/api/search?*", corruptPage);
+  await page.goto("/hledat?intent=strankovani&status=PLANNED");
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit");
+  await expect(page.locator(".grant-card")).toHaveCount(0);
+  await page.unroute("**/api/search?*", corruptPage);
+  await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+  await expect(page.locator(".grant-card")).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "E2E pozdější plánovaná výzva" })).toBeVisible();
+});
+
 test("oversized continuation from real D1/API keeps old cards and retries the original cursor", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/hledat?intent=strankovani");
