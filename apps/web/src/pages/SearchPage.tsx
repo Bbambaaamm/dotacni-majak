@@ -457,11 +457,11 @@ export function SearchPage() {
       {!loading && !error && data?.indexState === "EMPTY" ? (
         <section className="next-action" role="status">
           <div>
-            <p className="eyebrow">Lokální index je prázdný</p>
-            <h2>Vyhledávání je zapojené, ale databáze zatím nemá dotační data.</h2>
+            <p className="eyebrow">Žádné vyhledatelné aktivní výzvy</p>
+            <h2>Index teď neobsahuje aktuální vyhledatelné výzvy.</h2>
             <p>
-              To není skutečný výsledek „žádná podpora“. Nejdřív musí proběhnout
-              ingestion oficiálních zdrojů do lokálního D1 indexu.
+              To není důkaz, že žádná podpora neexistuje. V databázi mohou zůstat
+              starší nebo neaktivní záznamy; ověřte pokrytí zdrojů a zkuste to později.
             </p>
           </div>
           <a className="button button--secondary button-link" href="/pokryti">

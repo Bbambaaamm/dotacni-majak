@@ -54,4 +54,15 @@ it("real D1 search and facets only expose each call's own current version", asyn
       .toEqual(new Set(["a-new", "b-current"]));
     expect(second.nextCursor).toBeNull();
   }
+
+  // Old and foreign-pointer documents remain stored, but none is searchable.
+  await db.prepare("UPDATE grant_calls SET current_version_id = 'missing' WHERE id IN ('a', 'b')").run();
+  const unavailable = await handleRequest(new Request("https://example.test/search?intent=alpha"), env);
+  expect(unavailable.status).toBe(200);
+  expect(await unavailable.json()).toMatchObject({ indexState: "EMPTY", results: [], nextCursor: null });
+
+  await db.prepare("UPDATE grant_calls SET current_version_id = 'a-new' WHERE id = 'a'").run();
+  expect((await searchGrants(typed, "alpha")).indexState).toBe("READY");
+  await db.prepare("UPDATE grant_search_documents SET status = 'PAUSED' WHERE grant_call_version_id = 'a-new'").run();
+  expect((await searchGrants(typed, "alpha")).indexState).toBe("EMPTY");
 });
