@@ -448,6 +448,22 @@ describe("api worker", () => {
     });
   });
 
+  it("rejects unknown watch fields before D1 access without echoing them", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "W".repeat(43);
+    const prepare = vi.fn(() => { throw new Error("D1 reached"); });
+    const batch = vi.fn(() => { throw new Error("D1 reached"); });
+    const response = await handleRequest(new Request(`https://example.test/projects/${projectId}/watch`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${owner}` },
+      body: JSON.stringify({ enabled: false, unexpectedSecret: "private" }),
+    }), { ...env(), DB: { prepare, batch } });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "UNKNOWN_WATCH_FIELD" });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
   it("creates a read-only share only with matching owner capability", async () => {
     const projectId = "prj_" + "a".repeat(32);
     const owner = "B".repeat(43);
@@ -500,6 +516,45 @@ describe("api worker", () => {
     );
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "OWNER_CAPABILITY_INVALID" });
+  });
+
+  it("rejects unknown share fields and null expiry before D1 access", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "B".repeat(43);
+    const prepare = vi.fn(() => { throw new Error("D1 reached"); });
+    const batch = vi.fn(() => { throw new Error("D1 reached"); });
+    for (const [body, error] of [
+      [{ expiresInDays: 30, unexpectedSecret: "private" }, "UNKNOWN_SHARE_FIELD"],
+      [{ expiresInDays: null }, "INVALID_SHARE_EXPIRY"],
+    ] as const) {
+      const response = await handleRequest(new Request(`https://example.test/projects/${projectId}/shares`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${owner}` },
+        body: JSON.stringify(body),
+      }), { ...env(), DB: { prepare, batch } });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error });
+    }
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it("rejects supplied null or blank share options before D1 access", async () => {
+    const projectId = "prj_" + "a".repeat(32);
+    const owner = "B".repeat(43);
+    const prepare = vi.fn(() => { throw new Error("D1 reached"); });
+    const batch = vi.fn(() => { throw new Error("D1 reached"); });
+    for (const body of ["null", "", "   \n\t"]) {
+      const response = await handleRequest(new Request(`https://example.test/projects/${projectId}/shares`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${owner}` },
+        body,
+      }), { ...env(), DB: { prepare, batch } });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "INVALID_SHARE_OPTIONS" });
+    }
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 
   it("share revocation is idempotent and non-disclosing", async () => {
