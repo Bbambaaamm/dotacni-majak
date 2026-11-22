@@ -89,7 +89,7 @@ account-binding/recovery flow.
   jakoukoliv mutací DB. Pozdní čtení se zruší bez čekání na producenta.
   Deadline se záměrně nevztahuje na již zahájenou DB mutaci: timeout odpověď
   by jinak mohla skrýt úspěšně dokončený zápis. Slice #550 zavádí níže uvedený
-  limit souběžnosti; runtime deadline a měřitelnost zůstávají samostatnou prací.
+  limit souběžnosti; runtime deadline a agregovaná měřitelnost zůstávají samostatnou prací.
 - API Worker nyní přijme nejvýše 16 současně zpracovávaných běžných požadavků
   **v jednom izolátu**. Sedmnáctý a další dostanou `503` s JSON
   `{"error":"API_OVERLOADED"}`, `Retry-After: 1` (sekunda) a
@@ -102,6 +102,15 @@ account-binding/recovery flow.
   po úspěchu i chybě. Jiné metody `/health` a `/ready` podléhají běžnému limitu.
   Limity nejsou sdílené mezi izoláty ani instancemi, nejsou globálním rate limitem
   nebo ochranou proti distribuované zátěži a nestanovují deadline DB operace.
+  Worker se pokusí zapsat nejvýše jedno vlastní varování `api_admission_overload`
+  za minutu a izolát pro každou lane (`ordinary` nebo `ready`). Varování obsahuje
+  číselné `occupancy`, `cap` a `rejectedSinceLast` (počet odmítnutí od posledního
+  volání logovací funkce bez chyby, včetně aktuálního). Přijaté požadavky tuto událost
+  nezapisují. Pouze vlastní payload této události neobsahuje URL, cestu, query,
+  hlavičky, tokeny, tělo ani IP adresu; platformní Cloudflare invocation logy
+  mohou obsahovat URL včetně query. Selhání logování nemění odpověď ani uvolnění
+  slotů. Worker logy mohou být vzorkované nebo vypnuté. Tyto záznamy nejsou
+  přesnými distribuovanými metrikami odmítnutí.
 - Owner token projektu A nemůže spravovat projekt B.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní

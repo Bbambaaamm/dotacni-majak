@@ -73,6 +73,12 @@ const MAX_IN_FLIGHT_REQUESTS = 16;
 const MAX_IN_FLIGHT_READY_REQUESTS = 2;
 let inFlightRequests = 0;
 let inFlightReadyRequests = 0;
+const OVERLOAD_LOG_INTERVAL_MS = 60_000;
+type AdmissionLane = "ordinary" | "ready";
+const overloadLogState: Record<AdmissionLane, { lastAttemptAt: number | null; rejectedSinceLast: number }> = {
+  ordinary: { lastAttemptAt: null, rejectedSinceLast: 0 },
+  ready: { lastAttemptAt: null, rejectedSinceLast: 0 },
+};
 
 function overloadedResponse(): Response {
   return json({ error: "API_OVERLOADED" }, {
@@ -81,12 +87,35 @@ function overloadedResponse(): Response {
   });
 }
 
+function observeOverload(lane: AdmissionLane, occupancy: number, cap: number): void {
+  const state = overloadLogState[lane];
+  state.rejectedSinceLast = Math.min(Number.MAX_SAFE_INTEGER, state.rejectedSinceLast + 1);
+  try {
+    const now = Date.now();
+    if (!Number.isFinite(now)) return;
+    if (state.lastAttemptAt !== null && now < state.lastAttemptAt) {
+      state.lastAttemptAt = now;
+      return;
+    }
+    if (state.lastAttemptAt !== null && now - state.lastAttemptAt < OVERLOAD_LOG_INTERVAL_MS) return;
+    const rejectedSinceLast = state.rejectedSinceLast;
+    state.lastAttemptAt = now;
+    console.warn({ event: "api_admission_overload", lane, occupancy, cap, rejectedSinceLast });
+    state.rejectedSinceLast = 0;
+  } catch {
+    // Keep the count for a later attempt; logging must not change admission responses or slots.
+  }
+}
+
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (request.method === "GET" || request.method === "HEAD") {
     if (pathname === "/health") return routeRequest(request, env);
     if (pathname === "/ready") {
-      if (inFlightReadyRequests >= MAX_IN_FLIGHT_READY_REQUESTS) return overloadedResponse();
+      if (inFlightReadyRequests >= MAX_IN_FLIGHT_READY_REQUESTS) {
+        observeOverload("ready", inFlightReadyRequests, MAX_IN_FLIGHT_READY_REQUESTS);
+        return overloadedResponse();
+      }
       inFlightReadyRequests += 1;
       try {
         return await routeRequest(request, env);
@@ -97,6 +126,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   if (inFlightRequests >= MAX_IN_FLIGHT_REQUESTS) {
+    observeOverload("ordinary", inFlightRequests, MAX_IN_FLIGHT_REQUESTS);
     return overloadedResponse();
   }
 

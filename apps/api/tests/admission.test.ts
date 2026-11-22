@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { D1PreparedStatementLike, Env } from "../src/env";
 import { handleRequest } from "../src/index";
@@ -26,6 +26,99 @@ function envWithPrepare(prepare: () => D1PreparedStatementLike): Env {
 }
 
 describe("per-isolate API admission", () => {
+  it("bounds warnings per lane, counts a flood, and recovers after clock and logger failures", async () => {
+    vi.resetModules();
+    const { handleRequest: isolatedHandleRequest } = await import("../src/index");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(100_000);
+    const ordinaryGate = deferred<null>();
+    const readyGate = deferred<{ ok: number }>();
+    const ordinaryEnv = envWithPrepare(() => {
+      const statement = { bind: () => statement, first: () => ordinaryGate.promise } as D1PreparedStatementLike;
+      return statement;
+    });
+    const readyEnv = envWithPrepare(() => ({ first: () => readyGate.promise }) as D1PreparedStatementLike);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ordinary = Array.from({ length: MAX_IN_FLIGHT_REQUESTS }, () =>
+      isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv));
+    const ready = Array.from({ length: MAX_IN_FLIGHT_READY_REQUESTS }, () =>
+      isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv));
+
+    try {
+      expect(log).not.toHaveBeenCalled();
+      const secret = "private-sentinel-550";
+      const rejectedOrdinary = await isolatedHandleRequest(new Request(
+        `https://example.test/${secret}?token=${secret}`,
+        { method: "POST", headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret }, body: secret },
+      ), ordinaryEnv);
+      clock.mockReturnValue(130_000);
+      const rejectedReady = await isolatedHandleRequest(new Request(
+        `https://example.test/ready?token=${secret}`,
+        { headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret } },
+      ), readyEnv);
+      expect(rejectedOrdinary.status).toBe(503);
+      expect(rejectedReady.status).toBe(503);
+      expect(log.mock.calls).toEqual([
+        [{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1 }],
+        [{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2, rejectedSinceLast: 1 }],
+      ]);
+      expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
+
+      for (let i = 0; i < 1000; i += 1) {
+        expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      }
+      expect(log).toHaveBeenCalledTimes(2);
+      clock.mockReturnValue(Number.NaN);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      clock.mockReturnValue(90_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(2);
+
+      clock.mockReturnValue(149_999);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(2);
+      clock.mockReturnValue(150_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log.mock.calls[2]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 1004 }]);
+      clock.mockReturnValue(160_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(3);
+
+      clock.mockReturnValue(190_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+      expect(log.mock.calls[3]).toEqual([{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2, rejectedSinceLast: 2 }]);
+
+      clock.mockReturnValue(220_000);
+      log.mockImplementationOnce(() => { throw new Error("logger failure"); });
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log).toHaveBeenCalledTimes(5);
+      clock.mockReturnValue(280_000);
+      expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect(log.mock.calls[5]).toEqual([{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16, rejectedSinceLast: 3 }]);
+    } finally {
+      ordinaryGate.resolve(null);
+      readyGate.resolve({ ok: 1 });
+      await Promise.all([...ordinary, ...ready]);
+      log.mockRestore();
+      clock.mockRestore();
+    }
+    expect((await isolatedHandleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(404);
+    expect((await isolatedHandleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(200);
+  });
+
+  it("does not log normal admission or health probes", async () => {
+    const env = envWithPrepare(() => ({ first: async () => ({ ok: 1 }) }) as D1PreparedStatementLike);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect((await handleRequest(new Request("https://example.test/health", { method: "POST" }), env)).status).toBe(405);
+      expect((await handleRequest(new Request("https://example.test/ready"), env)).status).toBe(200);
+      expect((await handleRequest(new Request("https://example.test/health"), env)).status).toBe(200);
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("admits exactly the cap, rejects excess work without DB access, and releases success and failure slots", async () => {
     const gates = Array.from({ length: MAX_IN_FLIGHT_REQUESTS }, () => deferred<null>());
     let prepares = 0;
