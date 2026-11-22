@@ -353,7 +353,8 @@ export async function parseShareOptions(request: Request): Promise<number> {
 
 async function boundedJsonBody(request: Request): Promise<unknown> {
   const text = await readBoundedBody(request, MAX_BODY_BYTES,
-    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413),
+    () => new ApiInputError("REQUEST_TIMEOUT", 408));
   if (!text.trim()) return null;
   try {
     return JSON.parse(text);

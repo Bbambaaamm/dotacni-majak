@@ -4,6 +4,7 @@ export async function readBoundedBody(
   request: Request,
   maxBytes: number,
   tooLarge: () => Error,
+  timedOut?: () => Error,
 ): Promise<string> {
   const declared = request.headers.get("content-length");
   if (declared !== null && /^\d+$/.test(declared) && Number(declared) > maxBytes) {
@@ -13,17 +14,35 @@ export async function readBoundedBody(
 
   const reader = request.body.getReader();
   const decoder = new TextDecoder();
+  const deadline = Date.now() + 10_000;
   let text = "";
   let bytes = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) return text + decoder.decode();
-    bytes += value.byteLength;
-    if (bytes > maxBytes) {
-      // Do not await a potentially uncooperative producer's cancellation.
-      void reader.cancel().catch(() => undefined);
-      throw tooLarge();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const { done, value } = timedOut
+        ? await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+              // Reject first: cancellation may complete the pending read immediately.
+              reject(timedOut());
+              // Do not await cancellation of an uncooperative request producer.
+              void reader.cancel().catch(() => undefined);
+            }, Math.max(0, deadline - Date.now()));
+          }),
+        ])
+        : await reader.read();
+      if (done) return text + decoder.decode();
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        // Do not await a potentially uncooperative producer's cancellation.
+        void reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      text += decoder.decode(value, { stream: true });
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
-    text += decoder.decode(value, { stream: true });
   }
 }

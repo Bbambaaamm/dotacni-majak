@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readBoundedBody } from "../src/boundedBody";
 import { parseProjectInput } from "../src/projectAccess";
 import { parseApplicantProfileInput } from "../src/applicantProfile";
@@ -69,5 +69,48 @@ describe("bounded streaming request bodies", () => {
       await expect(parse(request)).rejects.toMatchObject({ code: "REQUEST_TOO_LARGE", status: 413 });
     }
     expect(await parseWatchEnabled(streamed([bytes('{"enabled":true}')]).request)).toBe(true);
+  });
+
+  it("returns 408 for a stalled body before project persistence and never echoes credentials", async () => {
+    vi.useFakeTimers();
+    try {
+      const request = new Request("https://example.test/projects", {
+        method: "POST",
+        body: new ReadableStream<Uint8Array>({ start() { /* no bytes */ } }),
+        duplex: "half",
+      } as RequestInit & { duplex: "half" });
+      const env = {
+        ENVIRONMENT: "local",
+        DB: { prepare() { throw new Error("DB touched"); }, batch() { throw new Error("DB touched"); } },
+      } as unknown as Env;
+      const responsePromise = handleRequest(request, env);
+      await vi.advanceTimersByTimeAsync(10_000);
+      const response = await responsePromise;
+      expect(response.status).toBe(408);
+      expect(await response.json()).toEqual({ error: "REQUEST_TIMEOUT" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("enforces a total body deadline even when successive chunks arrive", async () => {
+    vi.useFakeTimers();
+    try {
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const request = new Request("https://example.test/projects", {
+        method: "POST",
+        body: new ReadableStream<Uint8Array>({ start(value) { controller = value; } }),
+        duplex: "half",
+      } as RequestInit & { duplex: "half" });
+      const result = readBoundedBody(request, 4096, tooLarge, () => new Error("REQUEST_TIMEOUT"));
+      const rejection = expect(result).rejects.toThrow("REQUEST_TIMEOUT");
+      controller.enqueue(bytes("a"));
+      await vi.advanceTimersByTimeAsync(5_000);
+      controller.enqueue(bytes("b"));
+      await vi.advanceTimersByTimeAsync(5_000);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
