@@ -127,6 +127,21 @@ describe("finance applicant preflight on canonical D1", () => {
     }
   });
 
+  it("rejects evidence sections from another document version while allowing matching or absent sections", async () => {
+    const db = await setup();
+    await db.prepare("INSERT INTO document_versions(id,source_document_id,sha256,retrieved_at,mime_type,object_key,extraction_status) VALUES ('other-dv','doc','other-hash','2026-01-01T00:00:00Z','text/plain','other-raw','EXTRACTED')").run();
+    for (const [id, version] of [["matching-section", "dv"], ["other-section", "other-dv"]] as const)
+      await db.prepare("INSERT INTO document_sections(id,document_version_id,text_content) VALUES (?,?,?)")
+        .bind(id, version, "Official reference").run();
+    await db.prepare("UPDATE field_evidence SET document_section_id='matching-section' WHERE id='ev'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+    await db.prepare("UPDATE field_evidence SET document_section_id='other-section' WHERE id='ev'").run();
+    expect(await read(db)).toEqual({ status: "NEEDS_INFORMATION", reason: "UNVERIFIED_OFFICIAL_ATTRIBUTE_EVIDENCE",
+      profileId: null, attributeValueIds: [], evidenceIds: [] });
+    await db.prepare("UPDATE field_evidence SET document_section_id=NULL WHERE id='ev'").run();
+    expect((await read(db)).status).toBe("STRUCTURE_ONLY");
+  });
+
   it("rejects mismatched, unsupported and malformed value types", async () => {
     const db = await setup();
     for (const [table, column, bad, good] of [
