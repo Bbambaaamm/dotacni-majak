@@ -1,0 +1,5 @@
+# Search #400 — current version only
+
+`grant_search_documents` and FTS are retryable indexes over immutable versions, not the authority for a call's current identity. Search results and facet aggregates join `grant_calls` only where `g.current_version_id = v.id` and `v.grant_call_id = g.id`. A stale indexed version, or an inconsistent pointer to another call's version, must not appear as a current opportunity even while an index cleanup is pending. The read does not delete historical data or repair the publisher; index-state `READY` describes the index population, not a guarantee of a current match.
+
+A real D1/API regression exercises stale and cross-call pointers, relevance and both date sorts with cursor pagination, and facet counts. The full-stack seed also includes an indexed non-current version; the desktop/mobile Chromium flow checks that it does not render. This is a narrow #400 trust boundary, not completion of all search UX acceptance criteria or proof of live official-source coverage.

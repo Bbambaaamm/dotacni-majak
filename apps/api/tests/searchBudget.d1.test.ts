@@ -17,7 +17,7 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
   for (const sql of [
     "CREATE TABLE grant_search_documents (grant_call_version_id TEXT PRIMARY KEY, title TEXT, summary TEXT, status TEXT, submission_close_at TEXT)",
     "CREATE TABLE grant_call_versions (id TEXT PRIMARY KEY, grant_call_id TEXT, official_detail_url TEXT, funding_instrument_type TEXT, captured_at TEXT NOT NULL DEFAULT '2026-09-26T20:00:00Z', verification_status TEXT NOT NULL DEFAULT 'VERIFIED')",
-    "CREATE TABLE grant_calls (id TEXT PRIMARY KEY, programme_id TEXT)",
+    "CREATE TABLE grant_calls (id TEXT PRIMARY KEY, programme_id TEXT, current_version_id TEXT)",
     "CREATE TABLE programmes (id TEXT PRIMARY KEY, provider_id TEXT)",
     "CREATE TABLE providers (id TEXT PRIMARY KEY, name TEXT)",
     "CREATE VIRTUAL TABLE grant_search_fts USING fts5(grant_call_version_id UNINDEXED, title, summary, supported_activities, eligible_costs, keywords)",
@@ -27,9 +27,6 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
     "CREATE TABLE source_documents (id TEXT PRIMARY KEY, grant_call_id TEXT)",
     "INSERT INTO providers VALUES ('p', 'Test provider')",
     "INSERT INTO programmes VALUES ('pr', 'p')",
-    "INSERT INTO grant_calls VALUES ('g', 'pr')",
-    "INSERT INTO source_documents VALUES ('doc', 'g')",
-    "INSERT INTO document_versions VALUES ('dv', 'doc')",
   ]) await db.prepare(sql).run();
   const cases: Array<[string, string, string, number | null, number | null, string, string, string]> = [
     ["a", "GRANT", "CZK", 10000, 20000, "VERIFIED", "GRANT", "OPEN"],
@@ -47,17 +44,20 @@ it("real D1 filters only verified CZK grant project-cost intervals before pages 
     ["no-evidence", "GRANT", "CZK", 10000, 20000, "VERIFIED", "GRANT", "OPEN"],
   ];
   for (const [id, type, currency, min, max, verification, versionType, status] of cases) {
-    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, 'g', NULL, ?)").bind(id, versionType).run();
+    await db.prepare("INSERT INTO grant_calls VALUES (?, 'pr', ?)").bind(`call-${id}`, id).run();
+    await db.prepare("INSERT INTO source_documents VALUES (?, ?)").bind(`doc-${id}`, `call-${id}`).run();
+    await db.prepare("INSERT INTO document_versions VALUES (?, ?)").bind(`dv-${id}`, `doc-${id}`).run();
+    await db.prepare("INSERT INTO grant_call_versions (id,grant_call_id,official_detail_url,funding_instrument_type) VALUES (?, ?, NULL, ?)").bind(id, `call-${id}`, versionType).run();
     await db.prepare("INSERT INTO grant_search_documents VALUES (?, 'alpha grant', '', ?, ?)")
       .bind(id, status, `2027-01-${id === "a" ? "01" : "02"}T00:00:00Z`).run();
     await db.prepare("INSERT INTO grant_search_fts(grant_call_version_id, title) VALUES (?, 'alpha grant')").bind(id).run();
-    await db.prepare("INSERT INTO field_evidence VALUES (?, 'GRANT_CALL_VERSION', ?, ?, 'dv', ?)")
-      .bind(`fe-${id}`, id, `/funding_scenarios/fs-${id}`, verification).run();
+    await db.prepare("INSERT INTO field_evidence VALUES (?, 'GRANT_CALL_VERSION', ?, ?, ?, ?)")
+      .bind(`fe-${id}`, id, `/funding_scenarios/fs-${id}`, `dv-${id}`, verification).run();
     await db.prepare("INSERT INTO funding_scenarios VALUES (?, ?, ?, ?, ?, ?, ?)")
       .bind(`fs-${id}`, id, type, currency, min, max, `fe-${id}`).run();
   }
   await db.prepare("UPDATE field_evidence SET field_path='/title' WHERE id='fe-wrong-path'").run();
-  await db.prepare("INSERT INTO grant_calls VALUES ('other-g', 'pr')").run();
+  await db.prepare("INSERT INTO grant_calls VALUES ('other-g', 'pr', NULL)").run();
   await db.prepare("INSERT INTO source_documents VALUES ('other-doc', 'other-g')").run();
   await db.prepare("INSERT INTO document_versions VALUES ('other-dv', 'other-doc')").run();
   await db.prepare("UPDATE field_evidence SET document_version_id='other-dv' WHERE id='fe-wrong-document'").run();

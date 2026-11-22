@@ -153,6 +153,7 @@ test("search cards show current indexed version provenance and freshness limits 
     const api = await request.get(`/api/search?${query}`);
     expect(api.status()).toBe(200);
     const body = await api.json() as { results: Array<{ grantCallVersionId: string; capturedAt: string; verificationStatus: string }> };
+    expect(body.results.map((row) => row.grantCallVersionId)).not.toContain("gcv-e2e-open-stale");
     expect(body.results).toContainEqual(expect.objectContaining({ grantCallVersionId: "gcv-e2e-open",
       capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED" }));
     for (const width of [1280, 390]) {
@@ -160,6 +161,7 @@ test("search cards show current indexed version provenance and freshness limits 
       await page.goto(`/hledat?${query}`);
       const card = page.locator(".grant-card").filter({ has: page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" }) });
       await expect(card).toBeVisible();
+      await expect(page.getByRole("heading", { name: "E2E zastaralá výzva — digitalizace obce" })).toHaveCount(0);
       await expect(card.locator(".facts")).toContainText("Verze zachycena26. září 2026");
       await expect(card.locator(".facts")).toContainText("Ověření zachycené verzeOvěřeno");
       await expect(card.getByRole("note")).toContainText("nepotvrzují aktuální podmínky nebo příjem žádostí");

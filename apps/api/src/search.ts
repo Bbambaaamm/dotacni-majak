@@ -254,7 +254,7 @@ async function queryFts(
     JOIN grant_call_versions v
       ON v.id = d.grant_call_version_id
     JOIN grant_calls g
-      ON g.id = v.grant_call_id
+      ON g.id = v.grant_call_id AND g.current_version_id = v.id
     JOIN programmes pr
       ON pr.id = g.programme_id
     JOIN providers p
@@ -307,7 +307,7 @@ async function queryDateSorted(
     FROM grant_search_fts
     JOIN grant_search_documents d ON d.grant_call_version_id = grant_search_fts.grant_call_version_id
     JOIN grant_call_versions v ON v.id = d.grant_call_version_id
-    JOIN grant_calls g ON g.id = v.grant_call_id
+    JOIN grant_calls g ON g.id = v.grant_call_id AND g.current_version_id = v.id
     JOIN programmes pr ON pr.id = g.programme_id
     JOIN providers p ON p.id = pr.provider_id
     WHERE grant_search_fts MATCH ? ${filters}
@@ -384,7 +384,7 @@ async function queryFacets(db: D1DatabaseLike, direct: string, expanded: string,
     SELECT d.status, d.submission_close_at, p.name AS provider_name
     FROM matched m JOIN grant_search_documents d ON d.grant_call_version_id = m.grant_call_version_id
     JOIN grant_call_versions v ON v.id = d.grant_call_version_id
-    JOIN grant_calls g ON g.id = v.grant_call_id
+    JOIN grant_calls g ON g.id = v.grant_call_id AND g.current_version_id = v.id
     JOIN programmes pr ON pr.id = g.programme_id
     JOIN providers p ON p.id = pr.provider_id
     WHERE d.status IN (?, ?, ?) ${instrument ? "AND v.funding_instrument_type = ?" : ""} ${budgetFilter(projectBudgetCzk)} ${dateFilters(closesFrom, closesBy)}
