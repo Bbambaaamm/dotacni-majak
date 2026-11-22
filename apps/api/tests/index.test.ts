@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   D1PreparedStatementLike,
@@ -6,7 +6,7 @@ import type {
   Env,
 } from "../src/env";
 import { handleRequest } from "../src/index";
-import { hashOwnerToken } from "../src/projectAccess";
+import { hashOwnerToken, parseProjectInput } from "../src/projectAccess";
 import { hashShareToken } from "../src/share";
 
 type DbResolver = (
@@ -339,6 +339,54 @@ describe("api worker", () => {
     expect(queries[0]).toContain("INSERT INTO projects");
     expect(queries[1]).toContain("project_owner_capabilities");
     expect(queries[2]).toContain("project_owner_audit_events");
+  });
+
+  it("rejects malformed and unknown project fields before D1 without echoing input", async () => {
+    const prepare = vi.fn(() => { throw new Error("D1 reached"); });
+    const batch = vi.fn(() => { throw new Error("D1 reached"); });
+    const noDbEnv = { ...env(), DB: { prepare, batch } } as unknown as Env;
+    const cases: Array<[string, string]> = [
+      ['{"naturalLanguageIntent":', "INVALID_JSON"],
+      [JSON.stringify({ naturalLanguageIntent: "Test", unexpectedSecret: "do-not-echo" }), "UNKNOWN_PROJECT_FIELD"],
+      [JSON.stringify({ naturalLanguageIntent: "Test", title: 7 }), "INVALID_PROJECT_TITLE"],
+      [JSON.stringify({ naturalLanguageIntent: "Test", currencyCode: false }), "INVALID_CURRENCY"],
+      [JSON.stringify({ naturalLanguageIntent: "Test", plannedStart: 123 }), "INVALID_PLANNED_START"],
+      [JSON.stringify({ naturalLanguageIntent: "Test", plannedEnd: [] }), "INVALID_PLANNED_END"],
+    ];
+    for (const [body, error] of cases) {
+      const response = await handleRequest(new Request("https://example.test/projects", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      }), noDbEnv);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error });
+    }
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it("keeps omitted and null project defaults", async () => {
+    for (const optional of [{}, {
+      title: null,
+      currencyCode: null,
+      estimatedTotalBudgetMinor: null,
+      plannedStart: null,
+      plannedEnd: null,
+    }]) {
+      const input = await parseProjectInput(new Request("https://example.test/projects", {
+        method: "POST",
+        body: JSON.stringify({ naturalLanguageIntent: "  Test project  ", ...optional }),
+      }));
+      expect(input).toEqual({
+        title: null,
+        naturalLanguageIntent: "Test project",
+        currencyCode: "CZK",
+        estimatedTotalBudgetMinor: null,
+        plannedStart: null,
+        plannedEnd: null,
+      });
+    }
   });
 
   it("creates an owner-protected project watch through the API", async () => {

@@ -7,6 +7,14 @@ const OWNER_TOKEN_DOMAIN = "dotacni-majak-project-owner-v1\0";
 const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
 const DEFAULT_SHARE_DAYS = 30;
 const MAX_SHARE_DAYS = 365;
+const PROJECT_FIELDS = new Set([
+  "title",
+  "naturalLanguageIntent",
+  "currencyCode",
+  "estimatedTotalBudgetMinor",
+  "plannedStart",
+  "plannedEnd",
+]);
 
 export interface CreateProjectInput {
   title: string | null;
@@ -39,6 +47,9 @@ export async function parseProjectInput(request: Request): Promise<CreateProject
     throw new ApiInputError("INVALID_PROJECT");
   }
   const value = raw as Record<string, unknown>;
+  if (Object.keys(value).some((key) => !PROJECT_FIELDS.has(key))) {
+    throw new ApiInputError("UNKNOWN_PROJECT_FIELD");
+  }
   const intent = typeof value.naturalLanguageIntent === "string"
     ? value.naturalLanguageIntent.trim()
     : "";
@@ -46,15 +57,17 @@ export async function parseProjectInput(request: Request): Promise<CreateProject
     throw new ApiInputError("INVALID_PROJECT_INTENT");
   }
 
-  const title = value.title == null
-    ? null
-    : typeof value.title === "string"
-      ? value.title.trim()
-      : null;
+  if (value.title != null && typeof value.title !== "string") {
+    throw new ApiInputError("INVALID_PROJECT_TITLE");
+  }
+  const title = typeof value.title === "string" ? value.title.trim() : null;
   if (title !== null && (title.length === 0 || title.length > 200)) {
     throw new ApiInputError("INVALID_PROJECT_TITLE");
   }
 
+  if (value.currencyCode != null && typeof value.currencyCode !== "string") {
+    throw new ApiInputError("INVALID_CURRENCY");
+  }
   const currencyCode = typeof value.currencyCode === "string"
     ? value.currencyCode.trim().toUpperCase()
     : "CZK";

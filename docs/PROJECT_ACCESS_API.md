@@ -22,6 +22,16 @@ JSON:
 
 Response `201` obsahuje `projectId` a `ownerCapability`.
 
+Povolená pole těla jsou `naturalLanguageIntent` (povinný neprázdný řetězec),
+`title`, `currencyCode`, `estimatedTotalBudgetMinor`, `plannedStart` a
+`plannedEnd`. Neznámé pole vrací HTTP 400 `UNKNOWN_PROJECT_FIELD`.
+Vynechané nebo `null` volitelné hodnoty používají dosavadní výchozí hodnoty:
+`title`, rozpočet a data jsou `null`, měna je `CZK`. Uvedené hodnoty musí mít
+správný typ; neplatný `title`, `currencyCode`, `plannedStart` nebo `plannedEnd`
+vrací HTTP 400 s kódem `INVALID_PROJECT_TITLE`, `INVALID_CURRENCY`,
+`INVALID_PLANNED_START` nebo `INVALID_PLANNED_END`. Chybová odpověď obsahuje
+pouze kód, nikoli vstupní hodnotu nebo text požadavku.
+
 Owner capability je zobrazena pouze v této odpovědi. Server persistuje pouze
 domain-separated SHA-256 hash.
 
