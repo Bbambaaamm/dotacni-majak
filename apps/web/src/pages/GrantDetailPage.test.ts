@@ -104,11 +104,17 @@ describe("detail deadline boundaries", () => {
   });
 
   it("keeps a wholly unknown deadline explicit, not an open-ended application", () => {
-    const html = render({ ...deadline, startsAt: null, endsAt: null });
-    expect(html).toContain("<dt>Termín</dt>");
-    expect(html).toContain("Není uveden; ověřte jej v oficiálním zdroji.");
-    expect(html).not.toContain("<dt>Od</dt>");
-    expect(html).not.toContain("<dt>Do</dt>");
+    for (const [startsAt, endsAt] of [[null, null], ["", null], ["  ", "\t"]] as const) {
+      const html = render({ ...deadline, startsAt, endsAt });
+      expect(html).toContain("<dt>Termín</dt>");
+      expect(html).toContain("Není uveden; ověřte jej v oficiálním zdroji.");
+      expect(html).not.toContain("<dt>Od</dt>");
+      expect(html).not.toContain("<dt>Do</dt>");
+    }
+    expect(render({ ...deadline, startsAt: " ", endsAt: "2027-12-31" }))
+      .toContain("<dt>Do</dt>");
+    expect(render({ ...deadline, startsAt: "2027-06-01", endsAt: " " }))
+      .not.toContain("<dt>Do</dt>");
   });
 });
 

@@ -160,14 +160,16 @@ export function SourceDeadline({ value }: { value: string | null }) {
 }
 
 export function DeadlineBounds({ deadline }: { deadline: GrantDeadlineDetail }) {
+  const hasStart = Boolean(deadline.startsAt?.trim());
+  const hasEnd = Boolean(deadline.endsAt?.trim());
   return <dl className="facts">
-    {deadline.startsAt !== null ? (
+    {hasStart ? (
       <div><dt>Od</dt><dd><SourceDeadline value={deadline.startsAt} /></dd></div>
     ) : null}
-    {deadline.endsAt !== null ? (
+    {hasEnd ? (
       <div><dt>Do</dt><dd><SourceDeadline value={deadline.endsAt} /></dd></div>
     ) : null}
-    {deadline.startsAt === null && deadline.endsAt === null ? (
+    {!hasStart && !hasEnd ? (
       <div><dt>Termín</dt><dd>Není uveden; ověřte jej v oficiálním zdroji.</dd></div>
     ) : null}
     {deadline.timezone && deadline.timezone !== "UTC"
