@@ -442,24 +442,34 @@ export async function getGrantDetail(
     evidenceId: row.evidence_id,
   }));
 
-  // A non-application deadline does not replace the source version's known
-  // submission window. Only a normalized application date supersedes this
-  // explicitly unattributed fallback; never duplicate an application row.
-  if (
-    !deadlines.some((deadline) => ["APPLICATION_WINDOW", "APPLICATION_OPEN", "APPLICATION_CLOSE"].includes(deadline.type))
-    && (base.submission_open_at !== null || base.submission_close_at !== null)
-  ) {
-    deadlines.push({
-      id: `${base.version_id}:submission-window`,
-      type: "APPLICATION_WINDOW",
-      startsAt: base.submission_open_at,
-      endsAt: base.submission_close_at,
-      // Version timestamps retain their own precision/offset; the version has
-      // no independent source timezone to attribute to this synthetic row.
-      timezone: null,
-      description: null,
-      evidenceId: null,
-    });
+  // A normalized application window owns both boundaries. Separate normalized
+  // opening/closing rows own only their respective boundary; preserve the other
+  // version date without inventing evidence or duplicating a normalized row.
+  const applicationTypes = new Set(deadlines.map((deadline) => deadline.type));
+  if (!applicationTypes.has("APPLICATION_WINDOW")) {
+    const hasOpen = applicationTypes.has("APPLICATION_OPEN");
+    const hasClose = applicationTypes.has("APPLICATION_CLOSE");
+    if (!hasOpen && !hasClose && (base.submission_open_at !== null || base.submission_close_at !== null)) {
+      deadlines.push({
+        id: `${base.version_id}:submission-window`, type: "APPLICATION_WINDOW",
+        startsAt: base.submission_open_at, endsAt: base.submission_close_at,
+        timezone: null, description: null, evidenceId: null,
+      });
+    } else if (hasClose && !hasOpen && base.submission_open_at !== null) {
+      deadlines.push({
+        id: `${base.version_id}:submission-open`, type: "APPLICATION_OPEN",
+        startsAt: base.submission_open_at, endsAt: null, timezone: null,
+        description: "Zahájení ze souhrnu zachycené verze; samostatný doklad není připojen.",
+        evidenceId: null,
+      });
+    } else if (hasOpen && !hasClose && base.submission_close_at !== null) {
+      deadlines.push({
+        id: `${base.version_id}:submission-close`, type: "APPLICATION_CLOSE",
+        startsAt: null, endsAt: base.submission_close_at, timezone: null,
+        description: "Ukončení ze souhrnu zachycené verze; samostatný doklad není připojen.",
+        evidenceId: null,
+      });
+    }
   }
 
   return {

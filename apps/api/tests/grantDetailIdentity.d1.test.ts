@@ -59,7 +59,24 @@ describe("grant detail current-version identity on real D1", () => {
 
     await db.prepare("INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at) VALUES ('application-close','version-a','APPLICATION_CLOSE','2027-02-01T17:00:00Z')").run();
     const normalized = await getGrantDetail(database, "call-a");
-    expect(normalized?.deadlines.map((deadline) => deadline.type)).toEqual(["APPLICATION_CLOSE", "PROJECT_FINISH"]);
+    expect(normalized?.deadlines).toEqual([
+      expect.objectContaining({ id: "application-close", type: "APPLICATION_CLOSE", endsAt: "2027-02-01T17:00:00Z" }),
+      expect.objectContaining({ id: "project-finish", type: "PROJECT_FINISH" }),
+      expect.objectContaining({ id: "version-a:submission-open", type: "APPLICATION_OPEN", startsAt: "2027-01-01T08:00:00Z", endsAt: null, timezone: null, evidenceId: null }),
+    ]);
+    const partialResponse = await handleRequest(new Request("https://example.test/grants/call-a"), env);
+    expect(partialResponse.status).toBe(200);
+    expect((await partialResponse.json()).deadlines).toEqual(normalized?.deadlines);
+
+    await db.prepare("DELETE FROM grant_deadlines WHERE id='application-close'").run();
+    await db.prepare("INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,starts_at) VALUES ('application-open','version-a','APPLICATION_OPEN','2027-01-01T08:00:00Z')").run();
+    expect((await getGrantDetail(database, "call-a"))?.deadlines).toEqual([
+      expect.objectContaining({ id: "application-open", type: "APPLICATION_OPEN" }),
+      expect.objectContaining({ id: "project-finish", type: "PROJECT_FINISH" }),
+      expect.objectContaining({ id: "version-a:submission-close", type: "APPLICATION_CLOSE", startsAt: null, endsAt: "2027-02-01T17:00:00Z", evidenceId: null }),
+    ]);
+    await db.prepare("INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at) VALUES ('application-close','version-a','APPLICATION_CLOSE','2027-02-01T17:00:00Z')").run();
+    expect((await getGrantDetail(database, "call-a"))?.deadlines.map((deadline) => deadline.id)).toEqual(["application-open", "application-close", "project-finish"]);
   });
 
   it("serves its own current version, but never attributes another call's version to it", async () => {

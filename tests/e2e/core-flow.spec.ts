@@ -2725,6 +2725,29 @@ test("detail retains application window alongside a normalized project deadline"
   }
 });
 
+test("detail retains version opening beside an evidenced normalized closing", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aopen");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    deadlines: { id: string; type: string; startsAt: string | null; endsAt: string | null; evidenceId: string | null }[];
+  };
+  expect(detail.deadlines).toEqual([
+    expect.objectContaining({ id: "e2e-deadline-open", type: "APPLICATION_CLOSE", endsAt: "2027-12-31T23:59:59Z" }),
+    expect.objectContaining({ id: "gcv-e2e-open:submission-open", type: "APPLICATION_OPEN", startsAt: "2026-09-20T08:00:00Z", endsAt: null, evidenceId: null }),
+  ]);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/dotace/grant%3Ae2e%3Aopen");
+    const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+    await expect(deadlines).toContainText("Ukončení příjmu žádostí");
+    await expect(deadlines).toContainText("Zahájení ze souhrnu zachycené verze");
+    await expect(deadlines).toContainText("2026-09-20 08:00:00 UTC");
+    await expect(deadlines).toContainText("Samostatný doklad termínu není připojen");
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("detail distinguishes a normalized deadline with evidence from a source-version fallback", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aplanned");
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
