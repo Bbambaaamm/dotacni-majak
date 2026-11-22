@@ -80,6 +80,11 @@ account-binding/recovery flow.
 - Authorization nikdy nevychází z `owner_user_id` poslaného klientem.
 - Raw owner/share tokeny se nepersistují.
 - Request body je omezen na 16 KiB.
+- Limit se vynucuje při čtení streamu podle skutečných UTF-8 bajtů (ne až po
+  `request.text()`); klientský `Content-Length` slouží jen k časnému odmítnutí.
+  Project/profile JSON: 16 KiB, watch/workspace JSON: 4 KiB. Překročení vrací
+  `413 REQUEST_TOO_LARGE` bez vrácení vstupních dat. Tento slice #550 neřeší
+  timeouty ani souběžnost requestů.
 - Owner token projektu A nemůže spravovat projekt B.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní
