@@ -1,8 +1,18 @@
 // A canonical status describes the captured call, not a live guarantee that applications are open.
 // Source-record disappearance must never be interpreted as cancellation.
-export function grantDetailAction(status: string, requirementsKnown: boolean, requirementCount: number) {
+export function grantDetailAction(status: string, requirementsKnown: boolean, requirementCount: number, sourcePresenceCaution = false) {
   switch (status) {
     case "OPEN":
+      if (sourcePresenceCaution) return {
+        heading: "Ověřte aktuální dostupnost výzvy u poskytovatele.",
+        explanation: "Zachycený stav OPEN nepotvrzuje dnešní příjem žádostí. Výskyt u zdroje není doložen nebo se zdrojové záznamy rozcházejí; to samo o sobě neznamená zrušení výzvy. Po ověření si ji můžete uložit k projektu. "
+          + (requirementsKnown
+            ? "Známé podmínky lze porovnat s projektem; způsobilost tím není potvrzena."
+            : "Úplné podmínky nemáme normalizované; způsobilost neoznačujeme jako splněnou ani nesplněnou."),
+        projectLabel: "Přidat k projektu",
+        applicationCandidate: true,
+        verificationFirst: true,
+      };
       return {
         heading: requirementsKnown
           ? "Porovnejte známé požadavky s vaším projektem."
@@ -12,6 +22,7 @@ export function grantDetailAction(status: string, requirementsKnown: boolean, re
           : "Maják zatím nemá všechny podmínky této výzvy normalizované. Proto způsobilost neoznačujeme jako splněnou ani nesplněnou.",
         projectLabel: "Přidat k projektu",
         applicationCandidate: true,
+        verificationFirst: false,
       };
     case "PLANNED":
     case "ANNOUNCED":
