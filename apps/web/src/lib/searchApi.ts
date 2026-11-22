@@ -156,6 +156,9 @@ function facetsCoverResults(response: GrantSearchResponse,
   const statusTotal = response.facets.status.OPEN + response.facets.status.PLANNED + response.facets.status.ANNOUNCED;
   const deadlineTotal = response.facets.deadline.KNOWN + response.facets.deadline.UNKNOWN;
   if (!status && !deadline && statusTotal !== deadlineTotal) return false;
+  // Without status/deadline filters both totals describe the full result set.
+  // A terminal first page cannot contain fewer calls than those totals.
+  if (!status && !deadline && response.nextCursor === null && statusTotal !== response.results.length) return false;
   // Provider options omit only the provider filter. With at most one of the
   // status/deadline filters selected, one other facet counts the same population.
   // A truncated provider list is only a lower bound, never a complete total.

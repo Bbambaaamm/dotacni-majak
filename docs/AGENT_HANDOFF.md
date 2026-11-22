@@ -124,5 +124,8 @@ Na první stránce bez filtru stavu a dostupnosti termínu počítá Search API 
 ## Konzistence úplných počtů poskytovatelů — dílčí #400
 Když není aktivní filtr poskytovatele a seznam poskytovatelů není zkrácený, součet jejich počtů musí odpovídat srovnatelné skupině: bez filtrů stavu/termínu celkovému počtu stavů, jen se stavem celkovému počtu termínů, jen s termínem celkovému počtu stavů. Při současném filtru stavu a termínu nebo filtru poskytovatele nejsou tyto skupiny srovnatelné. Zkrácený seznam je pouze dolní mez a nedostupné `facets: null` nejsou nuly. Rozpornou úspěšnou odpověď klient odmítne a nabídne opakování; nezobrazuje falešné počty.
 
+## Search results pagination integrity (#400)
+První stránka bez filtru stavu/termínu nesmí zobrazit zdánlivě kompletní výsledky, pokud API vrátí `nextCursor: null`, ale celkové počty facetů ukazují více shod než načtených karet. Klient odpověď odmítne a nabídne opakování; nedostupné počty (`facets: null`) nejsou důkazem chybějících výsledků. Regrese používá skutečný lokální D1/API tok se záměrně poškozenou odpovědí v prohlížeči.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.
