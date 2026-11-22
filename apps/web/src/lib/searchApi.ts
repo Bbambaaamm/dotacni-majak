@@ -149,13 +149,21 @@ function resultsMatchFilters(
 }
 
 function facetsCoverResults(response: GrantSearchResponse,
-  status?: "OPEN" | "PLANNED" | "ANNOUNCED", deadline?: "KNOWN" | "UNKNOWN"): boolean {
+  status?: "OPEN" | "PLANNED" | "ANNOUNCED", deadline?: "KNOWN" | "UNKNOWN", provider?: string): boolean {
   if (response.facets === null) return true; // Counts above the facet cap are unavailable, not zero.
   // Without either filter, both facets count the same matched calls. A mismatch
   // must not become two contradictory filter totals in the results UI.
-  if (!status && !deadline &&
-    response.facets.status.OPEN + response.facets.status.PLANNED + response.facets.status.ANNOUNCED !==
-    response.facets.deadline.KNOWN + response.facets.deadline.UNKNOWN) return false;
+  const statusTotal = response.facets.status.OPEN + response.facets.status.PLANNED + response.facets.status.ANNOUNCED;
+  const deadlineTotal = response.facets.deadline.KNOWN + response.facets.deadline.UNKNOWN;
+  if (!status && !deadline && statusTotal !== deadlineTotal) return false;
+  // Provider options omit only the provider filter. With at most one of the
+  // status/deadline filters selected, one other facet counts the same population.
+  // A truncated provider list is only a lower bound, never a complete total.
+  if (!provider && (!status || !deadline)) {
+    const comparableTotal = status ? deadlineTotal : statusTotal;
+    const providerTotal = response.facets.providers.reduce((sum, item) => sum + item.count, 0);
+    if (providerTotal > comparableTotal || (!response.facets.providersTruncated && providerTotal !== comparableTotal)) return false;
+  }
   const statuses = new Map<string, number>();
   const deadlines = new Map<"KNOWN" | "UNKNOWN", number>();
   const providers = new Map<string, number>();
@@ -226,7 +234,7 @@ export async function searchGrants(
   }
   // The web client omits limit, so the API contract caps each page at 20.
   // Never render an oversized success response as a trustworthy page.
-  if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body, status, deadline)
+  if (!isSearchResponse(body, intent) || body.results.length > 20 || !facetsCoverResults(body, status, deadline, provider)
     || (cursor && body.facets !== null)
     || (expectedExpandedTerms && (body.expandedTerms.length !== expectedExpandedTerms.length
       || body.expandedTerms.some((term, index) => term !== expectedExpandedTerms[index])))

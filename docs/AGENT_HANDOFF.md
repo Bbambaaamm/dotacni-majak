@@ -114,5 +114,8 @@ Detail čte dolní i horní mez dotace z již existujícího `grantAmountMinMino
 ## Konzistence počtů filtrů výsledků — dílčí #400
 Na první stránce bez filtru stavu a dostupnosti termínu počítá Search API obě skupiny facetů ze stejné množiny shod. Pokud součet stavů a součet dostupnosti termínu nesouhlasí, klient odpověď odmítne jako chybnou a nabídne opakování, místo aby ukázal rozporné počty. Při aktivním filtru stavu či termínu se obě skupiny počítají s odlišným průřezem a tato rovnost se nevyžaduje; `facets: null` znamená nedostupné počty, nikoli nuly. Izolovaný regresní test pokrývá rozpor a reálný D1 → API → desktop/mobilní Chromium ověřuje běžný případ a přístupnost. Nejde o úplné uzavření #400 ani potvrzení aktuálnosti zdrojů.
 
+## Konzistence úplných počtů poskytovatelů — dílčí #400
+Když není aktivní filtr poskytovatele a seznam poskytovatelů není zkrácený, součet jejich počtů musí odpovídat srovnatelné skupině: bez filtrů stavu/termínu celkovému počtu stavů, jen se stavem celkovému počtu termínů, jen s termínem celkovému počtu stavů. Při současném filtru stavu a termínu nebo filtru poskytovatele nejsou tyto skupiny srovnatelné. Zkrácený seznam je pouze dolní mez a nedostupné `facets: null` nejsou nuly. Rozpornou úspěšnou odpověď klient odmítne a nabídne opakování; nezobrazuje falešné počty.
+
 ## Definition of Done
 Kód je otestovaný, CI zelené, docs aktualizované, failure mode bezpečný a UX nevytváří falešnou jistotu.
