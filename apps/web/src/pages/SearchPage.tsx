@@ -100,7 +100,7 @@ export function SearchPage() {
     return () => mobile.removeEventListener("change", update);
   }, []);
   useLayoutEffect(() => {
-    if (!isMobile || !mobileDialogOpen || !filterPanel.current?.open) return;
+    if (!isMobile || !mobileDialogOpen || loading || error || !filterPanel.current?.open) return;
     const root = document.documentElement;
     const body = document.body;
     const scrollX = window.scrollX;
@@ -127,7 +127,7 @@ export function SearchPage() {
       else root.style.removeProperty("overflow");
       window.scrollTo(scrollX, scrollY);
     };
-  }, [isMobile, mobileDialogOpen]);
+  }, [isMobile, mobileDialogOpen, loading, error]);
   useLayoutEffect(() => {
     const panel = filterPanel.current;
     if (!isMobile || !mobileDialogOpen || !panel?.open) return;

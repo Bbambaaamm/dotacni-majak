@@ -57,10 +57,13 @@ test("mobile filter sheet locks background gestures and restores document scroll
   await expect(page.locator(".grant-card")).toHaveCount(20);
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+  // The loading view can shorten the document and clamp its scroll position;
+  // closing must restore the position at the latest successful lock.
+  const afterSearchY = await page.evaluate(() => -parseFloat(document.body.style.top));
 
   await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(beforeOpenY);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(afterSearchY);
   expect(await page.evaluate(() => ({ root: document.documentElement.style.cssText, body: document.body.style.cssText })))
     .toEqual(previousStyles);
   await page.mouse.move(180, 40);
@@ -77,6 +80,69 @@ test("mobile filter sheet locks background gestures and restores document scroll
   await page.mouse.move(180, 40);
   await page.mouse.wheel(0, 350);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(desktopY);
+});
+
+test("failed mobile filter search unlocks scrolling and real D1 retry reopens the sheet", async ({ page, request }) => {
+  const api = await request.get("/api/search?intent=strankovani");
+  expect(api.status()).toBe(200);
+  expect((await api.json() as { results: unknown[] }).results).toHaveLength(20);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/hledat?intent=strankovani");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await page.evaluate(() => {
+    // Keep the error view scrollable so this checks behavior as well as styles.
+    document.querySelector<HTMLElement>(".results-page")!.style.minHeight = "2000px";
+    window.scrollTo(0, 500);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
+
+  const dialog = page.getByRole("dialog", { name: "Upravit filtry a řazení" });
+  await page.locator(".filter-panel summary").click();
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+
+  let releaseFailure!: () => void;
+  const heldFailure = new Promise<void>((resolve) => { releaseFailure = resolve; });
+  let recover = false;
+  await page.route("**/api/search?*", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("sort") !== "DEADLINE" || recover) {
+      await route.continue();
+      return;
+    }
+    await heldFailure;
+    await route.fulfill({ status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "SEARCH_UNAVAILABLE" }) });
+  });
+  await dialog.getByLabel("Řazení všech odpovídajících výsledků").selectOption("DEADLINE");
+  await expect(page.getByText("Porovnáváme váš záměr s dostupnými výzvami.")).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => ({
+    position: getComputedStyle(document.body).position,
+    overflow: getComputedStyle(document.documentElement).overflow,
+  }))).toEqual({ position: "static", overflow: "visible" });
+
+  releaseFailure();
+  await expect(page.getByRole("alert")).toContainText("Výsledky teď neumíme bezpečně zobrazit.");
+  const retry = page.getByRole("button", { name: "Zkusit vyhledávání znovu" });
+  await expect(retry).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("static");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.mouse.move(180, 400);
+  await page.mouse.wheel(0, 350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  recover = true;
+  const response = page.waitForResponse((result) => result.url().includes("/api/search?") && result.status() === 200);
+  await retry.click();
+  expect(new URL((await response).url()).searchParams.get("sort")).toBe("DEADLINE");
+  await expect(page.locator(".grant-card")).toHaveCount(20);
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("fixed");
+  const beforeCloseY = await page.evaluate(() => -parseFloat(document.body.style.top));
+  await dialog.getByRole("button", { name: "Zavřít filtry" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(beforeCloseY);
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe("static");
 });
 
 test("mobile filters form a keyboard-contained sheet over real D1 search", async ({ page, request }) => {
