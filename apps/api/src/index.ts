@@ -60,7 +60,8 @@ function projectOwnerPath(pathname: string): { projectId: string; action: "rotat
 
 async function workspaceBody(request: Request): Promise<Record<string, unknown>> {
   const text = await readBoundedBody(request, 4096,
-    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413),
+    () => new ApiInputError("REQUEST_TIMEOUT", 408));
   let body: unknown;
   try { body = JSON.parse(text); } catch { throw new ApiInputError("INVALID_JSON"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiInputError("INVALID_WORKSPACE_INPUT");

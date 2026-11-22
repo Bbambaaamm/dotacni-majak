@@ -83,8 +83,13 @@ account-binding/recovery flow.
 - Limit se vynucuje při čtení streamu podle skutečných UTF-8 bajtů (ne až po
   `request.text()`); klientský `Content-Length` slouží jen k časnému odmítnutí.
   Project/profile JSON: 16 KiB, watch/workspace JSON: 4 KiB. Překročení vrací
-  `413 REQUEST_TOO_LARGE` bez vrácení vstupních dat. Tento slice #550 neřeší
-  timeouty ani souběžnost requestů.
+  `413 REQUEST_TOO_LARGE` bez vrácení vstupních dat.
+- Čtení těla má celkový deadline 10 s od zahájení streamu; zaseknutý nebo
+  pomalu dávkovaný stream vrací `408 REQUEST_TIMEOUT` bez vstupních dat a před
+  jakoukoliv mutací DB. Pozdní čtení se zruší bez čekání na producenta.
+  Deadline se záměrně nevztahuje na již zahájenou DB mutaci: timeout odpověď
+  by jinak mohla skrýt úspěšně dokončený zápis. Následující slice #550 musí
+  řešit souběžnost, runtime deadline a měřitelnost bez falešné jistoty.
 - Owner token projektu A nemůže spravovat projekt B.
 - Unknown/invalid share resolver neodhaluje existenci projektu.
 - Share public projection neobsahuje applicant profile, owner principal, interní

@@ -163,7 +163,8 @@ export async function deleteProjectWatch(
 
 export async function parseWatchEnabled(request: Request): Promise<boolean> {
   const text = await readBoundedBody(request, MAX_BODY_BYTES,
-    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413),
+    () => new ApiInputError("REQUEST_TIMEOUT", 408));
   let body: unknown;
   try {
     body = JSON.parse(text);

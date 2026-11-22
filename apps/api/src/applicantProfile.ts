@@ -147,7 +147,8 @@ export async function parseApplicantProfileInput(
   request: Request,
 ): Promise<ApplicantProfileInput> {
   const text = await readBoundedBody(request, MAX_BODY_BYTES,
-    () => new ApiInputError("REQUEST_TOO_LARGE", 413));
+    () => new ApiInputError("REQUEST_TOO_LARGE", 413),
+    () => new ApiInputError("REQUEST_TIMEOUT", 408));
   if (!text.trim()) {
     throw new ApiInputError("EMPTY_BODY");
   }
