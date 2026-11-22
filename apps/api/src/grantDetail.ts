@@ -442,11 +442,11 @@ export async function getGrantDetail(
     evidenceId: row.evidence_id,
   }));
 
-  // GrantCallVersion carries submission dates even when a source connector has
-  // not yet normalized them into grant_deadlines. Expose them explicitly
-  // instead of hiding known source data.
+  // A non-application deadline does not replace the source version's known
+  // submission window. Only a normalized application date supersedes this
+  // explicitly unattributed fallback; never duplicate an application row.
   if (
-    deadlines.length === 0
+    !deadlines.some((deadline) => ["APPLICATION_WINDOW", "APPLICATION_OPEN", "APPLICATION_CLOSE"].includes(deadline.type))
     && (base.submission_open_at !== null || base.submission_close_at !== null)
   ) {
     deadlines.push({

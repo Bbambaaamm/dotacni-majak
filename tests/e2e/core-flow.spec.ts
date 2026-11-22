@@ -2708,6 +2708,23 @@ test("missing detail is not presented as a transient outage", async ({ page }) =
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
 });
 
+test("detail retains application window alongside a normalized project deadline", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aplanned");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as { deadlines: { type: string; evidenceId: string | null }[] };
+  expect(detail.deadlines.map((deadline) => deadline.type)).toEqual(["PROJECT_FINISH", "APPLICATION_WINDOW"]);
+  expect(detail.deadlines[1]?.evidenceId).toBeNull();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/dotace/grant%3Ae2e%3Aplanned");
+    const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
+    await expect(deadlines).toContainText("Dokončení projektu");
+    await expect(deadlines).toContainText("Příjem žádostí (souhrn výzvy)");
+    await expect(deadlines).toContainText("2027-10-31 23:59:59 UTC");
+    await expect(deadlines).toContainText("Samostatný doklad termínu není připojen");
+  }
+});
+
 test("detail distinguishes a normalized deadline with evidence from a source-version fallback", async ({ page }) => {
   await page.goto("/dotace/grant%3Ae2e%3Aplanned");
   const deadlines = page.getByRole("region", { name: "Termíny podle zdroje" });
