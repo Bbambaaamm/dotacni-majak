@@ -151,6 +151,52 @@ describe("search API client", () => {
     expect((await searchGrants("alpha")).results).toEqual([result]);
   });
 
+  it("checks complete provider counts against the comparable unfiltered facet population", async () => {
+    const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
+      status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
+      capturedAt: "2026-09-26T20:00:00Z", verificationStatus: "VERIFIED", matchKind: "DIRECT" };
+    const facets = { status: { OPEN: 2, PLANNED: 1, ANNOUNCED: 0 },
+      deadline: { KNOWN: 1, UNKNOWN: 2 }, providers: [{ name: "Obec", count: 1 }],
+      providersTruncated: false };
+    const body = { intent: "alpha", results: [result], expandedTerms: [],
+      indexState: "READY", nextCursor: null, facets };
+    const request = (filters: { status?: "OPEN"; deadline?: "UNKNOWN"; provider?: string } = {}) =>
+      searchGrants("alpha", undefined, undefined, filters.status, filters.deadline, filters.provider);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+    // Without a provider filter the three complete facet populations must agree.
+    await expect(request()).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    // Selecting a status leaves the deadline facet comparable to providers.
+    const statusFacets = { ...facets, deadline: { KNOWN: 0, UNKNOWN: 2 } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: statusFacets }), { status: 200 })));
+    await expect(request({ status: "OPEN" })).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    // Selecting a deadline leaves the status facet comparable to providers.
+    const deadlineFacets = { ...facets, status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: deadlineFacets }), { status: 200 })));
+    await expect(request({ deadline: "UNKNOWN" })).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    // An active provider filter changes the status/deadline populations; both
+    // filters together likewise have no comparable facet population.
+    const providerFacets = { ...facets, status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 2 } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: providerFacets }), { status: 200 })));
+    expect((await request({ provider: "Obec" })).results).toHaveLength(1);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: deadlineFacets }), { status: 200 })));
+    expect((await request({ status: "OPEN", deadline: "UNKNOWN" })).results).toHaveLength(1);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      facets: { ...facets, providersTruncated: true },
+    }), { status: 200 })));
+    expect((await request()).results).toHaveLength(1);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      facets: { ...facets, providers: [{ name: "Obec", count: 4 }], providersTruncated: true },
+    }), { status: 200 })));
+    await expect(request()).rejects.toMatchObject({ code: "INVALID_SEARCH_RESPONSE" });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body, facets: null }), { status: 200 })));
+    expect((await request()).results).toHaveLength(1);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...body,
+      facets: { ...facets, providers: [{ name: "Obec", count: 3 }] },
+    }), { status: 200 })));
+    expect((await request()).results).toHaveLength(1);
+  });
+
   it("rejects successful pages that contradict applied status, deadline or exact provider filters", async () => {
     const result = { grantCallVersionId: "v1", grantCallId: "g1", title: "Test", summary: "Text",
       status: "OPEN", submissionCloseAt: null, providerName: "Obec", officialDetailUrl: null,
@@ -256,8 +302,8 @@ describe("search API client", () => {
   });
 
   it("rejects duplicate, empty, or nonpositive provider facets before rendering filters", async () => {
-    const facets = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
-      deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [{ name: "Obec", count: 2 }],
+    const facets = { status: { OPEN: 2, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 2 }, providers: [{ name: "Obec", count: 2 }],
       providersTruncated: false };
     const body = { intent: "alpha", results: [], expandedTerms: [],
       indexState: "READY", nextCursor: null, facets };
@@ -277,18 +323,19 @@ describe("search API client", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
     expect((await searchGrants("alpha")).facets?.providers).toEqual(facets.providers);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      ...body, facets: { ...facets, providers: [] },
+      ...body, facets: { ...facets, status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
+        deadline: { KNOWN: 0, UNKNOWN: 0 }, providers: [] },
     }), { status: 200 })));
     expect((await searchGrants("alpha")).facets?.providers).toEqual([]);
   });
 
   it("rejects provider facets outside API count-descending, SQLite name-ascending order", async () => {
-    const zero = { status: { OPEN: 0, PLANNED: 0, ANNOUNCED: 0 },
-      deadline: { KNOWN: 0, UNKNOWN: 0 } };
+    const facets = { status: { OPEN: 7, PLANNED: 0, ANNOUNCED: 0 },
+      deadline: { KNOWN: 0, UNKNOWN: 7 } };
     const providers = [{ name: "Alfa", count: 3 }, { name: "Beta", count: 2 },
       { name: "\uE000", count: 1 }, { name: "\u{10000}", count: 1 }];
     const body = { intent: "alpha", results: [], expandedTerms: [], indexState: "READY",
-      nextCursor: null, facets: { ...zero, providers, providersTruncated: true } };
+      nextCursor: null, facets: { ...facets, providers, providersTruncated: true } };
     for (const changed of [
       [providers[1], providers[0], ...providers.slice(2)],
       [providers[0], providers[1], providers[3], providers[2]],
