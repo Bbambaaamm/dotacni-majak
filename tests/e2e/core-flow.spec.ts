@@ -30,6 +30,37 @@ test("real search keeps decision cautions visible and filter mechanics accessibl
   }
 });
 
+test("mobile search rejects blank decision identities and retries the real D1/API", async ({ page, request }) => {
+  const path = "/hledat?intent=digitalizace%20obce";
+  const api = await request.get("/api/search?intent=digitalizace%20obce");
+  expect(api.status()).toBe(200);
+  const actual = await api.json() as { results: Array<{ grantCallVersionId: string; grantCallId: string }> };
+  expect(actual.results.length).toBeGreaterThan(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const field of ["grantCallVersionId", "grantCallId"] as const) {
+    let corrupt = true;
+    const corruptIdentity = async (route: import("@playwright/test").Route) => {
+      if (!corrupt) return route.continue();
+      const response = await route.fetch();
+      const body = await response.json() as typeof actual;
+      expect(response.ok()).toBe(true);
+      await route.fulfill({ response, json: { ...body, results: [
+        { ...body.results[0], [field]: "   " }, ...body.results.slice(1),
+      ] } });
+    };
+    await page.route("**/api/search?*", corruptIdentity);
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Výsledky teď neumíme bezpečně zobrazit." })).toBeVisible();
+    await expect(page.locator(".grant-card")).toHaveCount(0);
+    corrupt = false;
+    await page.getByRole("button", { name: "Zkusit vyhledávání znovu" }).click();
+    await expect(page.getByRole("heading", { name: "E2E otevřená výzva — digitalizace obce" })).toBeVisible();
+    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.unroute("**/api/search?*", corruptIdentity);
+  }
+});
+
 test("mobile search rejects reordered provider counts and retries actual D1/API", async ({ page, request }) => {
   const path = "/hledat?intent=digitalizace%20obce";
   const api = await request.get("/api/search?intent=digitalizace%20obce");
