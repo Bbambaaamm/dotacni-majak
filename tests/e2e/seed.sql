@@ -193,7 +193,9 @@ VALUES ('e2e-project-finish-planned','gcv-e2e-planned','PROJECT_FINISH',
 -- be silently treated as verified application deadlines by the detail UI.
 INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,starts_at,ends_at,description)
 VALUES ('e2e-deadline-uncertain','gcv-e2e-unsafe-url','DOCUMENT_COMPLETION',
-        '2027-06-01','datum-nejasne','Syntetický neověřený termín');
+        '2027-06-01','datum-nejasne','Syntetický neověřený termín'),
+       ('e2e-deadline-reversed','gcv-e2e-unsafe-url','PROJECT_FINISH',
+        '2027-06-02','2027-06-01','Syntetický obrácený interval');
 
 INSERT INTO grant_requirements(id,grant_call_version_id,requirement_type,title,necessity,evidence_id)
 VALUES

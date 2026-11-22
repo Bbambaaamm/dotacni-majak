@@ -4,7 +4,7 @@ import { RelevanceFeedback } from "../components/RelevanceFeedback";
 import { OfficialSourceLink } from "../components/OfficialSourceLink";
 import { StatusBadge } from "../components/StatusBadge";
 import { OPEN_STATUS_LABEL, OPEN_STATUS_NOTE } from "../lib/capturedStatus";
-import { deadlineTime, sourceDeadlineNeedsReview } from "../lib/deadlineTime";
+import { conflictingDeadlineBounds, deadlineTime, sourceDeadlineNeedsReview } from "../lib/deadlineTime";
 import { grantDetailAction } from "../lib/grantDetailAction";
 import { fundingScenarioNotice } from "../lib/fundingScenarioNotice";
 import {
@@ -162,7 +162,11 @@ export function SourceDeadline({ value }: { value: string | null }) {
 export function DeadlineBounds({ deadline }: { deadline: GrantDeadlineDetail }) {
   const hasStart = Boolean(deadline.startsAt?.trim());
   const hasEnd = Boolean(deadline.endsAt?.trim());
-  return <dl className="facts">
+  return <>
+    {conflictingDeadlineBounds(deadline.startsAt, deadline.endsAt) ? (
+      <p className="source-presence-caution" role="note">Termíny jsou v opačném pořadí: konec předchází začátku. Interval nelze bezpečně vyložit; ověřte oba údaje v oficiálním zdroji.</p>
+    ) : null}
+    <dl className="facts">
     {hasStart ? (
       <div><dt>Od</dt><dd><SourceDeadline value={deadline.startsAt} /></dd></div>
     ) : null}
@@ -174,7 +178,8 @@ export function DeadlineBounds({ deadline }: { deadline: GrantDeadlineDetail }) 
     ) : null}
     {deadline.timezone && deadline.timezone !== "UTC"
       ? <div><dt>Zóna uvedená zdrojem</dt><dd>{deadline.timezone}</dd></div> : null}
-  </dl>;
+    </dl>
+  </>;
 }
 
 export function DetailMetadataDate({ value, label }: { value: string; label: string }) {
@@ -454,6 +459,9 @@ export function GrantDetailPage() {
                 <dt>Ukončení příjmu</dt>
                 <dd><SourceDeadline value={detail.submissionCloseAt} /></dd>
               </div>
+              {conflictingDeadlineBounds(detail.submissionOpenAt, detail.submissionCloseAt) ? (
+                <div><dt>Pořadí termínů příjmu</dt><dd role="note">Konec předchází začátku. Interval nelze bezpečně vyložit; ověřte oba údaje v oficiálním zdroji.</dd></div>
+              ) : null}
               <div>
                 <dt>Verze výzvy zachycena</dt>
                 <dd><DetailMetadataDate value={detail.capturedAt} label="zachycení verze" /></dd>

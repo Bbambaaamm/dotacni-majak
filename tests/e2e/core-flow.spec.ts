@@ -251,6 +251,26 @@ test("detail marks only malformed source deadline from real D1/API at mobile wid
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test("detail warns on a reversed deadline from real D1/API without inventing a valid window", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");
+  expect(response.status()).toBe(200);
+  const detail = await response.json() as {
+    deadlines: Array<{ id: string; startsAt: string | null; endsAt: string | null }>;
+  };
+  expect(detail.deadlines.find((item) => item.id === "e2e-deadline-reversed"))
+    .toMatchObject({ startsAt: "2027-06-02", endsAt: "2027-06-01" });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dotace/grant%3Ae2e%3Aunsafe-url");
+  const row = page.getByRole("region", { name: "Termíny podle zdroje" })
+    .locator("li").filter({ hasText: "Syntetický obrácený interval" });
+  await expect(row.getByRole("note")).toContainText("Interval nelze bezpečně vyložit");
+  await expect(row).toContainText("2027-06-02");
+  await expect(row).toContainText("2027-06-01");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test("unverifiable document retrieval date from real D1/API is cautioned on mobile detail", async ({ page, request }) => {
   const path = "/dotace/grant%3Ae2e%3Aunsafe-url";
   const response = await request.get("/api/grants/grant%3Ae2e%3Aunsafe-url");

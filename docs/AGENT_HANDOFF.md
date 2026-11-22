@@ -50,6 +50,7 @@ Buduj **Dotační maják — Najde. Pohlídá. Dotáhne.** jako důvěryhodnou o
 - AI není jediný rozhodovací mechanismus,
 - finance/rules jsou deterministické,
 - immutable versioning,
+- Srovnatelně obrácené zdrojové termíny v detailu ponechat beze změny a upozornit na rozpor (datum proti datu, čas s offsetem proti času s offsetem); neznámé/chybné/nesouměrně přesné hodnoty nejsou potvrzený interval. Syntetický D1/API browser test pro #401 ověřuje dílčí trust slice, nikoli celkovou akceptaci detailu,
 - RAW-first,
 - provenance u kritických tvrzení,
 - disappearance != cancellation,
