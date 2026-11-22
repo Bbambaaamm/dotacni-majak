@@ -1469,7 +1469,7 @@ test("grant detail reports source presence without changing OPEN status", async 
     const heroAction = page.locator(".next-action");
     const stickyAction = page.locator(".sticky-action");
     for (const region of [heroAction, stickyAction]) {
-      if (scenario.id === 24 || scenario.id === 20) {
+      if (scenario.id === 20) {
         await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--primary/);
       } else {
         const verify = region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" });
@@ -1481,6 +1481,8 @@ test("grant detail reports source presence without changing OPEN status", async 
     }
     if (scenario.id === 24) {
       await expect(sourcePanel.getByText("Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.")).toBeVisible();
+      await expect(heroAction).toContainText("Výskyt u zdroje není doložen");
+      await expect(stickyAction).not.toContainText("způsobilost potvrzena");
     }
     if (scenario.id === 23) {
       await expect(sourcePanel.getByRole("link", { name: "E2E oficiální zdroj A ↗" })).toBeVisible();
@@ -2929,8 +2931,13 @@ test("OPEN non-grant detail offers project verification, not a grant promise", a
   await page.goto("/dotace/grant%3Ae2e%3Apage%3A24");
   const projectLink = page.locator(".sticky-action").getByRole("link", { name: "Přidat k projektu" });
   await expect(projectLink).toBeVisible();
+  await expect(projectLink).toHaveClass(/button--secondary/);
   await expect(projectLink).toHaveAttribute("href", /grantCallId=grant%3Ae2e%3Apage%3A24/);
-  await expect(page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
+  for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
+    await expect(region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" }))
+      .toHaveAttribute("href", "https://example.invalid/e2e/page/24");
+    await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+  }
   await expect(page.getByRole("link", { name: "Chci tuto dotaci" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Způsobilost pro váš projekt" })).toContainText("Osobní způsobilost zde není posouzena");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
@@ -3242,8 +3249,12 @@ test("provider homepage fallback never masquerades as evidence for a grant call"
     await page.goto("/dotace/grant%3Ae2e%3Adate%3Aonly");
     await expect(page.getByRole("heading", { level: 1, name: "E2E date only" })).toBeVisible();
     const providerLink = page.getByRole("link", { name: "Web poskytovatele (odkaz na tuto výzvu není doložen) ↗" });
-    await expect(providerLink).toHaveCount(2);
-    await expect(page.locator(".next-action").getByRole("link", { name: "Přidat k projektu" })).toBeVisible();
+    await expect(providerLink).toHaveCount(1);
+    for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
+      await expect(region.getByRole("note")).toContainText("Ověřte aktuální stav přímo u poskytovatele");
+      await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+      await expect(region.getByRole("link", { name: /Web poskytovatele/ })).toHaveCount(0);
+    }
     for (const link of await providerLink.all()) {
       await expect(link).toHaveAttribute("href", detail.provider.officialUrl!);
       await expect(link).toHaveAttribute("target", "_blank");

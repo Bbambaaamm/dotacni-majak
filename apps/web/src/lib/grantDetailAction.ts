@@ -5,7 +5,7 @@ export function grantDetailAction(status: string, requirementsKnown: boolean, re
     case "OPEN":
       if (sourcePresenceCaution) return {
         heading: "Ověřte aktuální dostupnost výzvy u poskytovatele.",
-        explanation: "Zachycený stav OPEN nepotvrzuje dnešní příjem žádostí. Některé nebo všechny zdrojové záznamy chybí; to samo o sobě neznamená zrušení výzvy. Po ověření si ji můžete uložit k projektu. "
+        explanation: "Zachycený stav OPEN nepotvrzuje dnešní příjem žádostí. Výskyt u zdroje není doložen nebo se zdrojové záznamy rozcházejí; to samo o sobě neznamená zrušení výzvy. Po ověření si ji můžete uložit k projektu. "
           + (requirementsKnown
             ? "Známé podmínky lze porovnat s projektem; způsobilost tím není potvrzena."
             : "Úplné podmínky nemáme normalizované; způsobilost neoznačujeme jako splněnou ani nesplněnou."),

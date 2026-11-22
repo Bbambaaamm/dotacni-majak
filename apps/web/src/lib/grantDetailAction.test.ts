@@ -12,7 +12,7 @@ describe("detail next action follows canonical status and source presence", () =
     expect(grantDetailAction("OPEN", false, 0).explanation).toContain("způsobilost neoznačujeme");
   });
 
-  test("OPEN with missing or mixed sources leads with verification and keeps project save secondary", () => {
+  test("OPEN with undocumented, missing or mixed source presence leads with verification and keeps project save secondary", () => {
     const action = grantDetailAction("OPEN", false, 0, true);
     expect(action).toMatchObject({
       heading: "Ověřte aktuální dostupnost výzvy u poskytovatele.",
@@ -21,6 +21,7 @@ describe("detail next action follows canonical status and source presence", () =
       projectLabel: "Přidat k projektu",
     });
     expect(action.explanation).toContain("neznamená zrušení");
+    expect(action.explanation).toContain("Výskyt u zdroje není doložen");
     expect(action.explanation).toContain("způsobilost neoznačujeme jako splněnou ani nesplněnou");
     expect(grantDetailAction("OPEN", false, 0)).toMatchObject({ verificationFirst: false });
   });

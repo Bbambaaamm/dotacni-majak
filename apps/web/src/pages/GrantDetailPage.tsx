@@ -371,7 +371,7 @@ export function GrantDetailPage() {
     : "Ověřit stav u poskytovatele ↗";
   const showSourceCaution = allSourcesMissing(detail.sources);
   const showMixedSourceCaution = mixedSourcePresence(detail.sources);
-  const verificationFirst = detail.status === "OPEN" && (showSourceCaution || showMixedSourceCaution);
+  const verificationFirst = detail.status === "OPEN" && (detail.sources.length === 0 || showSourceCaution || showMixedSourceCaution);
   const verificationUrl = versionSource ?? recordSource;
   const action = grantDetailAction(
     detail.status,
