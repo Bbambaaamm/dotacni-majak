@@ -69,8 +69,8 @@ async function workspaceBody(request: Request): Promise<Record<string, unknown>>
 }
 
 // Module scope is one Worker isolate, not a shared or distributed limit.
-export const MAX_IN_FLIGHT_REQUESTS = 16;
-export const MAX_IN_FLIGHT_READY_REQUESTS = 2;
+const MAX_IN_FLIGHT_REQUESTS = 16;
+const MAX_IN_FLIGHT_READY_REQUESTS = 2;
 let inFlightRequests = 0;
 let inFlightReadyRequests = 0;
 

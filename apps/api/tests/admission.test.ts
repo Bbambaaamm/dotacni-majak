@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { D1PreparedStatementLike, Env } from "../src/env";
-import { handleRequest, MAX_IN_FLIGHT_READY_REQUESTS, MAX_IN_FLIGHT_REQUESTS } from "../src/index";
+import { handleRequest } from "../src/index";
+
+const MAX_IN_FLIGHT_REQUESTS = 16;
+const MAX_IN_FLIGHT_READY_REQUESTS = 2;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
