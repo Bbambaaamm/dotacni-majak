@@ -1466,6 +1466,19 @@ test("grant detail reports source presence without changing OPEN status", async 
     const sourcePanel = page.getByRole("complementary", { name: "Oficiální zdroje" });
     for (const label of scenario.labels) await expect(sourcePanel.getByText(label, { exact: true })).toBeVisible();
     await expect(page.locator(".source-presence-caution")).toHaveCount(scenario.caution ? 1 : 0);
+    const heroAction = page.locator(".next-action");
+    const stickyAction = page.locator(".sticky-action");
+    for (const region of [heroAction, stickyAction]) {
+      if (scenario.id === 24 || scenario.id === 20) {
+        await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--primary/);
+      } else {
+        const verify = region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" });
+        await expect(verify).toHaveClass(/button--primary/);
+        await expect(verify).toHaveAttribute("href", `https://example.invalid/e2e/page/${scenario.id}`);
+        await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+        await expect(region.locator(".button--primary")).toHaveCount(1);
+      }
+    }
     if (scenario.id === 24) {
       await expect(sourcePanel.getByText("Výskyt u zdroje není známý: k výzvě nemáme zdrojový záznam.")).toBeVisible();
     }
@@ -1504,8 +1517,39 @@ test("mixed source caution remains accurate on desktop with real D1/API", async 
   await expect(page.locator(".detail-hero").getByText("Otevřeno v zachycené verzi")).toBeVisible();
   await expect(page.locator(".source-presence-caution")).toContainText("stav „viděn“ i předběžné nebo potvrzené chybění");
   await expect(page.locator(".source-presence-caution")).not.toContainText("V žádném zobrazeném zdrojovém záznamu není stav „viděn“");
+  for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
+    await expect(region.getByRole("link", { name: "Ověřit výzvu v oficiálním zdroji ↗" })).toHaveClass(/button--primary/);
+    await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+  }
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
+});
+
+test("missing source offers offline verification when no call URL is safe", async ({ page, request }) => {
+  const response = await request.get("/api/grants/grant%3Ae2e%3Apage%3A21");
+  expect(response.status()).toBe(200);
+  const detail = await response.json();
+  expect(detail.status).toBe("OPEN");
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const providerUrl of ["https://example.invalid/provider", null]) {
+    await page.route("**/api/grants/**", async (route) => {
+      await route.fulfill({ json: {
+        ...detail,
+        officialDetailUrl: null,
+        sources: detail.sources.map((source: object) => ({ ...source, canonicalUrl: "javascript:alert(1)" })),
+        provider: { ...detail.provider, officialUrl: providerUrl },
+      } });
+    });
+    await page.goto("/dotace/grant%3Ae2e%3Apage%3A21");
+    await expect(page.getByRole("heading", { name: "E2E stránkování 21" })).toBeVisible();
+    for (const region of [page.locator(".next-action"), page.locator(".sticky-action")]) {
+      await expect(region.getByRole("note")).toContainText("Ověřte aktuální stav přímo u poskytovatele");
+      await expect(region.getByRole("link", { name: "Přidat k projektu" })).toHaveClass(/button--secondary/);
+      await expect(region.locator("a[href*='example.invalid/provider'], a[href^='javascript:']")).toHaveCount(0);
+      await expect(region.locator(".button--primary")).toHaveCount(0);
+    }
+    await page.unroute("**/api/grants/**");
+  }
 });
 
 test("malformed source observation is cautioned through real Detail API and mobile browser", async ({ page, request }) => {

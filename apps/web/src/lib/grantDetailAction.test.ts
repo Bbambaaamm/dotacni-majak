@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { grantDetailAction } from "./grantDetailAction";
 
-describe("detail next action follows canonical status, not source presence", () => {
+describe("detail next action follows canonical status and source presence", () => {
   test("open retains applicant comparison but unknown requirements are not eligibility", () => {
     expect(grantDetailAction("OPEN", true, 2)).toMatchObject({
       applicationCandidate: true,
@@ -10,6 +10,24 @@ describe("detail next action follows canonical status, not source presence", () 
       heading: "Porovnejte známé požadavky s vaším projektem.",
     });
     expect(grantDetailAction("OPEN", false, 0).explanation).toContain("způsobilost neoznačujeme");
+  });
+
+  test("OPEN with missing or mixed sources leads with verification and keeps project save secondary", () => {
+    const action = grantDetailAction("OPEN", false, 0, true);
+    expect(action).toMatchObject({
+      heading: "Ověřte aktuální dostupnost výzvy u poskytovatele.",
+      applicationCandidate: true,
+      verificationFirst: true,
+      projectLabel: "Přidat k projektu",
+    });
+    expect(action.explanation).toContain("neznamená zrušení");
+    expect(action.explanation).toContain("způsobilost neoznačujeme jako splněnou ani nesplněnou");
+    expect(grantDetailAction("OPEN", false, 0)).toMatchObject({ verificationFirst: false });
+  });
+
+  test("source disappearance never turns another canonical status into OPEN", () => {
+    expect(grantDetailAction("CANCELLED", false, 0, true).applicationCandidate).toBe(false);
+    expect(grantDetailAction("PLANNED", false, 0, true).projectLabel).toBeNull();
   });
 
   test.each(["PLANNED", "ANNOUNCED", "PAUSED", "CLOSED", "CANCELLED", "ARCHIVED", "UNRECOGNIZED"])(

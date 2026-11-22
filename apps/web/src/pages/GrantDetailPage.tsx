@@ -371,11 +371,15 @@ export function GrantDetailPage() {
     : "Ověřit stav u poskytovatele ↗";
   const showSourceCaution = allSourcesMissing(detail.sources);
   const showMixedSourceCaution = mixedSourcePresence(detail.sources);
+  const verificationFirst = detail.status === "OPEN" && (showSourceCaution || showMixedSourceCaution);
+  const verificationUrl = versionSource ?? recordSource;
   const action = grantDetailAction(
     detail.status,
     detail.availability.requirements !== "UNKNOWN",
     detail.requirements.length,
+    verificationFirst,
   );
+  const offlineVerification = "Ověřte aktuální stav přímo u poskytovatele podle názvu výzvy; přímý odkaz na výzvu zde nemáme doložený.";
 
   return (
     <article className="detail-page">
@@ -429,12 +433,23 @@ export function GrantDetailPage() {
           <h2 id="detail-next">{action.heading}</h2>
           <p>{action.explanation}</p>
         </div>
-        <a className="button button--primary button-link"
-          href={action.applicationCandidate ? projectHref : primarySource ?? "/hledat"}
-          rel={!action.applicationCandidate && primarySource ? "noreferrer" : undefined}
-          target={!action.applicationCandidate && primarySource ? "_blank" : undefined}>
-          {action.applicationCandidate ? action.projectLabel : primarySource ? sourceActionLabel : "Hledat další výzvy"}
-        </a>
+        {verificationFirst ? (
+          <div className="detail-action-options">
+            {verificationUrl ? (
+              <a className="button button--primary button-link" href={verificationUrl} rel="noreferrer" target="_blank">
+                Ověřit výzvu v oficiálním zdroji ↗
+              </a>
+            ) : <p role="note">{offlineVerification}</p>}
+            <a className="button button--secondary button-link" href={projectHref}>{action.projectLabel}</a>
+          </div>
+        ) : (
+          <a className="button button--primary button-link"
+            href={action.applicationCandidate ? projectHref : primarySource ?? "/hledat"}
+            rel={!action.applicationCandidate && primarySource ? "noreferrer" : undefined}
+            target={!action.applicationCandidate && primarySource ? "_blank" : undefined}>
+            {action.applicationCandidate ? action.projectLabel : primarySource ? sourceActionLabel : "Hledat další výzvy"}
+          </a>
+        )}
       </section>
 
       <div className="detail-layout">
@@ -796,7 +811,16 @@ export function GrantDetailPage() {
       />
 
       <div className="sticky-action">
-        {action.applicationCandidate ? (
+        {verificationFirst ? (
+          <>
+            {verificationUrl ? (
+              <a className="button button--primary button-link" href={verificationUrl} rel="noreferrer" target="_blank">
+                Ověřit výzvu v oficiálním zdroji ↗
+              </a>
+            ) : <p role="note">{offlineVerification}</p>}
+            <a className="button button--secondary button-link" href={projectHref}>{action.projectLabel}</a>
+          </>
+        ) : action.applicationCandidate ? (
           <a className="button button--primary button-link" href={projectHref}>
             {action.projectLabel}
           </a>
@@ -806,7 +830,7 @@ export function GrantDetailPage() {
             {primarySource ? sourceActionLabel : "Hledat další výzvy"}
           </a>
         )}
-        {primarySource && action.applicationCandidate ? (
+        {primarySource && action.applicationCandidate && !verificationFirst ? (
           <a className="button button--secondary button-link"
             href={primarySource}
             rel="noreferrer"
