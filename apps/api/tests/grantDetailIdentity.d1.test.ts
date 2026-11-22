@@ -44,6 +44,24 @@ async function fixture() {
 }
 
 describe("grant detail current-version identity on real D1", () => {
+  it("retains submission dates from the version when only a non-application deadline is normalized", async () => {
+    const { db, database, env } = await fixture();
+    await db.prepare("UPDATE grant_call_versions SET submission_open_at='2027-01-01T08:00:00Z', submission_close_at='2027-02-01T17:00:00Z' WHERE id='version-a'").run();
+    await db.prepare("INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at) VALUES ('project-finish','version-a','PROJECT_FINISH','2028-01-01T00:00:00Z')").run();
+    const detail = await getGrantDetail(database, "call-a");
+    expect(detail?.deadlines).toEqual([
+      expect.objectContaining({ id: "project-finish", type: "PROJECT_FINISH" }),
+      expect.objectContaining({ type: "APPLICATION_WINDOW", startsAt: "2027-01-01T08:00:00Z", endsAt: "2027-02-01T17:00:00Z", evidenceId: null }),
+    ]);
+    const response = await handleRequest(new Request("https://example.test/grants/call-a"), env);
+    expect(response.status).toBe(200);
+    expect((await response.json()).deadlines).toEqual(detail?.deadlines);
+
+    await db.prepare("INSERT INTO grant_deadlines(id,grant_call_version_id,deadline_type,ends_at) VALUES ('application-close','version-a','APPLICATION_CLOSE','2027-02-01T17:00:00Z')").run();
+    const normalized = await getGrantDetail(database, "call-a");
+    expect(normalized?.deadlines.map((deadline) => deadline.type)).toEqual(["APPLICATION_CLOSE", "PROJECT_FINISH"]);
+  });
+
   it("serves its own current version, but never attributes another call's version to it", async () => {
     const { db, database, env } = await fixture();
     expect((await getGrantDetail(database, "call-a"))?.title).toBe("A");
