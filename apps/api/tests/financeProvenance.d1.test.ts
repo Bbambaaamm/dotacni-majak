@@ -102,6 +102,26 @@ describe("finance provenance on canonical D1", () => {
     expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNVERIFIED_OFFICIAL_EVIDENCE" });
   });
 
+  it("rejects evidence linked to a section of a different document version", async () => {
+    const db = await setup();
+    await db.prepare("INSERT INTO source_documents(id,grant_call_id,source_id,document_type,source_url,first_seen_at) VALUES ('other-doc','call','source','CALL_DOCUMENT','https://example.test/other','2026')").run();
+    await db.prepare("INSERT INTO document_versions(id,source_document_id,sha256,retrieved_at,mime_type,object_key,extraction_status) VALUES ('other-dv','other-doc','other-hash','2026','text/plain','other-raw','EXTRACTED')").run();
+    for (const [id, version] of [["matching-section", "dv"], ["other-section", "other-dv"]] as const) {
+      await db.prepare("INSERT INTO document_sections(id,document_version_id,text_content) VALUES (?,?,?)")
+        .bind(id, version, "Source excerpt").run();
+    }
+    const baseline = await read(db);
+    for (const evidenceId of ["rule-evidence", "scenario-evidence"]) {
+      await db.prepare("UPDATE field_evidence SET document_section_id='matching-section' WHERE id=?").bind(evidenceId).run();
+      expect(await read(db)).toEqual(baseline);
+      await db.prepare("UPDATE field_evidence SET document_section_id='other-section' WHERE id=?").bind(evidenceId).run();
+      expect(await read(db)).toMatchObject({ status: "NEEDS_INFORMATION", reason: "UNVERIFIED_OFFICIAL_EVIDENCE",
+        scenarioIds: [], conditionEvidenceIds: {} });
+      await db.prepare("UPDATE field_evidence SET document_section_id=NULL WHERE id=?").bind(evidenceId).run();
+      expect(await read(db)).toEqual(baseline);
+    }
+  });
+
   it("fails closed on missing scenario groups, multiple sets and incomplete rules", async () => {
     const db = await setup();
     await db.prepare("UPDATE funding_scenarios SET condition_group_id=NULL WHERE id='s1'").run();
