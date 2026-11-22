@@ -81,12 +81,23 @@ function overloadedResponse(): Response {
   });
 }
 
+function observeOverload(lane: "ordinary" | "ready", occupancy: number, cap: number): void {
+  try {
+    console.warn({ event: "api_admission_overload", lane, occupancy, cap });
+  } catch {
+    // Logging must not change admission responses or slot accounting.
+  }
+}
+
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (request.method === "GET" || request.method === "HEAD") {
     if (pathname === "/health") return routeRequest(request, env);
     if (pathname === "/ready") {
-      if (inFlightReadyRequests >= MAX_IN_FLIGHT_READY_REQUESTS) return overloadedResponse();
+      if (inFlightReadyRequests >= MAX_IN_FLIGHT_READY_REQUESTS) {
+        observeOverload("ready", inFlightReadyRequests, MAX_IN_FLIGHT_READY_REQUESTS);
+        return overloadedResponse();
+      }
       inFlightReadyRequests += 1;
       try {
         return await routeRequest(request, env);
@@ -97,6 +108,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   if (inFlightRequests >= MAX_IN_FLIGHT_REQUESTS) {
+    observeOverload("ordinary", inFlightRequests, MAX_IN_FLIGHT_REQUESTS);
     return overloadedResponse();
   }
 

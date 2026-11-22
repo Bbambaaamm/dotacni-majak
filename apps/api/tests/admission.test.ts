@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { D1PreparedStatementLike, Env } from "../src/env";
 import { handleRequest } from "../src/index";
@@ -26,6 +26,65 @@ function envWithPrepare(prepare: () => D1PreparedStatementLike): Env {
 }
 
 describe("per-isolate API admission", () => {
+  it("logs only bounded lane occupancy on overload, without request data, and tolerates logger failure", async () => {
+    const ordinaryGate = deferred<null>();
+    const readyGate = deferred<{ ok: number }>();
+    const ordinaryEnv = envWithPrepare(() => {
+      const statement = { bind: () => statement, first: () => ordinaryGate.promise } as D1PreparedStatementLike;
+      return statement;
+    });
+    const readyEnv = envWithPrepare(() => ({ first: () => readyGate.promise }) as D1PreparedStatementLike);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ordinary = Array.from({ length: MAX_IN_FLIGHT_REQUESTS }, () =>
+      handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv));
+    const ready = Array.from({ length: MAX_IN_FLIGHT_READY_REQUESTS }, () =>
+      handleRequest(new Request("https://example.test/ready"), readyEnv));
+
+    try {
+      expect(log).not.toHaveBeenCalled();
+      const secret = "private-sentinel-550";
+      const rejectedOrdinary = await handleRequest(new Request(
+        `https://example.test/${secret}?token=${secret}`,
+        { method: "POST", headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret }, body: secret },
+      ), ordinaryEnv);
+      const rejectedReady = await handleRequest(new Request(
+        `https://example.test/ready?token=${secret}`,
+        { headers: { authorization: `Bearer ${secret}`, "x-forwarded-for": secret } },
+      ), readyEnv);
+      expect(rejectedOrdinary.status).toBe(503);
+      expect(rejectedReady.status).toBe(503);
+      expect(log.mock.calls).toEqual([
+        [{ event: "api_admission_overload", lane: "ordinary", occupancy: 16, cap: 16 }],
+        [{ event: "api_admission_overload", lane: "ready", occupancy: 2, cap: 2 }],
+      ]);
+      expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
+
+      log.mockImplementation(() => { throw new Error("logger failure"); });
+      expect((await handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(503);
+      expect((await handleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(503);
+    } finally {
+      ordinaryGate.resolve(null);
+      readyGate.resolve({ ok: 1 });
+      await Promise.all([...ordinary, ...ready]);
+      log.mockRestore();
+    }
+    expect((await handleRequest(new Request("https://example.test/grants/unknown"), ordinaryEnv)).status).toBe(404);
+    expect((await handleRequest(new Request("https://example.test/ready"), readyEnv)).status).toBe(200);
+  });
+
+  it("does not log normal admission or health probes", async () => {
+    const env = envWithPrepare(() => ({ first: async () => ({ ok: 1 }) }) as D1PreparedStatementLike);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect((await handleRequest(new Request("https://example.test/health", { method: "POST" }), env)).status).toBe(405);
+      expect((await handleRequest(new Request("https://example.test/ready"), env)).status).toBe(200);
+      expect((await handleRequest(new Request("https://example.test/health"), env)).status).toBe(200);
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("admits exactly the cap, rejects excess work without DB access, and releases success and failure slots", async () => {
     const gates = Array.from({ length: MAX_IN_FLIGHT_REQUESTS }, () => deferred<null>());
     let prepares = 0;

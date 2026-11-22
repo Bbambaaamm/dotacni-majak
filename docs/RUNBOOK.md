@@ -50,6 +50,16 @@ Kontrola:
 - D1 binding/read
 - poslední deployment/version
 
+Při `503 API_OVERLOADED` hledejte ve sbíraných Worker logách událost
+`api_admission_overload`. `lane=ordinary` znamená zaplnění 16 běžných slotů
+v jednom izolátu; `lane=ready` zaplnění 2 samostatných slotů D1 readiness.
+`occupancy` je obsazení při odmítnutí a `cap` limit stejného izolátu.
+Událost vzniká jen při odmítnutí na limitu, ne při běžném přijetí ani při
+jiných `503` (například selhání D1 readiness). Počet záznamů závisí na
+konfiguraci a dostupnosti sběru Worker logů; bez sběru nemusí být vidět.
+Nejde o agregovaný či distribuovaný čítač napříč izoláty, takže samotné
+záznamy neurčují celkovou zátěž ani počet zasažených klientů.
+
 Rollback Workeru používejte podle `docs/DEPLOYMENT_CLOUDFLARE.md`.
 
 Rollback Workeru **nevrací D1/R2/Vectorize data**. Nikdy tedy neprovádět rollback
