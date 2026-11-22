@@ -443,9 +443,16 @@ export async function searchGrants(
   const projectBudgetCzk = parseProjectBudget(rawProjectBudgetCzk);
   const cursor = decodeCursor(rawCursor, intent, limit, status, deadline, provider, closesBy, closesFrom, sort, instrument, projectBudgetCzk);
 
-  const countRow = await db
-    .prepare("SELECT COUNT(*) AS count FROM grant_search_documents")
-    .first<{ count: number }>();
+  // Stored documents can be superseded, inactive or point at another call's
+  // version. EMPTY describes searchable current calls, not raw storage rows.
+  const countRow = await db.prepare(`SELECT EXISTS (
+    SELECT 1 FROM grant_search_documents d
+    JOIN grant_call_versions v ON v.id = d.grant_call_version_id
+    JOIN grant_calls g ON g.id = v.grant_call_id AND g.current_version_id = v.id
+    JOIN programmes pr ON pr.id = g.programme_id
+    JOIN providers p ON p.id = pr.provider_id
+    WHERE d.status IN ('OPEN', 'PLANNED', 'ANNOUNCED')
+  ) AS count`).first<{ count: number }>();
   const indexState = (countRow?.count ?? 0) > 0 ? "READY" : "EMPTY";
   if (indexState === "EMPTY") {
     return {
